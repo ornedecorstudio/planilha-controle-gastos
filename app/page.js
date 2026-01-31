@@ -56,8 +56,15 @@ export default function Home() {
     const lines = text.trim().split('\n').filter(line => line.trim());
     const parsed = [];
     
-    for (const line of lines) {
-      // Ignorar cabeçalhos
+    // Detectar se é formato Nubank (primeira linha é cabeçalho "date,title,amount")
+    const isNubank = lines[0]?.toLowerCase().includes('date,title,amount') || 
+                     lines[0]?.toLowerCase() === 'date,title,amount';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Ignorar cabeçalhos conhecidos
+      if (line.toLowerCase().includes('date,title,amount')) continue;
       if (line.toLowerCase().includes('data') && line.toLowerCase().includes('estabelecimento')) continue;
       if (line.toLowerCase().includes('data') && line.toLowerCase().includes('valor')) continue;
       
@@ -65,8 +72,26 @@ export default function Home() {
       let descricao = null;
       let valor = null;
       
-      // FORMATO 1: CSV XP com TABs - "01/11/2025	FACEBK *9NR764ZBD2	ERICK B SOUZA	R$ 156,20	-"
-      if (line.includes('\t')) {
+      // FORMATO NUBANK: CSV com vírgula - "2025-12-14,Facebk *F3bzg8rbd2,153.27"
+      // Data em formato ISO (YYYY-MM-DD), valor com ponto decimal
+      if (isNubank || line.match(/^\d{4}-\d{2}-\d{2},/)) {
+        const parts = line.split(',');
+        if (parts.length >= 3) {
+          // Extrair data ISO e converter para DD/MM
+          const dataMatch = parts[0].match(/(\d{4})-(\d{2})-(\d{2})/);
+          if (dataMatch) {
+            const [, ano, mes, dia] = dataMatch;
+            data = `${dia}/${mes}`; // Converte YYYY-MM-DD para DD/MM
+          }
+          
+          descricao = parts[1]?.trim();
+          
+          // Valor já vem com ponto decimal no Nubank
+          valor = parseFloat(parts[2]);
+        }
+      }
+      // FORMATO XP: CSV com TABs - "01/11/2025	FACEBK *9NR764ZBD2	ERICK B SOUZA	R$ 156,20	-"
+      else if (line.includes('\t')) {
         const parts = line.split('\t');
         if (parts.length >= 4) {
           // Extrair data (DD/MM/YYYY ou DD/MM/YY)
@@ -82,8 +107,8 @@ export default function Home() {
           descricao = parts[1]?.trim();
           
           // Extrair valor - pode estar em várias posições
-          for (let i = 2; i < parts.length; i++) {
-            const valorStr = parts[i];
+          for (let j = 2; j < parts.length; j++) {
+            const valorStr = parts[j];
             // Procurar padrão de valor: R$ xxx,xx ou só xxx,xx
             const valorMatch = valorStr.match(/R?\$?\s*([-]?[\d.,]+)/);
             if (valorMatch) {
@@ -94,8 +119,8 @@ export default function Home() {
           }
         }
       }
-      // FORMATO 2: Texto simples - "06/01 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços SAO PAULO"
-      else {
+      // FORMATO TEXTO: "06/01 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços SAO PAULO"
+      else if (line.match(/^\d{2}\/\d{2}/)) {
         const match = line.match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+([\d.,]+)\s*(?:serviços|viagem|compras|outros|pagamento)?/i);
         if (match) {
           data = match[1];
@@ -104,8 +129,8 @@ export default function Home() {
           valor = parseFloat(match[3].replace(/\./g, '').replace(',', '.'));
         }
       }
-      // FORMATO 3: CSV com ; - "01/11;FACEBK *XXX;156,20"
-      if (!data && line.includes(';')) {
+      // FORMATO CSV com ; - "01/11;FACEBK *XXX;156,20"
+      else if (line.includes(';')) {
         const parts = line.split(';');
         if (parts.length >= 3) {
           const dataMatch = parts[0].match(/(\d{2}\/\d{2})/);
@@ -327,15 +352,15 @@ export default function Home() {
         {/* Progress */}
         <div className="bg-white border-b px-6 py-4 flex items-center gap-4">
           {[
-            { num: 1, label: 'Upload', icon: '📄' },
-            { num: 2, label: 'Revisar', icon: '✏️' },
-            { num: 3, label: 'Enviar', icon: '📤' }
+            { num: 1, label: 'Upload', icon: '1' },
+            { num: 2, label: 'Revisar', icon: '2' },
+            { num: 3, label: 'Enviar', icon: '3' }
           ].map((s, i) => (
             <div key={s.num} className="flex items-center gap-2 flex-1">
               <div className={`flex items-center gap-2 ${step >= s.num ? 'text-slate-800' : 'text-gray-400'}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all
                   ${step > s.num ? 'bg-green-500 text-white' : step === s.num ? 'bg-amber-500 text-white' : 'bg-gray-200'}`}>
-                  {step > s.num ? '✓' : s.icon}
+                  {step > s.num ? 'OK' : s.icon}
                 </div>
                 <span className="font-medium hidden sm:inline">{s.label}</span>
               </div>
@@ -348,7 +373,7 @@ export default function Home() {
         <div className="bg-white p-6 rounded-b-xl shadow-lg">
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-              <span>⚠️</span> {error}
+              <span>ERRO:</span> {error}
             </div>
           )}
           
@@ -396,12 +421,16 @@ export default function Home() {
                 <textarea
                   value={rawData}
                   onChange={(e) => setRawData(e.target.value)}
-                  placeholder={`Cole aqui os dados da fatura. Exemplos de formatos aceitos:
+                  placeholder={`Cole aqui os dados da fatura. Formatos aceitos:
 
-06/01 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços SAO PAULO
-06/01 FACEBK *QBQXG9HCD2SAO P 171,80 serviços SAO PAULO
-07/01 Azul Linhas Aereas Bras 309,60 viagem Baureri
-09/01 ALIEXPRESS 1.250,00 compras`}
+📱 NUBANK (CSV):
+date,title,amount
+2025-12-14,Facebk *F3bzg8rbd2,153.27
+2025-12-13,Aliexpress,1412.47
+
+💳 XP/OUTROS:
+06/01 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços
+07/01 Azul Linhas Aereas Bras 309,60 viagem`}
                   className="w-full h-64 p-4 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-amber-500"
                 />
               </div>
@@ -441,7 +470,7 @@ export default function Home() {
                   </p>
                 </div>
                 <button onClick={() => setStep(1)} className="text-sm text-amber-600 hover:underline">
-                  ← Voltar
+                  ← Voltar
                 </button>
               </div>
 
@@ -526,7 +555,7 @@ export default function Home() {
                   </p>
                 </div>
                 <button onClick={() => setStep(2)} className="text-sm text-amber-600 hover:underline">
-                  ← Voltar
+                  ← Voltar
                 </button>
               </div>
 
@@ -631,7 +660,7 @@ export default function Home() {
 
         {/* Footer */}
         <div className="text-center mt-4 text-sm text-gray-500">
-          ORNE Decor Studio © {new Date().getFullYear()} | Ferramenta interna
+          ORNE Decor Studio Â© {new Date().getFullYear()} | Ferramenta interna
         </div>
       </div>
     </div>
