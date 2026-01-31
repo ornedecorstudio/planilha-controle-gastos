@@ -12,9 +12,13 @@ function categorizarDeterministico(descricao) {
   if (desc.includes('FACEBK') || desc.includes('FACEBOOK') || desc.startsWith('FB ') || desc.includes('META ADS')) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
   }
+  // PayPal Facebook (comum no C6/Amex)
+  if (desc.includes('PAYPAL') && (desc.includes('FACEBOOK') || desc.includes('FACEB'))) {
+    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
+  }
   
   // ===== REGRA ABSOLUTA 2: YAMPI = Taxas Checkout =====
-  if (desc.includes('YAMPI') || desc.includes('PG *YAMPI') || desc.includes('CARTPANDA')) {
+  if (desc.includes('YAMPI') || desc.includes('PG *YAMPI') || desc.includes('CARTPANDA') || desc.includes('BRCARTPANDA')) {
     return { categoria: 'Taxas Checkout', incluir: true, confianca: 'alta' };
   }
   
@@ -37,6 +41,16 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
   
+  // ===== REGRA: IOF e taxas bancárias = Outros (INCLUIR como gasto empresarial) =====
+  // IOF é cobrado em compras internacionais de fornecedores, então é gasto da empresa
+  if (desc.includes('IOF') || desc.includes('IMPOSTO OPERACOES FINANCEIRAS')) {
+    return { categoria: 'Outros', incluir: true, confianca: 'alta' };
+  }
+  // Pagamento recebido (crédito na fatura) = EXCLUIR
+  if (desc.includes('PAGAMENTO RECEBIDO') || desc.includes('INCLUSAO DE PAGAMENTO')) {
+    return { categoria: 'Outros', incluir: false, confianca: 'alta' };
+  }
+  
   // ===== REGRA ABSOLUTA 6: Outros gastos empresariais conhecidos =====
   if (desc.includes('GOOGLE ADS') || desc.includes('GOOGLE AD') || desc.includes('ADWORDS')) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
@@ -45,6 +59,20 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
   }
   if (desc.includes('ALIEXPRESS') || desc.includes('ALIPAY') || desc.includes('ALIBABA') || desc.includes('ALI EXPRESS')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+  // Variações com PayPal e DL* (comum no C6)
+  if (desc.includes('PAYPAL') && desc.includes('ALIPAY')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+  if (desc.startsWith('DL*ALIEXPRESS') || desc.includes('DL*ALI')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+  if (desc.includes('PICPAY')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+  // Logística de entregas = Pagamento Fornecedores
+  if (desc.includes('LOGGI') || desc.includes('CORREIOS') || desc.includes('JADLOG') || desc.includes('SEQUOIA')) {
     return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
   }
   if (desc.includes('WISE') || desc.includes('TRANSFERWISE') || desc.includes('REMESSA ONLINE')) {
@@ -82,7 +110,7 @@ function categorizarDeterministico(descricao) {
     // Combustível
     'SHELL', 'IPIRANGA', 'POSTO', 'PETROBRAS', 'GASOLINA', 'COMBUSTIVEL', 'AUTO POSTO',
     // Estacionamento
-    'PARKING', 'ESTACIONAMENTO', 'LAZ PARKING', 'ESTAPAR', 'ZONA AZUL',
+    'PARKING', 'ESTACIONAMENTO', 'LAZ PARKING', 'ESTAPAR', 'ZONA AZUL', 'AGILPARK',
     // Lojas pessoais conhecidas
     'FERREIRA COSTA', 'PNEUMAC', 'LEROY MERLIN', 'TELHA NORTE', 'CASA SHOW', 'MCA',
     // Museus e turismo
@@ -90,7 +118,12 @@ function categorizarDeterministico(descricao) {
     // Transporte pessoal
     'UBER', '99POP', '99APP', 'CABIFY', '99 ', 'TAXI',
     // Entretenimento
-    'NETFLIX', 'SPOTIFY', 'DISNEY', 'HBO', 'AMAZON PRIME', 'DEEZER', 'YOUTUBE PREMIUM'
+    'NETFLIX', 'SPOTIFY', 'DISNEY', 'HBO', 'AMAZON PRIME', 'DEEZER', 'YOUTUBE PREMIUM',
+    'PRODUTOS GLOBO', 'GLOBOPLAY', 'TELECINE',
+    // Jogos e assinaturas pessoais
+    'PLAYSTATION', 'SONY PLAYSTATION', 'SONYPLAYSTAT', 'XBOX', 'STEAM', 'NINTENDO',
+    // Gift cards (geralmente pessoal)
+    'GIFT CARD', 'GIFTCARD'
   ];
   
   for (const termo of gastosExcluir) {
@@ -207,7 +240,7 @@ Responda APENAS com JSON:
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514', // Sonnet é suficiente para poucos casos
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }]
     })
