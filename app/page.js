@@ -21,6 +21,7 @@ const ORIGENS = [
   'Amex 2483', 'XP 9560', 'XP Investimentos', 'Unique MC 4724', 'Unique Visa 6910',
   'Gol Smiles 8172', 'Elite 7197', 'Nubank 1056', 'Latam 1643',
   'C6 5839', 'C6 8231', 'C6 8384 ORNE', 'C6 8194 ORNE', 'Azul Itaú 4626', 'MP 5415',
+  'Renner 0429',
   'Transferência PJ', 'PIX PJ', 'Boleto PJ'
 ];
 
