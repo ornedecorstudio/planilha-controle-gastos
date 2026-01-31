@@ -77,11 +77,11 @@ export default function Home() {
       if (isNubank || line.match(/^\d{4}-\d{2}-\d{2},/)) {
         const parts = line.split(',');
         if (parts.length >= 3) {
-          // Extrair data ISO e converter para DD/MM
+          // Extrair data ISO e converter para DD/MM/YYYY (preservando o ano!)
           const dataMatch = parts[0].match(/(\d{4})-(\d{2})-(\d{2})/);
           if (dataMatch) {
             const [, ano, mes, dia] = dataMatch;
-            data = `${dia}/${mes}`; // Converte YYYY-MM-DD para DD/MM
+            data = `${dia}/${mes}/${ano}`; // Converte YYYY-MM-DD para DD/MM/YYYY
           }
           
           descricao = parts[1]?.trim();
@@ -94,14 +94,18 @@ export default function Home() {
       else if (line.includes('\t')) {
         const parts = line.split('\t');
         if (parts.length >= 4) {
-          // Extrair data (DD/MM/YYYY ou DD/MM/YY)
+          // Extrair data (DD/MM/YYYY ou DD/MM/YY ou DD/MM)
           const dataMatch = parts[0].match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)/);
           if (dataMatch) {
             data = dataMatch[1];
-            // Normalizar para DD/MM se tiver ano
-            if (data.length > 5) {
-              data = data.substring(0, 5);
+            // Converter ano de 2 dígitos para 4 dígitos (25 -> 2025)
+            if (data.length === 8) { // DD/MM/YY
+              const partes = data.split('/');
+              const anoCompleto = parseInt(partes[2]) > 50 ? `19${partes[2]}` : `20${partes[2]}`;
+              data = `${partes[0]}/${partes[1]}/${anoCompleto}`;
             }
+            // Se tiver ano completo (DD/MM/YYYY), mantém como está
+            // Se não tiver ano (DD/MM), mantém como está para usar o ano manual depois
           }
           
           descricao = parts[1]?.trim();
@@ -120,11 +124,18 @@ export default function Home() {
         }
       }
       // FORMATO TEXTO: "06/01 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços SAO PAULO"
+      // ou "06/01/2025 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços SAO PAULO"
       else if (line.match(/^\d{2}\/\d{2}/)) {
         const match = line.match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+([\d.,]+)\s*(?:serviços|viagem|compras|outros|pagamento)?/i);
         if (match) {
           data = match[1];
-          if (data.length > 5) data = data.substring(0, 5);
+          // Converter ano de 2 dígitos para 4 dígitos se necessário
+          if (data.length === 8) { // DD/MM/YY
+            const partes = data.split('/');
+            const anoCompleto = parseInt(partes[2]) > 50 ? `19${partes[2]}` : `20${partes[2]}`;
+            data = `${partes[0]}/${partes[1]}/${anoCompleto}`;
+          }
+          // Se tiver ano completo ou não tiver ano, mantém como está
           descricao = match[2].trim();
           valor = parseFloat(match[3].replace(/\./g, '').replace(',', '.'));
         }
@@ -227,10 +238,12 @@ export default function Home() {
     transactions
       .filter(t => t.incluir)
       .forEach(t => {
-        const key = `${t.data}_${t.categoria}`;
+        // Normalizar data para agrupamento (apenas DD/MM)
+        const dataParaGrupo = t.data.length > 5 ? t.data.substring(0, 5) : t.data;
+        const key = `${dataParaGrupo}_${t.categoria}`;
         if (!grupos[key]) {
           grupos[key] = {
-            data: t.data,
+            data: t.data, // Preserva a data original completa
             categoria: t.categoria,
             valor: 0,
             qtd: 0,
@@ -243,15 +256,24 @@ export default function Home() {
       });
 
     const agregados = Object.values(grupos)
-      .map(g => ({
-        id: Math.random().toString(36).substr(2, 9),
-        data: `${g.data}/${anoAtual}`,
-        categoria: g.categoria,
-        detalhe: g.qtd > 1 ? `${g.categoria} (${g.qtd} transações)` : g.descricoes[0].substring(0, 50),
-        origem: selectedOrigem,
-        valor: g.valor,
-        obs: g.qtd > 1 ? `Agregado: ${g.qtd} lançamentos` : ''
-      }))
+      .map(g => {
+        // Se a data já tem ano (DD/MM/YYYY = 10 chars), usa ela
+        // Caso contrário, adiciona o ano manual
+        let dataFinal = g.data;
+        if (g.data.length === 5) { // Apenas DD/MM, precisa adicionar ano
+          dataFinal = `${g.data}/${anoAtual}`;
+        }
+        
+        return {
+          id: Math.random().toString(36).substr(2, 9),
+          data: dataFinal,
+          categoria: g.categoria,
+          detalhe: g.qtd > 1 ? `${g.categoria} (${g.qtd} transações)` : g.descricoes[0].substring(0, 50),
+          origem: selectedOrigem,
+          valor: g.valor,
+          obs: g.qtd > 1 ? `Agregado: ${g.qtd} lançamentos` : ''
+        };
+      })
       .sort((a, b) => a.data.localeCompare(b.data));
 
     setAggregatedData(agregados);
@@ -402,7 +424,7 @@ export default function Home() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ano da Fatura
+                    Ano (apenas se CSV não tiver)
                   </label>
                   <input
                     type="text"
@@ -411,6 +433,7 @@ export default function Home() {
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-amber-500"
                     placeholder="2026"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Usado apenas quando a data não inclui o ano</p>
                 </div>
               </div>
 
