@@ -16,6 +16,10 @@ function categorizarDeterministico(descricao) {
   if (desc.includes('PAYPAL') && (desc.includes('FACEBOOK') || desc.includes('FACEB'))) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
   }
+  // PayPal FA = Facebook Ads (abreviação comum no cartão Renner)
+  if (desc.includes('PAYPAL') && desc.includes(' FA')) {
+    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
+  }
   
   // ===== REGRA ABSOLUTA 2: YAMPI = Taxas Checkout =====
   if (desc.includes('YAMPI') || desc.includes('PG *YAMPI') || desc.includes('CARTPANDA') || desc.includes('BRCARTPANDA')) {
@@ -49,6 +53,24 @@ function categorizarDeterministico(descricao) {
   // Pagamento recebido (crédito na fatura) = EXCLUIR
   if (desc.includes('PAGAMENTO RECEBIDO') || desc.includes('INCLUSAO DE PAGAMENTO')) {
     return { categoria: 'Outros', incluir: false, confianca: 'alta' };
+  }
+  
+  // ===== REGRA: Tarifas e seguros de cartão = EXCLUIR =====
+  // Fatura Segura (seguro do cartão Renner)
+  if (desc.includes('FATURA SEGURA') || desc.includes('SEGURO FATURA')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+  // Anuidade de cartão
+  if (desc.includes('ANUIDADE')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+  // Avaliação de crédito emergencial
+  if (desc.includes('AVAL EMERG') || desc.includes('AVALIACAO EMERG') || desc.includes('CREDITO EMERG')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+  // Tarifas genéricas de cartão
+  if (desc.includes('TARIFA') || desc.includes('ENCARGO') || desc.includes('MULTA') || desc.includes('JUROS MORA')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
   
   // ===== REGRA ABSOLUTA 6: Outros gastos empresariais conhecidos =====
