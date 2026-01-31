@@ -81,8 +81,10 @@ export async function POST(request) {
 
     // Formatar dados para o formato do Google Sheets
     // Colunas: DATA | CATEGORIA | DETALHE | ORIGEM | VALOR | OBS
+    // IMPORTANTE: Adicionar apóstrofo antes da data para forçar texto literal
+    // Isso evita que o Sheets converta para número serial
     const values = dados.map(d => [
-      d.data || '',
+      "'" + (d.data || ''),  // Apóstrofo força o Sheets a tratar como texto
       d.categoria || '',
       d.detalhe || '',
       d.origem || '',
@@ -94,10 +96,12 @@ export async function POST(request) {
     console.log('📝 Total de linhas a enviar:', values.length);
 
     // Adicionar no final da planilha (append)
+    // USER_ENTERED permite que o Sheets interprete números corretamente
+    // O apóstrofo na data impede conversão para número serial
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: targetSpreadsheetId,
       range: `${targetSheetName}!A:F`,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'USER_ENTERED',  // Mantém USER_ENTERED para números
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
         values: values,
