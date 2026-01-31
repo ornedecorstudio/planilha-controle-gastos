@@ -50,13 +50,38 @@ export default function Home() {
   const [success, setSuccess] = useState('');
   const [selectedOrigem, setSelectedOrigem] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
-  const [anoFatura, setAnoFatura] = useState(''); // Ano para PDFs sem ano na data
+  const [mesAnoVencimento, setMesAnoVencimento] = useState(''); // Formato: MM/YYYY (ex: 01/2026)
 
   // Parser melhorado para diferentes formatos de fatura
-  // anoFallback é usado quando a data não tem ano (ex: PDF Mercado Pago)
-  const parseData = (text, anoFallback = null) => {
+  // mesAnoVenc é o mês/ano de vencimento da fatura (ex: "01/2026")
+  // Usado para calcular o ano correto de cada transação
+  const parseData = (text, mesAnoVenc = null) => {
     const lines = text.trim().split('\n').filter(line => line.trim());
     const parsed = [];
+    
+    // Extrair mês e ano de vencimento para cálculo inteligente
+    let mesVencimento = null;
+    let anoVencimento = null;
+    
+    if (mesAnoVenc && mesAnoVenc.includes('/')) {
+      const [mes, ano] = mesAnoVenc.split('/');
+      mesVencimento = parseInt(mes);
+      anoVencimento = parseInt(ano);
+    }
+    
+    // Função para calcular o ano correto da transação
+    const calcularAnoTransacao = (mesTransacao) => {
+      if (!mesVencimento || !anoVencimento) return null;
+      
+      // Se o mês da transação é maior que o mês de vencimento,
+      // a transação é do ano anterior
+      // Ex: Fatura vence em 01/2026, transação de 12 → 12/2025
+      // Ex: Fatura vence em 01/2026, transação de 01 → 01/2026
+      if (mesTransacao > mesVencimento) {
+        return anoVencimento - 1;
+      }
+      return anoVencimento;
+    };
     
     // Detectar se é formato Nubank (primeira linha é cabeçalho "date,title,amount")
     const isNubank = lines[0]?.toLowerCase().includes('date,title,amount') || 
@@ -178,8 +203,11 @@ export default function Home() {
             const partes = data.split('/');
             const anoCompleto = parseInt(partes[2]) > 50 ? `19${partes[2]}` : `20${partes[2]}`;
             data = `${partes[0]}/${partes[1]}/${anoCompleto}`;
-          } else if (data.length === 5 && anoFallback) { // DD/MM sem ano
-            data = `${data}/${anoFallback}`;
+          } else if (data.length === 5 && mesVencimento && anoVencimento) { // DD/MM sem ano
+            // Calcular ano inteligentemente baseado no mês de vencimento
+            const mesTransacao = parseInt(data.substring(3, 5));
+            const anoCalculado = calcularAnoTransacao(mesTransacao);
+            data = `${data}/${anoCalculado}`;
           }
         }
       }
@@ -190,9 +218,11 @@ export default function Home() {
           const dataMatch = parts[0].match(/(\d{2}\/\d{2})/);
           if (dataMatch) {
             data = dataMatch[1];
-            // Adicionar ano se não tiver e tiver fallback
-            if (data.length === 5 && anoFallback) {
-              data = `${data}/${anoFallback}`;
+            // Adicionar ano calculado inteligentemente
+            if (data.length === 5 && mesVencimento && anoVencimento) {
+              const mesTransacao = parseInt(data.substring(3, 5));
+              const anoCalculado = calcularAnoTransacao(mesTransacao);
+              data = `${data}/${anoCalculado}`;
             }
             descricao = parts[1]?.trim();
             valor = parseFloat(parts[2].replace(/[^\d,.-]/g, '').replace(',', '.'));
@@ -266,14 +296,21 @@ export default function Home() {
       }
     }
 
-    // Validar ano para PDFs do Mercado Pago
-    if (pdfFile && !anoFatura) {
-      setError('Para PDFs, informe o ano da fatura');
+    // Validar mês/ano de vencimento para PDFs
+    if (pdfFile && !mesAnoVencimento) {
+      setError('Para PDFs, informe o mês/ano de vencimento (ex: 01/2026)');
+      setLoading(false);
+      return;
+    }
+    
+    // Validar formato MM/YYYY
+    if (pdfFile && mesAnoVencimento && !/^\d{2}\/\d{4}$/.test(mesAnoVencimento)) {
+      setError('Formato inválido. Use MM/YYYY (ex: 01/2026)');
       setLoading(false);
       return;
     }
 
-    const parsed = parseData(textToProcess, anoFatura || null);
+    const parsed = parseData(textToProcess, mesAnoVencimento || null);
     
     if (parsed.length === 0) {
       setError('Não foi possível extrair transações. Verifique o formato dos dados.');
@@ -516,16 +553,16 @@ export default function Home() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ano da Fatura (para PDFs)
+                    Vencimento da Fatura (para PDFs)
                   </label>
                   <input
                     type="text"
-                    value={anoFatura}
-                    onChange={(e) => setAnoFatura(e.target.value)}
-                    placeholder="Ex: 2025 ou 2026"
+                    value={mesAnoVencimento}
+                    onChange={(e) => setMesAnoVencimento(e.target.value)}
+                    placeholder="Ex: 01/2026"
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-amber-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Obrigatório para PDFs sem ano nas datas</p>
+                  <p className="text-xs text-gray-500 mt-1">Formato: MM/YYYY (mês de vencimento)</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -590,14 +627,14 @@ Data de Compra	Nome no Cartão	Final	Categoria	Descrição	Parcela	US$	Cotação
                   <h4 className="font-medium text-blue-800 mb-2">📄 PDF Selecionado: {pdfFile.name}</h4>
                   <p className="text-sm text-blue-600">
                     O PDF será processado automaticamente para extrair as transações.
-                    Certifique-se de informar o ano da fatura acima.
+                    Certifique-se de informar o mês/ano de vencimento acima.
                   </p>
                 </div>
               )}
 
               <button
                 onClick={handleProcessar}
-                disabled={loading || !selectedOrigem || (!rawData.trim() && !pdfFile) || (pdfFile && !anoFatura)}
+                disabled={loading || !selectedOrigem || (!rawData.trim() && !pdfFile) || (pdfFile && !mesAnoVencimento)}
                 className="flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
               >
                 {loading ? (
