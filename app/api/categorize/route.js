@@ -75,14 +75,6 @@ function categorizarDeterministico(descricao) {
   if (desc.includes('LOGGI') || desc.includes('CORREIOS') || desc.includes('JADLOG') || desc.includes('SEQUOIA')) {
     return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
   }
-  // Shopee/Swopee (OCR às vezes lê errado) = Pagamento Fornecedores
-  if (desc.includes('SHOPEE') || desc.includes('SWOPEE')) {
-    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
-  }
-  // Mercado Livre = Pagamento Fornecedores
-  if (desc.includes('MERCADOLIVRE') || desc.includes('MERCADO LIVRE') || desc.includes('MELI')) {
-    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
-  }
   if (desc.includes('WISE') || desc.includes('TRANSFERWISE') || desc.includes('REMESSA ONLINE')) {
     return { categoria: 'Compra de Câmbio', incluir: true, confianca: 'alta' };
   }
@@ -96,10 +88,6 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Telefonia', incluir: true, confianca: 'alta' };
   }
   if (desc.includes('TRELLO') || desc.includes('ATLASSIAN') || desc.includes('NOTION') || desc.includes('ASANA') || desc.includes('MONDAY')) {
-    return { categoria: 'Gestão', incluir: true, confianca: 'alta' };
-  }
-  // Serasa = Gestão (análise de crédito de clientes)
-  if (desc.includes('SERASA') || desc.includes('EXPERIAN')) {
     return { categoria: 'Gestão', incluir: true, confianca: 'alta' };
   }
   if (desc.includes('SHOPIFY') || desc.includes('NUVEMSHOP')) {
@@ -139,7 +127,11 @@ function categorizarDeterministico(descricao) {
     // Gift cards (geralmente pessoal)
     'GIFT CARD', 'GIFTCARD',
     // Lojas de eletrodomésticos
-    'DAFONTE', 'CASAS BAHIA', 'MAGAZINE LUIZA', 'MAGALU', 'AMERICANAS', 'PONTO FRIO'
+    'DAFONTE', 'CASAS BAHIA', 'MAGAZINE LUIZA', 'MAGALU', 'AMERICANAS', 'PONTO FRIO',
+    // Marketplaces pessoais
+    'SHOPEE', 'SWOPEE', 'MERCADOLIVRE', 'MERCADO LIVRE', 'MELI',
+    // Serviços pessoais
+    'SERASA', 'EXPERIAN'
   ];
   
   for (const termo of gastosExcluir) {
