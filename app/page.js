@@ -20,7 +20,7 @@ const CATEGORIAS = [
 const ORIGENS = [
   'Amex 2483', 'XP 9560', 'XP Investimentos', 'Unique MC 4724', 'Unique Visa 6910',
   'Gol Smiles 8172', 'Elite 7197', 'Nubank 1056', 'Latam 1643',
-  'C6 5839', 'C6 8231', 'C6 8384 ORNE', 'C6 8194 PF', 'Azul Itaú 4626', 'MP 5415',
+  'C6 5839', 'C6 8231', 'C6 8384 ORNE', 'C6 8194 ORNE', 'Azul Itaú 4626', 'MP 5415',
   'Transferência PJ', 'PIX PJ', 'Boleto PJ'
 ];
 
@@ -49,9 +49,12 @@ export default function Home() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedOrigem, setSelectedOrigem] = useState('');
+  const [pdfFile, setPdfFile] = useState(null);
+  const [anoFatura, setAnoFatura] = useState(''); // Ano para PDFs sem ano na data
 
   // Parser melhorado para diferentes formatos de fatura
-  const parseData = (text) => {
+  // anoFallback é usado quando a data não tem ano (ex: PDF Mercado Pago)
+  const parseData = (text, anoFallback = null) => {
     const lines = text.trim().split('\n').filter(line => line.trim());
     const parsed = [];
     
@@ -147,21 +150,37 @@ export default function Home() {
           }
         }
       }
-      // FORMATO TEXTO: "06/01 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços SAO PAULO"
-      // ou "06/01/2025 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços SAO PAULO"
+      // FORMATO TEXTO/MERCADO PAGO PDF: "17/12 PAYPAL *FACEBOOKSER R$ 2.537,17"
+      // ou "06/01/2025 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços"
       else if (line.match(/^\d{2}\/\d{2}/)) {
-        const match = line.match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+([\d.,]+)\s*(?:serviços|viagem|compras|outros|pagamento)?/i);
-        if (match) {
-          data = match[1];
-          // Converter ano de 2 dígitos para 4 dígitos se necessário
+        // Tentar extrair: Data + Descrição + Valor (R$ no final)
+        // Formato Mercado Pago: "17/12 PAYPAL *FACEBOOKSER R$ 2.537,17"
+        const matchMP = line.match(/^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+(?:R\$|\$4)\s*([\d.,]+)$/i);
+        if (matchMP) {
+          data = matchMP[1];
+          descricao = matchMP[2].trim();
+          // Limpar valor: remover pontos de milhar, trocar vírgula por ponto
+          let valorStr = matchMP[3].replace(/\./g, '').replace(',', '.').replace('J', '.');
+          valor = parseFloat(valorStr);
+        } else {
+          // Tentar formato genérico: "06/01 FACEBK 171,14 serviços"
+          const match = line.match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+([\d.,]+)\s*(?:serviços|viagem|compras|outros|pagamento)?/i);
+          if (match) {
+            data = match[1];
+            descricao = match[2].trim();
+            valor = parseFloat(match[3].replace(/\./g, '').replace(',', '.'));
+          }
+        }
+        
+        // Processar ano na data
+        if (data) {
           if (data.length === 8) { // DD/MM/YY
             const partes = data.split('/');
             const anoCompleto = parseInt(partes[2]) > 50 ? `19${partes[2]}` : `20${partes[2]}`;
             data = `${partes[0]}/${partes[1]}/${anoCompleto}`;
+          } else if (data.length === 5 && anoFallback) { // DD/MM sem ano
+            data = `${data}/${anoFallback}`;
           }
-          // Se tiver ano completo ou não tiver ano, mantém como está
-          descricao = match[2].trim();
-          valor = parseFloat(match[3].replace(/\./g, '').replace(',', '.'));
         }
       }
       // FORMATO CSV com ; - "01/11;FACEBK *XXX;156,20"
@@ -171,6 +190,10 @@ export default function Home() {
           const dataMatch = parts[0].match(/(\d{2}\/\d{2})/);
           if (dataMatch) {
             data = dataMatch[1];
+            // Adicionar ano se não tiver e tiver fallback
+            if (data.length === 5 && anoFallback) {
+              data = `${data}/${anoFallback}`;
+            }
             descricao = parts[1]?.trim();
             valor = parseFloat(parts[2].replace(/[^\d,.-]/g, '').replace(',', '.'));
           }
@@ -198,8 +221,9 @@ export default function Home() {
   };
 
   const handleProcessar = async () => {
-    if (!rawData.trim()) {
-      setError('Cole os dados da fatura primeiro');
+    // Verificar se tem dados (texto ou PDF)
+    if (!rawData.trim() && !pdfFile) {
+      setError('Cole os dados da fatura ou faça upload de um PDF');
       return;
     }
     if (!selectedOrigem) {
@@ -210,7 +234,46 @@ export default function Home() {
     setError('');
     setLoading(true);
 
-    const parsed = parseData(rawData);
+    let textToProcess = rawData;
+
+    // Se tiver PDF, extrair texto primeiro
+    if (pdfFile) {
+      try {
+        const formData = new FormData();
+        formData.append('pdf', pdfFile);
+        
+        const pdfResponse = await fetch('/api/parse-pdf', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!pdfResponse.ok) {
+          throw new Error('Erro ao processar PDF');
+        }
+        
+        const pdfResult = await pdfResponse.json();
+        
+        if (pdfResult.error) {
+          throw new Error(pdfResult.error);
+        }
+        
+        textToProcess = pdfResult.text || '';
+        console.log('Texto extraído do PDF:', textToProcess.substring(0, 500));
+      } catch (pdfError) {
+        setError(`Erro ao processar PDF: ${pdfError.message}`);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Validar ano para PDFs do Mercado Pago
+    if (pdfFile && !anoFatura) {
+      setError('Para PDFs, informe o ano da fatura');
+      setLoading(false);
+      return;
+    }
+
+    const parsed = parseData(textToProcess, anoFatura || null);
     
     if (parsed.length === 0) {
       setError('Não foi possível extrair transações. Verifique o formato dos dados.');
@@ -437,7 +500,7 @@ export default function Home() {
           {/* Step 1: Upload */}
           {step === 1 && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cartão de Origem *
@@ -451,16 +514,59 @@ export default function Home() {
                     {ORIGENS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ano da Fatura (para PDFs)
+                  </label>
+                  <input
+                    type="text"
+                    value={anoFatura}
+                    onChange={(e) => setAnoFatura(e.target.value)}
+                    placeholder="Ex: 2025 ou 2026"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-amber-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Obrigatório para PDFs sem ano nas datas</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Upload PDF (Mercado Pago)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setPdfFile(file);
+                        setRawData(''); // Limpar texto se upload PDF
+                      }
+                    }}
+                    className="w-full p-2 border rounded-lg text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200"
+                  />
+                  {pdfFile && (
+                    <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
+                      <span>📄</span>
+                      <span>{pdfFile.name}</span>
+                      <button 
+                        onClick={() => setPdfFile(null)} 
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cole os dados da fatura (copiados do extrato ou CSV)
-                </label>
-                <textarea
-                  value={rawData}
-                  onChange={(e) => setRawData(e.target.value)}
-                  placeholder={`Cole aqui os dados da fatura. Formatos aceitos:
+              {!pdfFile && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cole os dados da fatura (copiados do extrato ou CSV)
+                  </label>
+                  <textarea
+                    value={rawData}
+                    onChange={(e) => setRawData(e.target.value)}
+                    placeholder={`Cole aqui os dados da fatura. Formatos aceitos:
 
 📱 NUBANK (CSV):
 date,title,amount
@@ -471,20 +577,33 @@ Data de Compra	Nome no Cartão	Final	Categoria	Descrição	Parcela	US$	Cotação
 05/01/2026	ORNE D S LTDA	8384	Departamento	ALIEXPRESS	Única	28.17	5.72	161.19
 
 💳 XP/OUTROS:
-06/01/2025	FACEBK *MQ5BKB9CD2	ERICK	R$ 171,14	-`}
-                  className="w-full h-64 p-4 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
+06/01/2025	FACEBK *MQ5BKB9CD2	ERICK	R$ 171,14	-
+
+📄 MERCADO PAGO: Faça upload do PDF da fatura`}
+                    className="w-full h-64 p-4 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              )}
+
+              {pdfFile && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-800 mb-2">📄 PDF Selecionado: {pdfFile.name}</h4>
+                  <p className="text-sm text-blue-600">
+                    O PDF será processado automaticamente para extrair as transações.
+                    Certifique-se de informar o ano da fatura acima.
+                  </p>
+                </div>
+              )}
 
               <button
                 onClick={handleProcessar}
-                disabled={loading || !selectedOrigem || !rawData.trim()}
+                disabled={loading || !selectedOrigem || (!rawData.trim() && !pdfFile) || (pdfFile && !anoFatura)}
                 className="flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
               >
                 {loading ? (
                   <>
                     <span className="animate-spin">⏳</span>
-                    Processando com IA...
+                    {pdfFile ? 'Extraindo PDF e Categorizando...' : 'Processando com IA...'}
                   </>
                 ) : (
                   <>
@@ -681,6 +800,8 @@ Data de Compra	Nome no Cartão	Final	Categoria	Descrição	Parcela	US$	Cotação
                     setRawData('');
                     setTransactions([]);
                     setAggregatedData([]);
+                    setPdfFile(null);
+                    setAnoFatura('');
                   }}
                   className="flex items-center gap-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
                 >
