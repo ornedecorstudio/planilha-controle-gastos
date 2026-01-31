@@ -49,7 +49,6 @@ export default function Home() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedOrigem, setSelectedOrigem] = useState('');
-  const [anoAtual, setAnoAtual] = useState(new Date().getFullYear().toString());
 
   // Parser melhorado para diferentes formatos de fatura
   const parseData = (text) => {
@@ -235,15 +234,22 @@ export default function Home() {
   const handleAgregar = () => {
     const grupos = {};
     
+    // Verificar se há transações sem ano completo
+    const transacoesSemAno = transactions.filter(t => t.incluir && t.data.length === 5);
+    if (transacoesSemAno.length > 0) {
+      setError(`${transacoesSemAno.length} transação(ões) sem ano completo. Verifique o formato do CSV.`);
+      return;
+    }
+    
     transactions
       .filter(t => t.incluir)
       .forEach(t => {
         // Normalizar data para agrupamento (apenas DD/MM)
-        const dataParaGrupo = t.data.length > 5 ? t.data.substring(0, 5) : t.data;
+        const dataParaGrupo = t.data.substring(0, 5);
         const key = `${dataParaGrupo}_${t.categoria}`;
         if (!grupos[key]) {
           grupos[key] = {
-            data: t.data, // Preserva a data original completa
+            data: t.data, // Preserva a data original completa com ano
             categoria: t.categoria,
             valor: 0,
             qtd: 0,
@@ -256,25 +262,23 @@ export default function Home() {
       });
 
     const agregados = Object.values(grupos)
-      .map(g => {
-        // Se a data já tem ano (DD/MM/YYYY = 10 chars), usa ela
-        // Caso contrário, adiciona o ano manual
-        let dataFinal = g.data;
-        if (g.data.length === 5) { // Apenas DD/MM, precisa adicionar ano
-          dataFinal = `${g.data}/${anoAtual}`;
-        }
-        
-        return {
-          id: Math.random().toString(36).substr(2, 9),
-          data: dataFinal,
-          categoria: g.categoria,
-          detalhe: g.qtd > 1 ? `${g.categoria} (${g.qtd} transações)` : g.descricoes[0].substring(0, 50),
-          origem: selectedOrigem,
-          valor: g.valor,
-          obs: g.qtd > 1 ? `Agregado: ${g.qtd} lançamentos` : ''
-        };
-      })
-      .sort((a, b) => a.data.localeCompare(b.data));
+      .map(g => ({
+        id: Math.random().toString(36).substr(2, 9),
+        data: g.data, // Usa a data completa do CSV (DD/MM/YYYY)
+        categoria: g.categoria,
+        detalhe: g.qtd > 1 ? `${g.categoria} (${g.qtd} transações)` : g.descricoes[0].substring(0, 50),
+        origem: selectedOrigem,
+        valor: g.valor,
+        obs: g.qtd > 1 ? `Agregado: ${g.qtd} lançamentos` : ''
+      }))
+      .sort((a, b) => {
+        // Ordenar por data corretamente (converter DD/MM/YYYY para comparação)
+        const [diaA, mesA, anoA] = a.data.split('/');
+        const [diaB, mesB, anoB] = b.data.split('/');
+        const dateA = new Date(anoA, mesA - 1, diaA);
+        const dateB = new Date(anoB, mesB - 1, diaB);
+        return dateA - dateB;
+      });
 
     setAggregatedData(agregados);
     setStep(3);
@@ -421,19 +425,6 @@ export default function Home() {
                     <option value="">Selecione o cartão...</option>
                     {ORIGENS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ano (apenas se CSV não tiver)
-                  </label>
-                  <input
-                    type="text"
-                    value={anoAtual}
-                    onChange={(e) => setAnoAtual(e.target.value)}
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-amber-500"
-                    placeholder="2026"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Usado apenas quando a data não inclui o ano</p>
                 </div>
               </div>
 
