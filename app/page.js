@@ -20,7 +20,7 @@ const CATEGORIAS = [
 const ORIGENS = [
   'Amex 2483', 'XP 9560', 'XP Investimentos', 'Unique MC 4724', 'Unique Visa 6910',
   'Gol Smiles 8172', 'Elite 7197', 'Nubank 1056', 'Latam 1643',
-  'C6 5839', 'C6 8231', 'Azul Itaú 4626', 'MP 5415',
+  'C6 5839', 'C6 8231', 'C6 8384 ORNE', 'C6 8194 PF', 'Azul Itaú 4626', 'MP 5415',
   'Transferência PJ', 'PIX PJ', 'Boleto PJ'
 ];
 
@@ -59,11 +59,16 @@ export default function Home() {
     const isNubank = lines[0]?.toLowerCase().includes('date,title,amount') || 
                      lines[0]?.toLowerCase() === 'date,title,amount';
     
+    // Detectar se é formato C6 Bank (cabeçalho com "Data de Compra" e "Valor (em R$)")
+    const isC6 = lines[0]?.toLowerCase().includes('data de compra') && 
+                 lines[0]?.toLowerCase().includes('valor (em r$)');
+    
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
       // Ignorar cabeçalhos conhecidos
       if (line.toLowerCase().includes('date,title,amount')) continue;
+      if (line.toLowerCase().includes('data de compra') && line.toLowerCase().includes('valor')) continue;
       if (line.toLowerCase().includes('data') && line.toLowerCase().includes('estabelecimento')) continue;
       if (line.toLowerCase().includes('data') && line.toLowerCase().includes('valor')) continue;
       
@@ -71,9 +76,29 @@ export default function Home() {
       let descricao = null;
       let valor = null;
       
+      // FORMATO C6 BANK: TABs com estrutura específica
+      // "29/03/2025	ORNE D S LTDA	8384	TV por assinatura	ALIEXPRESS	Única	0	0	161.19"
+      // Colunas: Data | Nome | Final | Categoria | Descrição | Parcela | US$ | Cotação | R$
+      if (isC6 && line.includes('\t')) {
+        const parts = line.split('\t');
+        if (parts.length >= 9) {
+          // Data na coluna 0 (DD/MM/YYYY)
+          const dataMatch = parts[0].match(/(\d{2})\/(\d{2})\/(\d{4})/);
+          if (dataMatch) {
+            data = parts[0]; // Já está no formato DD/MM/YYYY
+          }
+          
+          // Descrição na coluna 4
+          descricao = parts[4]?.trim();
+          
+          // Valor em R$ na coluna 8 (última)
+          const valorStr = parts[8]?.replace(',', '.').replace(/[^\d.-]/g, '');
+          valor = parseFloat(valorStr);
+        }
+      }
       // FORMATO NUBANK: CSV com vírgula - "2025-12-14,Facebk *F3bzg8rbd2,153.27"
       // Data em formato ISO (YYYY-MM-DD), valor com ponto decimal
-      if (isNubank || line.match(/^\d{4}-\d{2}-\d{2},/)) {
+      else if (isNubank || line.match(/^\d{4}-\d{2}-\d{2},/)) {
         const parts = line.split(',');
         if (parts.length >= 3) {
           // Extrair data ISO e converter para DD/MM/YYYY (preservando o ano!)
@@ -440,11 +465,13 @@ export default function Home() {
 📱 NUBANK (CSV):
 date,title,amount
 2025-12-14,Facebk *F3bzg8rbd2,153.27
-2025-12-13,Aliexpress,1412.47
+
+💳 C6 BANK (CSV com TABs):
+Data de Compra	Nome no Cartão	Final	Categoria	Descrição	Parcela	US$	Cotação	R$
+05/01/2026	ORNE D S LTDA	8384	Departamento	ALIEXPRESS	Única	28.17	5.72	161.19
 
 💳 XP/OUTROS:
-06/01 FACEBK *MQ5BKB9CD2SAO P 171,14 serviços
-07/01 Azul Linhas Aereas Bras 309,60 viagem`}
+06/01/2025	FACEBK *MQ5BKB9CD2	ERICK	R$ 171,14	-`}
                   className="w-full h-64 p-4 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-amber-500"
                 />
               </div>
