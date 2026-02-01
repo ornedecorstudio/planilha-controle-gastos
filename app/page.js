@@ -6,12 +6,12 @@ const CATEGORIAS = [
   'Marketing Digital',
   'Pagamento Fornecedores', 
   'Taxas Checkout',
-  'Compra de CÃ¢mbio',
-  'IA e AutomaÃ§Ã£o',
+  'Compra de Câmbio',
+  'IA e Automação',
   'Design/Ferramentas',
   'Telefonia',
   'ERP',
-  'GestÃ£o',
+  'Gestão',
   'Viagem Trabalho',
   'Pessoal',
   'Outros'
@@ -20,21 +20,21 @@ const CATEGORIAS = [
 const ORIGENS = [
   'Amex 2483', 'XP 9560', 'XP Investimentos', 'Unique MC 4724', 'Unique Visa 6910',
   'Gol Smiles 8172', 'Elite 7197', 'Nubank 1056', 'Latam 1643',
-  'C6 5839', 'C6 8231', 'C6 8384 ORNE', 'C6 8194 ORNE', 'Azul ItaÃº 4626', 'MP 5415',
-  'Renner 0429',
-  'TransferÃªncia PJ', 'PIX PJ', 'Boleto PJ'
+  'C6 5839', 'C6 8231', 'C6 8384 ORNE', 'C6 8194 ORNE', 'Azul Itaú 4626', 'MP 5415',
+  'Renner 0429', 'PicPay 0074',
+  'Transferência PJ', 'PIX PJ', 'Boleto PJ'
 ];
 
 const CATEGORY_COLORS = {
   'Marketing Digital': 'bg-blue-100 text-blue-800 border-blue-300',
   'Pagamento Fornecedores': 'bg-purple-100 text-purple-800 border-purple-300',
   'Taxas Checkout': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  'Compra de CÃ¢mbio': 'bg-green-100 text-green-800 border-green-300',
-  'IA e AutomaÃ§Ã£o': 'bg-indigo-100 text-indigo-800 border-indigo-300',
+  'Compra de Câmbio': 'bg-green-100 text-green-800 border-green-300',
+  'IA e Automação': 'bg-indigo-100 text-indigo-800 border-indigo-300',
   'Design/Ferramentas': 'bg-violet-100 text-violet-800 border-violet-300',
   'Telefonia': 'bg-pink-100 text-pink-800 border-pink-300',
   'ERP': 'bg-orange-100 text-orange-800 border-orange-300',
-  'GestÃ£o': 'bg-teal-100 text-teal-800 border-teal-300',
+  'Gestão': 'bg-teal-100 text-teal-800 border-teal-300',
   'Viagem Trabalho': 'bg-cyan-100 text-cyan-800 border-cyan-300',
   'Pessoal': 'bg-red-100 text-red-800 border-red-300',
   'Outros': 'bg-gray-100 text-gray-800 border-gray-300'
@@ -51,16 +51,12 @@ export default function Home() {
   const [success, setSuccess] = useState('');
   const [selectedOrigem, setSelectedOrigem] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
-  const [mesAnoVencimento, setMesAnoVencimento] = useState(''); // Formato: MM/YYYY (ex: 01/2026)
+  const [mesAnoVencimento, setMesAnoVencimento] = useState('');
 
-  // Parser melhorado para diferentes formatos de fatura
-  // mesAnoVenc Ã© o mÃªs/ano de vencimento da fatura (ex: "01/2026")
-  // Usado para calcular o ano correto de cada transaÃ§Ã£o
   const parseData = (text, mesAnoVenc = null) => {
     const lines = text.trim().split('\n').filter(line => line.trim());
     const parsed = [];
     
-    // Extrair mÃªs e ano de vencimento para cÃ¡lculo inteligente
     let mesVencimento = null;
     let anoVencimento = null;
     
@@ -70,32 +66,23 @@ export default function Home() {
       anoVencimento = parseInt(ano);
     }
     
-    // FunÃ§Ã£o para calcular o ano correto da transaÃ§Ã£o
     const calcularAnoTransacao = (mesTransacao) => {
       if (!mesVencimento || !anoVencimento) return null;
-      
-      // Se o mÃªs da transaÃ§Ã£o Ã© maior que o mÃªs de vencimento,
-      // a transaÃ§Ã£o Ã© do ano anterior
-      // Ex: Fatura vence em 01/2026, transaÃ§Ã£o de 12 â†’ 12/2025
-      // Ex: Fatura vence em 01/2026, transaÃ§Ã£o de 01 â†’ 01/2026
       if (mesTransacao > mesVencimento) {
         return anoVencimento - 1;
       }
       return anoVencimento;
     };
     
-    // Detectar se Ã© formato Nubank (primeira linha Ã© cabeÃ§alho "date,title,amount")
     const isNubank = lines[0]?.toLowerCase().includes('date,title,amount') || 
                      lines[0]?.toLowerCase() === 'date,title,amount';
     
-    // Detectar se Ã© formato C6 Bank (cabeÃ§alho com "Data de Compra" e "Valor (em R$)")
     const isC6 = lines[0]?.toLowerCase().includes('data de compra') && 
                  lines[0]?.toLowerCase().includes('valor (em r$)');
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
-      // Ignorar cabeÃ§alhos conhecidos
       if (line.toLowerCase().includes('date,title,amount')) continue;
       if (line.toLowerCase().includes('data de compra') && line.toLowerCase().includes('valor')) continue;
       if (line.toLowerCase().includes('data') && line.toLowerCase().includes('estabelecimento')) continue;
@@ -105,68 +92,45 @@ export default function Home() {
       let descricao = null;
       let valor = null;
       
-      // FORMATO C6 BANK: TABs com estrutura especÃ­fica
-      // "29/03/2025	ORNE D S LTDA	8384	TV por assinatura	ALIEXPRESS	Ãšnica	0	0	161.19"
-      // Colunas: Data | Nome | Final | Categoria | DescriÃ§Ã£o | Parcela | US$ | CotaÃ§Ã£o | R$
       if (isC6 && line.includes('\t')) {
         const parts = line.split('\t');
         if (parts.length >= 9) {
-          // Data na coluna 0 (DD/MM/YYYY)
           const dataMatch = parts[0].match(/(\d{2})\/(\d{2})\/(\d{4})/);
           if (dataMatch) {
-            data = parts[0]; // JÃ¡ estÃ¡ no formato DD/MM/YYYY
+            data = parts[0];
           }
-          
-          // DescriÃ§Ã£o na coluna 4
           descricao = parts[4]?.trim();
-          
-          // Valor em R$ na coluna 8 (Ãºltima)
           const valorStr = parts[8]?.replace(',', '.').replace(/[^\d.-]/g, '');
           valor = parseFloat(valorStr);
         }
       }
-      // FORMATO NUBANK: CSV com vÃ­rgula - "2025-12-14,Facebk *F3bzg8rbd2,153.27"
-      // Data em formato ISO (YYYY-MM-DD), valor com ponto decimal
       else if (isNubank || line.match(/^\d{4}-\d{2}-\d{2},/)) {
         const parts = line.split(',');
         if (parts.length >= 3) {
-          // Extrair data ISO e converter para DD/MM/YYYY (preservando o ano!)
           const dataMatch = parts[0].match(/(\d{4})-(\d{2})-(\d{2})/);
           if (dataMatch) {
             const [, ano, mes, dia] = dataMatch;
-            data = `${dia}/${mes}/${ano}`; // Converte YYYY-MM-DD para DD/MM/YYYY
+            data = `${dia}/${mes}/${ano}`;
           }
-          
           descricao = parts[1]?.trim();
-          
-          // Valor jÃ¡ vem com ponto decimal no Nubank
           valor = parseFloat(parts[2]);
         }
       }
-      // FORMATO XP: CSV com TABs - "01/11/2025	FACEBK *9NR764ZBD2	ERICK B SOUZA	R$ 156,20	-"
       else if (line.includes('\t')) {
         const parts = line.split('\t');
         if (parts.length >= 4) {
-          // Extrair data (DD/MM/YYYY ou DD/MM/YY ou DD/MM)
           const dataMatch = parts[0].match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)/);
           if (dataMatch) {
             data = dataMatch[1];
-            // Converter ano de 2 dÃ­gitos para 4 dÃ­gitos (25 -> 2025)
-            if (data.length === 8) { // DD/MM/YY
+            if (data.length === 8) {
               const partes = data.split('/');
               const anoCompleto = parseInt(partes[2]) > 50 ? `19${partes[2]}` : `20${partes[2]}`;
               data = `${partes[0]}/${partes[1]}/${anoCompleto}`;
             }
-            // Se tiver ano completo (DD/MM/YYYY), mantÃ©m como estÃ¡
-            // Se nÃ£o tiver ano (DD/MM), mantÃ©m como estÃ¡ para usar o ano manual depois
           }
-          
           descricao = parts[1]?.trim();
-          
-          // Extrair valor - pode estar em vÃ¡rias posiÃ§Ãµes
           for (let j = 2; j < parts.length; j++) {
             const valorStr = parts[j];
-            // Procurar padrÃ£o de valor: R$ xxx,xx ou sÃ³ xxx,xx
             const valorMatch = valorStr.match(/R?\$?\s*([-]?[\d.,]+)/);
             if (valorMatch) {
               let v = valorMatch[1].replace(/\./g, '').replace(',', '.');
@@ -176,21 +140,15 @@ export default function Home() {
           }
         }
       }
-      // FORMATO TEXTO/MERCADO PAGO PDF: "17/12 PAYPAL *FACEBOOKSER R$ 2.537,17"
-      // ou "06/01/2025 FACEBK *MQ5BKB9CD2SAO P 171,14 serviÃ§os"
       else if (line.match(/^\d{2}\/\d{2}/)) {
-        // Tentar extrair: Data + DescriÃ§Ã£o + Valor (R$ no final)
-        // Formato Mercado Pago: "17/12 PAYPAL *FACEBOOKSER R$ 2.537,17"
         const matchMP = line.match(/^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+(?:R\$|\$4)\s*([\d.,]+)$/i);
         if (matchMP) {
           data = matchMP[1];
           descricao = matchMP[2].trim();
-          // Limpar valor: remover pontos de milhar, trocar vÃ­rgula por ponto
           let valorStr = matchMP[3].replace(/\./g, '').replace(',', '.').replace('J', '.');
           valor = parseFloat(valorStr);
         } else {
-          // Tentar formato genÃ©rico: "06/01 FACEBK 171,14 serviÃ§os"
-          const match = line.match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+([\d.,]+)\s*(?:serviÃ§os|viagem|compras|outros|pagamento)?/i);
+          const match = line.match(/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+([\d.,]+)\s*(?:servicos|viagem|compras|outros|pagamento)?/i);
           if (match) {
             data = match[1];
             descricao = match[2].trim();
@@ -198,28 +156,24 @@ export default function Home() {
           }
         }
         
-        // Processar ano na data
         if (data) {
-          if (data.length === 8) { // DD/MM/YY
+          if (data.length === 8) {
             const partes = data.split('/');
             const anoCompleto = parseInt(partes[2]) > 50 ? `19${partes[2]}` : `20${partes[2]}`;
             data = `${partes[0]}/${partes[1]}/${anoCompleto}`;
-          } else if (data.length === 5 && mesVencimento && anoVencimento) { // DD/MM sem ano
-            // Calcular ano inteligentemente baseado no mÃªs de vencimento
+          } else if (data.length === 5 && mesVencimento && anoVencimento) {
             const mesTransacao = parseInt(data.substring(3, 5));
             const anoCalculado = calcularAnoTransacao(mesTransacao);
             data = `${data}/${anoCalculado}`;
           }
         }
       }
-      // FORMATO CSV com ; - "01/11;FACEBK *XXX;156,20"
       else if (line.includes(';')) {
         const parts = line.split(';');
         if (parts.length >= 3) {
           const dataMatch = parts[0].match(/(\d{2}\/\d{2})/);
           if (dataMatch) {
             data = dataMatch[1];
-            // Adicionar ano calculado inteligentemente
             if (data.length === 5 && mesVencimento && anoVencimento) {
               const mesTransacao = parseInt(data.substring(3, 5));
               const anoCalculado = calcularAnoTransacao(mesTransacao);
@@ -231,11 +185,8 @@ export default function Home() {
         }
       }
 
-      // Validar e adicionar
       if (data && descricao && valor !== null && !isNaN(valor)) {
-        // Ignorar valores negativos (sÃ£o estornos/pagamentos)
         if (valor < 0) continue;
-        // Ignorar valores muito pequenos
         if (valor < 0.01) continue;
         
         parsed.push({
@@ -252,13 +203,12 @@ export default function Home() {
   };
 
   const handleProcessar = async () => {
-    // Verificar se tem dados (texto ou PDF)
     if (!rawData.trim() && !pdfFile) {
-      setError('Cole os dados da fatura ou faÃ§a upload de um PDF');
+      setError('Cole os dados da fatura ou faca upload de um PDF');
       return;
     }
     if (!selectedOrigem) {
-      setError('Selecione o cartÃ£o de origem');
+      setError('Selecione o cartao de origem');
       return;
     }
 
@@ -267,7 +217,6 @@ export default function Home() {
 
     let textToProcess = rawData;
 
-    // Se tiver PDF, extrair texto primeiro
     if (pdfFile) {
       try {
         const formData = new FormData();
@@ -289,7 +238,7 @@ export default function Home() {
         }
         
         textToProcess = pdfResult.text || '';
-        console.log('Texto extraÃ­do do PDF:', textToProcess.substring(0, 500));
+        console.log('Texto extraido do PDF:', textToProcess.substring(0, 500));
       } catch (pdfError) {
         setError(`Erro ao processar PDF: ${pdfError.message}`);
         setLoading(false);
@@ -297,16 +246,14 @@ export default function Home() {
       }
     }
 
-    // Validar mÃªs/ano de vencimento para PDFs
     if (pdfFile && !mesAnoVencimento) {
-      setError('Para PDFs, informe o mÃªs/ano de vencimento (ex: 01/2026)');
+      setError('Para PDFs, informe o mes/ano de vencimento (ex: 01/2026)');
       setLoading(false);
       return;
     }
     
-    // Validar formato MM/YYYY
     if (pdfFile && mesAnoVencimento && !/^\d{2}\/\d{4}$/.test(mesAnoVencimento)) {
-      setError('Formato invÃ¡lido. Use MM/YYYY (ex: 01/2026)');
+      setError('Formato invalido. Use MM/YYYY (ex: 01/2026)');
       setLoading(false);
       return;
     }
@@ -314,13 +261,12 @@ export default function Home() {
     const parsed = parseData(textToProcess, mesAnoVencimento || null);
     
     if (parsed.length === 0) {
-      setError('NÃ£o foi possÃ­vel extrair transaÃ§Ãµes. Verifique o formato dos dados.');
+      setError('Nao foi possivel extrair transacoes. Verifique o formato dos dados.');
       setLoading(false);
       return;
     }
 
     try {
-      // Chamar API de categorizaÃ§Ã£o
       const response = await fetch('/api/categorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -329,9 +275,8 @@ export default function Home() {
 
       const result = await response.json();
       
-      // Mostrar estatÃ­sticas se disponÃ­veis
       if (result.stats) {
-        console.log(`CategorizaÃ§Ã£o: ${result.stats.automaticos} automÃ¡ticas, ${result.stats.analisadosIA} pela IA`);
+        console.log(`Categorizacao: ${result.stats.automaticos} automaticas, ${result.stats.analisadosIA} pela IA`);
       }
       
       if (result.resultados && result.resultados.length > 0) {
@@ -342,14 +287,12 @@ export default function Home() {
         }));
         setTransactions(categorizados);
       } else {
-        // Fallback: manter sem categoria
         setTransactions(parsed.map(t => ({ ...t, categoria: 'Outros', incluir: false })));
       }
       
       setStep(2);
     } catch (err) {
       console.error('Erro:', err);
-      // Em caso de erro, continua com categorizaÃ§Ã£o bÃ¡sica
       setTransactions(parsed.map(t => ({ ...t, categoria: 'Outros', incluir: false })));
       setStep(2);
     } finally {
@@ -360,22 +303,20 @@ export default function Home() {
   const handleAgregar = () => {
     const grupos = {};
     
-    // Verificar se hÃ¡ transaÃ§Ãµes sem ano completo
     const transacoesSemAno = transactions.filter(t => t.incluir && t.data.length === 5);
     if (transacoesSemAno.length > 0) {
-      setError(`${transacoesSemAno.length} transaÃ§Ã£o(Ãµes) sem ano completo. Verifique o formato do CSV.`);
+      setError(`${transacoesSemAno.length} transacao(oes) sem ano completo. Verifique o formato do CSV.`);
       return;
     }
     
     transactions
       .filter(t => t.incluir)
       .forEach(t => {
-        // Normalizar data para agrupamento (apenas DD/MM)
         const dataParaGrupo = t.data.substring(0, 5);
         const key = `${dataParaGrupo}_${t.categoria}`;
         if (!grupos[key]) {
           grupos[key] = {
-            data: t.data, // Preserva a data original completa com ano
+            data: t.data,
             categoria: t.categoria,
             valor: 0,
             qtd: 0,
@@ -390,15 +331,14 @@ export default function Home() {
     const agregados = Object.values(grupos)
       .map(g => ({
         id: Math.random().toString(36).substr(2, 9),
-        data: g.data, // Usa a data completa do CSV (DD/MM/YYYY)
+        data: g.data,
         categoria: g.categoria,
-        detalhe: g.qtd > 1 ? `${g.categoria} (${g.qtd} transaÃ§Ãµes)` : g.descricoes[0].substring(0, 50),
+        detalhe: g.qtd > 1 ? `${g.categoria} (${g.qtd} transacoes)` : g.descricoes[0].substring(0, 50),
         origem: selectedOrigem,
         valor: g.valor,
-        obs: g.qtd > 1 ? `Agregado: ${g.qtd} lanÃ§amentos` : ''
+        obs: g.qtd > 1 ? `Agregado: ${g.qtd} lancamentos` : ''
       }))
       .sort((a, b) => {
-        // Ordenar por data corretamente (converter DD/MM/YYYY para comparaÃ§Ã£o)
         const [diaA, mesA, anoA] = a.data.split('/');
         const [diaB, mesB, anoB] = b.data.split('/');
         const dateA = new Date(anoA, mesA - 1, diaA);
@@ -421,15 +361,14 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           dados: aggregatedData,
-          sheetName: 'MovimentaÃ§Ã£o'
+          sheetName: 'Movimentacao'
         })
       });
 
       const result = await response.json();
 
       if (result.success) {
-        setSuccess(`âœ… ${result.message}`);
-        // Limpar apÃ³s sucesso
+        setSuccess(`${result.message}`);
         setTimeout(() => {
           setStep(1);
           setRawData('');
@@ -438,14 +377,13 @@ export default function Home() {
           setSuccess('');
         }, 3000);
       } else {
-        // Mostrar erro detalhado
         const errorMsg = result.details 
           ? `${result.error}: ${result.details}`
           : result.error || 'Erro desconhecido';
         setError(errorMsg);
       }
     } catch (err) {
-      setError(`Erro de conexÃ£o: ${err.message}. Tente novamente.`);
+      setError(`Erro de conexao: ${err.message}. Tente novamente.`);
     } finally {
       setSending(false);
     }
@@ -490,18 +428,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 rounded-t-xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center font-bold text-xl">O</div>
             <div>
               <h1 className="text-2xl font-bold">ORNE - Categorizador de Faturas</h1>
-              <p className="text-slate-300 text-sm">CategorizaÃ§Ã£o automÃ¡tica com IA + IntegraÃ§Ã£o Google Sheets</p>
+              <p className="text-slate-300 text-sm">Categorizacao automatica com IA + Integracao Google Sheets</p>
             </div>
           </div>
         </div>
 
-        {/* Progress */}
         <div className="bg-white border-b px-6 py-4 flex items-center gap-4">
           {[
             { num: 1, label: 'Upload', icon: '1' },
@@ -521,7 +457,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Content */}
         <div className="bg-white p-6 rounded-b-xl shadow-lg">
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
@@ -535,20 +470,19 @@ export default function Home() {
             </div>
           )}
 
-          {/* Step 1: Upload */}
           {step === 1 && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CartÃ£o de Origem *
+                    Cartao de Origem *
                   </label>
                   <select 
                     value={selectedOrigem}
                     onChange={(e) => setSelectedOrigem(e.target.value)}
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   >
-                    <option value="">Selecione o cartÃ£o...</option>
+                    <option value="">Selecione o cartao...</option>
                     {ORIGENS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
@@ -563,11 +497,11 @@ export default function Home() {
                     placeholder="Ex: 01/2026"
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-amber-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Formato: MM/YYYY (mÃªs de vencimento)</p>
+                  <p className="text-xs text-gray-500 mt-1">Formato: MM/YYYY (mes de vencimento)</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Upload PDF (Mercado Pago)
+                    Upload PDF (Mercado Pago/Renner)
                   </label>
                   <input
                     type="file"
@@ -576,20 +510,20 @@ export default function Home() {
                       const file = e.target.files?.[0];
                       if (file) {
                         setPdfFile(file);
-                        setRawData(''); // Limpar texto se upload PDF
+                        setRawData('');
                       }
                     }}
                     className="w-full p-2 border rounded-lg text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200"
                   />
                   {pdfFile && (
                     <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
-                      <span>ðŸ“„</span>
+                      <span>PDF:</span>
                       <span>{pdfFile.name}</span>
                       <button 
                         onClick={() => setPdfFile(null)} 
                         className="text-red-500 hover:text-red-700"
                       >
-                        âœ•
+                        X
                       </button>
                     </div>
                   )}
@@ -606,18 +540,18 @@ export default function Home() {
                     onChange={(e) => setRawData(e.target.value)}
                     placeholder={`Cole aqui os dados da fatura. Formatos aceitos:
 
-ðŸ“± NUBANK (CSV):
+NUBANK (CSV):
 date,title,amount
 2025-12-14,Facebk *F3bzg8rbd2,153.27
 
-ðŸ’³ C6 BANK (CSV com TABs):
-Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	CotaÃ§Ã£o	R$
-05/01/2026	ORNE D S LTDA	8384	Departamento	ALIEXPRESS	Ãšnica	28.17	5.72	161.19
+C6 BANK (CSV com TABs):
+Data de Compra	Nome no Cartao	Final	Categoria	Descricao	Parcela	US$	Cotacao	R$
+05/01/2026	ORNE D S LTDA	8384	Departamento	ALIEXPRESS	Unica	28.17	5.72	161.19
 
-ðŸ’³ XP/OUTROS:
+XP/OUTROS:
 06/01/2025	FACEBK *MQ5BKB9CD2	ERICK	R$ 171,14	-
 
-ðŸ“„ MERCADO PAGO: FaÃ§a upload do PDF da fatura`}
+MERCADO PAGO/RENNER: Faca upload do PDF da fatura`}
                     className="w-full h-64 p-4 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -625,10 +559,10 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
 
               {pdfFile && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-blue-800 mb-2">ðŸ“„ PDF Selecionado: {pdfFile.name}</h4>
+                  <h4 className="font-medium text-blue-800 mb-2">PDF Selecionado: {pdfFile.name}</h4>
                   <p className="text-sm text-blue-600">
-                    O PDF serÃ¡ processado automaticamente para extrair as transaÃ§Ãµes.
-                    Certifique-se de informar o mÃªs/ano de vencimento acima.
+                    O PDF sera processado automaticamente para extrair as transacoes.
+                    Certifique-se de informar o mes/ano de vencimento acima.
                   </p>
                 </div>
               )}
@@ -640,12 +574,11 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
               >
                 {loading ? (
                   <>
-                    <span className="animate-spin">â³</span>
+                    <span className="animate-spin">...</span>
                     {pdfFile ? 'Extraindo PDF e Categorizando...' : 'Processando com IA...'}
                   </>
                 ) : (
                   <>
-                    <span>ðŸ¤–</span>
                     Processar e Categorizar
                   </>
                 )}
@@ -653,7 +586,6 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
             </div>
           )}
 
-          {/* Step 2: Review */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -662,17 +594,16 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
                   <p className="text-sm text-gray-500">
                     <span className="text-green-600 font-medium">{transactions.filter(t => t.incluir).length} empresariais</span>
                     {' | '}
-                    <span className="text-red-500">{transactions.filter(t => !t.incluir).length} pessoais/excluÃ­dos</span>
+                    <span className="text-red-500">{transactions.filter(t => !t.incluir).length} pessoais/excluidos</span>
                     {' | '}
                     Total empresarial: <span className="font-bold text-green-600">R$ {totalSelecionado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   </p>
                 </div>
                 <button onClick={() => setStep(1)} className="text-sm text-amber-600 hover:underline">
-                  â†Â Voltar
+                  Voltar
                 </button>
               </div>
 
-              {/* Legenda */}
               <div className="flex gap-4 text-xs">
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
@@ -688,9 +619,9 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="p-3 text-left w-12">âœ“</th>
+                      <th className="p-3 text-left w-12">OK</th>
                       <th className="p-3 text-left">Data</th>
-                      <th className="p-3 text-left">DescriÃ§Ã£o</th>
+                      <th className="p-3 text-left">Descricao</th>
                       <th className="p-3 text-left">Categoria</th>
                       <th className="p-3 text-right">Valor</th>
                     </tr>
@@ -711,7 +642,7 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
                         <td className="p-3 font-mono text-xs">{t.data}</td>
                         <td className={`p-3 max-w-xs truncate text-xs ${!t.incluir ? 'line-through' : ''}`} title={t.descricao}>
                           {t.descricao}
-                          {!t.incluir && <span className="ml-2 text-red-500 text-xs">(excluÃ­do)</span>}
+                          {!t.incluir && <span className="ml-2 text-red-500 text-xs">(excluido)</span>}
                         </td>
                         <td className="p-3">
                           <select
@@ -735,25 +666,23 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
                 onClick={handleAgregar}
                 className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
               >
-                <span>âœ…</span>
                 Agregar por Dia/Categoria e Continuar
               </button>
             </div>
           )}
 
-          {/* Step 3: Export */}
           {step === 3 && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h3 className="font-semibold text-lg">Dados Agregados - Prontos para Enviar</h3>
                   <p className="text-sm text-gray-500">
-                    {aggregatedData.length} lanÃ§amentos | 
+                    {aggregatedData.length} lancamentos | 
                     Total: <span className="font-bold text-green-600">R$ {totalAgregado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   </p>
                 </div>
                 <button onClick={() => setStep(2)} className="text-sm text-amber-600 hover:underline">
-                  â†Â Voltar
+                  Voltar
                 </button>
               </div>
 
@@ -813,12 +742,11 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
                 >
                   {sending ? (
                     <>
-                      <span className="animate-spin">â³</span>
+                      <span className="animate-spin">...</span>
                       Enviando...
                     </>
                   ) : (
                     <>
-                      <span>ðŸ“¤</span>
                       Enviar para Google Sheets
                     </>
                   )}
@@ -828,7 +756,6 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
                   onClick={handleExportCSV}
                   className="flex items-center gap-2 px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-medium"
                 >
-                  <span>ðŸ’¾</span>
                   Baixar CSV
                 </button>
                 
@@ -843,24 +770,22 @@ Data de Compra	Nome no CartÃ£o	Final	Categoria	DescriÃ§Ã£o	Parcela	US$	Cot
                   }}
                   className="flex items-center gap-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
                 >
-                  <span>âž•</span>
                   Nova Fatura
                 </button>
               </div>
 
               <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <h4 className="font-medium text-amber-900 mb-1">ðŸ’¡ Dica</h4>
+                <h4 className="font-medium text-amber-900 mb-1">Dica</h4>
                 <p className="text-sm text-amber-800">
-                  Os dados serÃ£o adicionados na aba "MovimentaÃ§Ã£o" da planilha. VocÃª pode editar qualquer campo antes de enviar.
+                  Os dados serao adicionados na aba "Movimentacao" da planilha. Voce pode editar qualquer campo antes de enviar.
                 </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-4 text-sm text-gray-500">
-          ORNE Decor Studio Ã‚Â© {new Date().getFullYear()} | Ferramenta interna
+          ORNE Decor Studio - {new Date().getFullYear()} | Ferramenta interna
         </div>
       </div>
     </div>
