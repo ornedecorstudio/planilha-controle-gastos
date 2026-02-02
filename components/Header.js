@@ -11,6 +11,7 @@ export default function Header() {
     { href: '/upload', label: 'Nova Fatura' },
     { href: '/faturas', label: 'Faturas' },
     { href: '/extratos', label: 'Extratos' },
+    { href: '/reconciliacao', label: 'Reconciliação' },
   ]
   
   return (
