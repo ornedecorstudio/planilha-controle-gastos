@@ -11,17 +11,19 @@ export async function GET(request) {
     const tipo = searchParams.get('tipo') // 'PJ' ou 'PF'
     const categoria = searchParams.get('categoria')
     const limit = parseInt(searchParams.get('limit')) || 100
-    
-    if (!fatura_id) {
-      return NextResponse.json({ error: 'fatura_id e obrigatorio' }, { status: 400 })
-    }
-    
+    const all = searchParams.get('all') === 'true'
+
+    // Se nao tem fatura_id e nao pediu all, retorna todas (para dashboard)
     let query = supabase
       .from('transacoes')
       .select('*')
-      .eq('fatura_id', fatura_id)
       .order('data', { ascending: true })
       .limit(limit)
+
+    // Se tem fatura_id, filtra por ela
+    if (fatura_id) {
+      query = query.eq('fatura_id', fatura_id)
+    }
     
     if (tipo) {
       query = query.eq('tipo', tipo)

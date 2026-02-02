@@ -125,33 +125,117 @@ export async function PATCH(request) {
   try {
     const supabase = createServerClient()
     const body = await request.json()
-    
+
     const { id, status, data_pagamento } = body
-    
+
     if (!id) {
       return NextResponse.json({ error: 'ID da fatura e obrigatorio' }, { status: 400 })
     }
-    
+
     const updateData = {}
     if (status) updateData.status = status
     if (data_pagamento) updateData.data_pagamento = data_pagamento
-    
+
     const { data, error } = await supabase
       .from('faturas')
       .update(updateData)
       .eq('id', id)
       .select()
       .single()
-    
+
     if (error) {
       console.error('Erro ao atualizar fatura:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
-    
+
     return NextResponse.json({ fatura: data })
-    
+
   } catch (error) {
     console.error('Erro na API faturas:', error)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  }
+}
+
+// DELETE - Remove fatura(s) e suas transacoes
+export async function DELETE(request) {
+  try {
+    const supabase = createServerClient()
+    const { searchParams } = new URL(request.url)
+
+    const id = searchParams.get('id')
+    const ids = searchParams.get('ids')
+
+    // Delecao individual
+    if (id) {
+      // Primeiro deleta todas as transacoes da fatura
+      const { error: transacoesError } = await supabase
+        .from('transacoes')
+        .delete()
+        .eq('fatura_id', id)
+
+      if (transacoesError) {
+        console.error('Erro ao deletar transacoes:', transacoesError)
+        return NextResponse.json({ error: transacoesError.message }, { status: 500 })
+      }
+
+      // Depois deleta a fatura
+      const { error } = await supabase
+        .from('faturas')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.error('Erro ao deletar fatura:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Fatura e transacoes removidas'
+      })
+    }
+
+    // Delecao em lote por IDs
+    if (ids) {
+      const idList = ids.split(',').filter(Boolean)
+
+      if (idList.length === 0) {
+        return NextResponse.json({ error: 'Nenhum ID fornecido' }, { status: 400 })
+      }
+
+      // Primeiro deleta todas as transacoes das faturas
+      const { error: transacoesError } = await supabase
+        .from('transacoes')
+        .delete()
+        .in('fatura_id', idList)
+
+      if (transacoesError) {
+        console.error('Erro ao deletar transacoes:', transacoesError)
+        return NextResponse.json({ error: transacoesError.message }, { status: 500 })
+      }
+
+      // Depois deleta as faturas
+      const { error } = await supabase
+        .from('faturas')
+        .delete()
+        .in('id', idList)
+
+      if (error) {
+        console.error('Erro ao deletar faturas:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `${idList.length} faturas e suas transacoes removidas`,
+        quantidade: idList.length
+      })
+    }
+
+    return NextResponse.json({ error: 'Parametros invalidos' }, { status: 400 })
+
+  } catch (error) {
+    console.error('Erro na API faturas DELETE:', error)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }

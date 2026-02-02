@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, Copy, Download, Search, X, FileText } from 'lucide-react'
+import { Trash2, Copy, Download, Search, X, FileText, CheckSquare, Square } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
 import DuplicatesModal from '@/components/DuplicatesModal'
 
@@ -38,8 +38,11 @@ export default function FaturaDetalhesPage() {
   const [busca, setBusca] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
 
+  // Selecao
+  const [selectedIds, setSelectedIds] = useState(new Set())
+
   // Modals
-  const [deleteModal, setDeleteModal] = useState({ open: false, transacao: null })
+  const [deleteModal, setDeleteModal] = useState({ open: false, transacao: null, multiple: false })
   const [duplicatesModal, setDuplicatesModal] = useState({ open: false, duplicatas: [] })
   const [loadingAction, setLoadingAction] = useState(false)
 
@@ -83,16 +86,53 @@ export default function FaturaDetalhesPage() {
     return true
   })
 
+  // Selecao
+  const toggleSelection = (id) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  const selectAll = () => {
+    if (selectedIds.size === transacoesFiltradas.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(transacoesFiltradas.map(t => t.id)))
+    }
+  }
+
   // Handlers
-  const handleDelete = async () => {
-    if (!deleteModal.transacao) return
+  const handleDeleteSingle = (transacao) => {
+    setDeleteModal({ open: true, transacao, multiple: false })
+  }
+
+  const handleDeleteMultiple = () => {
+    if (selectedIds.size === 0) return
+    setDeleteModal({ open: true, transacao: null, multiple: true })
+  }
+
+  const handleConfirmDelete = async () => {
     setLoadingAction(true)
     try {
-      const res = await fetch(`/api/transacoes?id=${deleteModal.transacao.id}`, { method: 'DELETE' })
-      const result = await res.json()
-      if (result.error) throw new Error(result.error)
-      setTransacoes(prev => prev.filter(t => t.id !== deleteModal.transacao.id))
-      setDeleteModal({ open: false, transacao: null })
+      if (deleteModal.multiple) {
+        const res = await fetch(`/api/transacoes?ids=${Array.from(selectedIds).join(',')}`, { method: 'DELETE' })
+        const result = await res.json()
+        if (result.error) throw new Error(result.error)
+        setTransacoes(prev => prev.filter(t => !selectedIds.has(t.id)))
+        setSelectedIds(new Set())
+      } else {
+        const res = await fetch(`/api/transacoes?id=${deleteModal.transacao.id}`, { method: 'DELETE' })
+        const result = await res.json()
+        if (result.error) throw new Error(result.error)
+        setTransacoes(prev => prev.filter(t => t.id !== deleteModal.transacao.id))
+        selectedIds.delete(deleteModal.transacao.id)
+        setSelectedIds(new Set(selectedIds))
+      }
+      setDeleteModal({ open: false, transacao: null, multiple: false })
     } catch (err) {
       alert('Erro ao remover: ' + err.message)
     } finally {
@@ -167,6 +207,10 @@ export default function FaturaDetalhesPage() {
   const totalPJ = transacoesFiltradas.filter(t => t.tipo === 'PJ').reduce((a, t) => a + parseFloat(t.valor || 0), 0)
   const totalPF = transacoesFiltradas.filter(t => t.tipo === 'PF').reduce((a, t) => a + parseFloat(t.valor || 0), 0)
 
+  const deleteMessage = deleteModal.multiple
+    ? `Tem certeza que deseja remover ${selectedIds.size} transacoes selecionadas? Esta acao nao pode ser desfeita.`
+    : `Tem certeza que deseja remover "${deleteModal.transacao?.descricao}"? Esta acao nao pode ser desfeita.`
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -180,7 +224,16 @@ export default function FaturaDetalhesPage() {
             {new Date(fatura.mes_referencia).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleDeleteMultiple}
+              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm flex items-center gap-2"
+            >
+              <Trash2 size={16} />
+              Remover {selectedIds.size} selecionadas
+            </button>
+          )}
           {fatura?.pdf_url && (
             <button
               onClick={handleOpenPDF}
@@ -259,6 +312,11 @@ export default function FaturaDetalhesPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
+                <th className="p-3 text-center w-12">
+                  <button onClick={selectAll} className="text-slate-400 hover:text-slate-600">
+                    {selectedIds.size === transacoesFiltradas.length && transacoesFiltradas.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                  </button>
+                </th>
                 <th className="p-3 text-left">Data</th>
                 <th className="p-3 text-left">Descricao</th>
                 <th className="p-3 text-left">Categoria</th>
@@ -269,7 +327,12 @@ export default function FaturaDetalhesPage() {
             </thead>
             <tbody>
               {transacoesFiltradas.map(t => (
-                <tr key={t.id} className={`border-t hover:bg-gray-50 ${t.tipo === 'PF' ? 'bg-red-50/50' : ''}`}>
+                <tr key={t.id} className={`border-t hover:bg-gray-50 ${t.tipo === 'PF' ? 'bg-red-50/50' : ''} ${selectedIds.has(t.id) ? 'bg-amber-50' : ''}`}>
+                  <td className="p-3 text-center">
+                    <button onClick={() => toggleSelection(t.id)} className="text-slate-400 hover:text-slate-600">
+                      {selectedIds.has(t.id) ? <CheckSquare size={18} className="text-amber-500" /> : <Square size={18} />}
+                    </button>
+                  </td>
                   <td className="p-3 font-mono text-xs">{formatDate(t.data)}</td>
                   <td className="p-3 max-w-xs">
                     <span className="truncate block" title={t.descricao}>{t.descricao}</span>
@@ -289,7 +352,7 @@ export default function FaturaDetalhesPage() {
                   </td>
                   <td className="p-3 text-center">
                     <button
-                      onClick={() => setDeleteModal({ open: true, transacao: t })}
+                      onClick={() => handleDeleteSingle(t)}
                       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                       title="Remover transacao"
                     >
@@ -306,10 +369,10 @@ export default function FaturaDetalhesPage() {
       {/* Delete Modal */}
       <ConfirmModal
         isOpen={deleteModal.open}
-        onClose={() => setDeleteModal({ open: false, transacao: null })}
-        onConfirm={handleDelete}
-        title="Remover transacao"
-        message={`Tem certeza que deseja remover "${deleteModal.transacao?.descricao}"? Esta acao nao pode ser desfeita.`}
+        onClose={() => setDeleteModal({ open: false, transacao: null, multiple: false })}
+        onConfirm={handleConfirmDelete}
+        title={deleteModal.multiple ? `Remover ${selectedIds.size} transacoes` : 'Remover transacao'}
+        message={deleteMessage}
         confirmText="Remover"
         variant="danger"
         loading={loadingAction}

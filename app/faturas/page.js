@@ -2,11 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Trash2, CheckSquare, Square, FileText } from 'lucide-react'
+import ConfirmModal from '@/components/ConfirmModal'
 
 export default function FaturasPage() {
   const [faturas, setFaturas] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [deleteModal, setDeleteModal] = useState({ open: false, fatura: null, multiple: false })
+  const [loadingAction, setLoadingAction] = useState(false)
 
   useEffect(() => {
     const carregarFaturas = async () => {
@@ -40,6 +45,58 @@ export default function FaturasPage() {
     }
   }
 
+  const toggleSelection = (id) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  const selectAll = () => {
+    if (selectedIds.size === faturas.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(faturas.map(f => f.id)))
+    }
+  }
+
+  const handleDeleteSingle = (fatura) => {
+    setDeleteModal({ open: true, fatura, multiple: false })
+  }
+
+  const handleDeleteMultiple = () => {
+    if (selectedIds.size === 0) return
+    setDeleteModal({ open: true, fatura: null, multiple: true })
+  }
+
+  const handleConfirmDelete = async () => {
+    setLoadingAction(true)
+    try {
+      if (deleteModal.multiple) {
+        const res = await fetch(`/api/faturas?ids=${Array.from(selectedIds).join(',')}`, { method: 'DELETE' })
+        const result = await res.json()
+        if (result.error) throw new Error(result.error)
+        setFaturas(prev => prev.filter(f => !selectedIds.has(f.id)))
+        setSelectedIds(new Set())
+      } else {
+        const res = await fetch(`/api/faturas?id=${deleteModal.fatura.id}`, { method: 'DELETE' })
+        const result = await res.json()
+        if (result.error) throw new Error(result.error)
+        setFaturas(prev => prev.filter(f => f.id !== deleteModal.fatura.id))
+        selectedIds.delete(deleteModal.fatura.id)
+        setSelectedIds(new Set(selectedIds))
+      }
+      setDeleteModal({ open: false, fatura: null, multiple: false })
+    } catch (err) {
+      alert('Erro ao remover: ' + err.message)
+    } finally {
+      setLoadingAction(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -60,6 +117,10 @@ export default function FaturasPage() {
   const totalPJ = faturas.reduce((a, f) => a + parseFloat(f.valor_pj || 0), 0)
   const totalPF = faturas.reduce((a, f) => a + parseFloat(f.valor_pf || 0), 0)
 
+  const deleteMessage = deleteModal.multiple
+    ? `Tem certeza que deseja remover ${selectedIds.size} faturas selecionadas? Todas as transacoes dessas faturas tambem serao removidas. Esta acao nao pode ser desfeita.`
+    : `Tem certeza que deseja remover a fatura "${deleteModal.fatura?.cartoes?.nome || 'N/A'} - ${deleteModal.fatura?.mes_referencia ? new Date(deleteModal.fatura.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : ''}"? Todas as transacoes dessa fatura tambem serao removidas. Esta acao nao pode ser desfeita.`
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -67,27 +128,38 @@ export default function FaturasPage() {
           <h1 className="text-2xl font-bold text-slate-800">Faturas</h1>
           <p className="text-slate-500">{faturas.length} faturas cadastradas</p>
         </div>
-        <Link href="/upload" className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium">
-          + Nova Fatura
-        </Link>
+        <div className="flex gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleDeleteMultiple}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium flex items-center gap-2"
+            >
+              <Trash2 size={18} />
+              Remover {selectedIds.size} selecionadas
+            </button>
+          )}
+          <Link href="/upload" className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium">
+            + Nova fatura
+          </Link>
+        </div>
       </div>
 
       {/* Totais */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border p-4">
-          <p className="text-sm text-slate-500">Total Geral</p>
+          <p className="text-sm text-slate-500">Total geral</p>
           <p className="text-xl font-bold text-slate-800">
             R$ {(totalPJ + totalPF).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
         <div className="bg-green-50 rounded-xl border border-green-200 p-4">
-          <p className="text-sm text-green-600">Total PJ (Reembolsável)</p>
+          <p className="text-sm text-green-600">Total PJ (reembolsavel)</p>
           <p className="text-xl font-bold text-green-700">
             R$ {totalPJ.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
         <div className="bg-red-50 rounded-xl border border-red-200 p-4">
-          <p className="text-sm text-red-600">Total PF (Pessoal)</p>
+          <p className="text-sm text-red-600">Total PF (pessoal)</p>
           <p className="text-xl font-bold text-red-700">
             R$ {totalPF.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
@@ -101,19 +173,29 @@ export default function FaturasPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-3 text-left font-medium">Cartão</th>
-                  <th className="p-3 text-left font-medium">Mês</th>
+                  <th className="p-3 text-center w-12">
+                    <button onClick={selectAll} className="text-slate-400 hover:text-slate-600">
+                      {selectedIds.size === faturas.length ? <CheckSquare size={18} /> : <Square size={18} />}
+                    </button>
+                  </th>
+                  <th className="p-3 text-left font-medium">Cartao</th>
+                  <th className="p-3 text-left font-medium">Mes</th>
                   <th className="p-3 text-left font-medium">Vencimento</th>
                   <th className="p-3 text-right font-medium">Total</th>
                   <th className="p-3 text-right font-medium">PJ</th>
                   <th className="p-3 text-right font-medium">PF</th>
                   <th className="p-3 text-center font-medium">Status</th>
-                  <th className="p-3 text-center font-medium">Ações</th>
+                  <th className="p-3 text-center font-medium">Acoes</th>
                 </tr>
               </thead>
               <tbody>
                 {faturas.map(f => (
-                  <tr key={f.id} className="border-t hover:bg-gray-50">
+                  <tr key={f.id} className={`border-t hover:bg-gray-50 ${selectedIds.has(f.id) ? 'bg-amber-50' : ''}`}>
+                    <td className="p-3 text-center">
+                      <button onClick={() => toggleSelection(f.id)} className="text-slate-400 hover:text-slate-600">
+                        {selectedIds.has(f.id) ? <CheckSquare size={18} className="text-amber-500" /> : <Square size={18} />}
+                      </button>
+                    </td>
                     <td className="p-3 font-medium text-slate-700">
                       {f.cartoes?.nome || 'N/A'}
                       <span className="text-xs text-slate-400 ml-1">({f.cartoes?.tipo})</span>
@@ -149,9 +231,27 @@ export default function FaturasPage() {
                       </select>
                     </td>
                     <td className="p-3 text-center">
-                      <Link href={`/faturas/${f.id}`} className="text-amber-600 hover:underline text-xs">
-                        Ver detalhes
-                      </Link>
+                      <div className="flex items-center justify-center gap-2">
+                        {f.pdf_url && (
+                          <button
+                            onClick={() => window.open(f.pdf_url, '_blank')}
+                            className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
+                            title="Ver PDF"
+                          >
+                            <FileText size={16} />
+                          </button>
+                        )}
+                        <Link href={`/faturas/${f.id}`} className="text-amber-600 hover:underline text-xs">
+                          Ver detalhes
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteSingle(f)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          title="Remover fatura"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -161,14 +261,26 @@ export default function FaturasPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border p-8 text-center">
-          <div className="text-5xl mb-4">📄</div>
+          <FileText className="mx-auto mb-4 text-slate-300" size={48} />
           <h3 className="text-lg font-semibold text-slate-700">Nenhuma fatura</h3>
-          <p className="text-slate-500">Importe sua primeira fatura para começar</p>
+          <p className="text-slate-500">Importe sua primeira fatura para comecar</p>
           <Link href="/upload" className="inline-block mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600">
-            + Importar Fatura
+            + Importar fatura
           </Link>
         </div>
       )}
+
+      {/* Modal de confirmacao */}
+      <ConfirmModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, fatura: null, multiple: false })}
+        onConfirm={handleConfirmDelete}
+        title={deleteModal.multiple ? `Remover ${selectedIds.size} faturas` : 'Remover fatura'}
+        message={deleteMessage}
+        confirmText="Remover"
+        variant="danger"
+        loading={loadingAction}
+      />
     </div>
   )
 }
