@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-// Modelo mais poderoso para melhor extracao de dados
-const ANTHROPIC_MODEL = 'claude-opus-4-5-20251101';
+// Modelo para extracao de dados - usar Sonnet para melhor estabilidade com PDFs
+const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 export async function POST(request) {
@@ -128,10 +128,19 @@ Retorne APENAS um JSON valido, SEM markdown ou explicacoes:
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('Erro da API Anthropic:', response.status, errorData);
-      
+
+      // Mensagem de erro mais informativa
+      let errorMsg = `API Anthropic retornou ${response.status}`;
+      if (errorData.error?.message) {
+        errorMsg += `: ${errorData.error.message}`;
+      }
+      if (response.status === 400) {
+        errorMsg += '. Verifique se o PDF nao esta corrompido ou muito grande (max 10MB).';
+      }
+
       return NextResponse.json(
-        { 
-          error: `API Anthropic retornou ${response.status}`,
+        {
+          error: errorMsg,
           details: errorData,
           modelo_usado: ANTHROPIC_MODEL
         },

@@ -220,3 +220,108 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }
+
+// DELETE - Remove movimentação individual ou detecta duplicadas
+export async function DELETE(request) {
+  try {
+    const supabase = createServerClient()
+    const { searchParams } = new URL(request.url)
+
+    const id = searchParams.get('id')
+    const ids = searchParams.get('ids')
+    const duplicates = searchParams.get('duplicates') === 'true'
+
+    // Deleção individual
+    if (id) {
+      const { error } = await supabase
+        .from('movimentacoes')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.error('Erro ao deletar movimentação:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Movimentação removida'
+      })
+    }
+
+    // Deleção em lote
+    if (ids) {
+      const idList = ids.split(',').filter(Boolean)
+
+      if (idList.length === 0) {
+        return NextResponse.json({ error: 'Nenhum ID fornecido' }, { status: 400 })
+      }
+
+      const { error } = await supabase
+        .from('movimentacoes')
+        .delete()
+        .in('id', idList)
+
+      if (error) {
+        console.error('Erro ao deletar movimentações:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `${idList.length} movimentações removidas`,
+        quantidade: idList.length
+      })
+    }
+
+    // Detecção de duplicadas
+    if (duplicates) {
+      const { data: movimentacoes, error: fetchError } = await supabase
+        .from('movimentacoes')
+        .select('*')
+        .eq('categoria', 'Reembolso Sócio')
+        .order('data', { ascending: true })
+
+      if (fetchError) {
+        console.error('Erro ao buscar movimentações:', fetchError)
+        return NextResponse.json({ error: fetchError.message }, { status: 500 })
+      }
+
+      // Agrupar por data + valor + descrição normalizada
+      const grupos = {}
+      movimentacoes.forEach(m => {
+        const descNorm = (m.descricao || '').toUpperCase().substring(0, 50)
+        const chave = `${m.data}|${parseFloat(m.valor).toFixed(2)}|${descNorm}`
+        if (!grupos[chave]) {
+          grupos[chave] = []
+        }
+        grupos[chave].push(m)
+      })
+
+      const duplicadas = []
+      const idsParaRemover = []
+
+      Object.values(grupos).forEach(grupo => {
+        if (grupo.length > 1) {
+          grupo.slice(1).forEach(m => {
+            duplicadas.push(m)
+            idsParaRemover.push(m.id)
+          })
+        }
+      })
+
+      return NextResponse.json({
+        duplicadas,
+        quantidade: duplicadas.length,
+        idsParaRemover,
+        preview: true
+      })
+    }
+
+    return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 })
+
+  } catch (error) {
+    console.error('Erro na API reembolsos DELETE:', error)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  }
+}

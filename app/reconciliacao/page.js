@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Trash2, Copy } from 'lucide-react'
+import ConfirmModal from '@/components/ConfirmModal'
+import DuplicatesModal from '@/components/DuplicatesModal'
 
 export default function ReconciliacaoPage() {
   const [loading, setLoading] = useState(true)
@@ -11,6 +14,9 @@ export default function ReconciliacaoPage() {
   const [sugestoes, setSugestoes] = useState([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [deleteModal, setDeleteModal] = useState({ open: false, movimentacao: null })
+  const [duplicatesModal, setDuplicatesModal] = useState({ open: false, duplicatas: [] })
+  const [loadingAction, setLoadingAction] = useState(false)
 
   useEffect(() => {
     carregarDados()
@@ -67,6 +73,65 @@ export default function ReconciliacaoPage() {
     } catch (err) {
       setError(err.message)
       setTimeout(() => setError(''), 3000)
+    }
+  }
+
+  const handleDeleteMovimentacao = async () => {
+    if (!deleteModal.movimentacao) return
+    setLoadingAction(true)
+    try {
+      const res = await fetch(`/api/reembolsos?id=${deleteModal.movimentacao.id}`, { method: 'DELETE' })
+      const result = await res.json()
+      if (result.error) throw new Error(result.error)
+      setMovimentacoes(prev => prev.filter(m => m.id !== deleteModal.movimentacao.id))
+      setDeleteModal({ open: false, movimentacao: null })
+      setSuccess('Movimentacao removida')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setError('Erro ao remover: ' + err.message)
+      setTimeout(() => setError(''), 3000)
+    } finally {
+      setLoadingAction(false)
+    }
+  }
+
+  const handleCheckDuplicates = async () => {
+    setLoadingAction(true)
+    try {
+      const res = await fetch('/api/reembolsos?duplicates=true', { method: 'DELETE' })
+      const result = await res.json()
+      if (result.error) throw new Error(result.error)
+      if (result.duplicadas && result.duplicadas.length > 0) {
+        setDuplicatesModal({ open: true, duplicatas: result.duplicadas })
+      } else {
+        setSuccess('Nenhuma movimentacao duplicada encontrada.')
+        setTimeout(() => setSuccess(''), 3000)
+      }
+    } catch (err) {
+      setError('Erro ao verificar duplicadas: ' + err.message)
+      setTimeout(() => setError(''), 3000)
+    } finally {
+      setLoadingAction(false)
+    }
+  }
+
+  const handleDeleteDuplicates = async (ids) => {
+    if (ids.length === 0) return
+    setLoadingAction(true)
+    try {
+      const res = await fetch(`/api/reembolsos?ids=${ids.join(',')}`, { method: 'DELETE' })
+      const result = await res.json()
+      if (result.error) throw new Error(result.error)
+      setMovimentacoes(prev => prev.filter(m => !ids.includes(m.id)))
+      setDuplicatesModal({ open: false, duplicatas: [] })
+      setSuccess(`${ids.length} movimentacoes duplicadas removidas`)
+      setTimeout(() => setSuccess(''), 3000)
+      carregarDados()
+    } catch (err) {
+      setError('Erro ao remover duplicadas: ' + err.message)
+      setTimeout(() => setError(''), 3000)
+    } finally {
+      setLoadingAction(false)
     }
   }
 
@@ -246,11 +311,23 @@ export default function ReconciliacaoPage() {
 
       {/* Movimentações de Reembolso */}
       <div className="bg-white rounded-xl border">
-        <div className="p-4 border-b bg-blue-50">
-          <h2 className="text-lg font-semibold text-blue-800">
-            PIX Enviados ao Sócio ({movimentacoes.length})
-          </h2>
-          <p className="text-sm text-blue-600">Transferências identificadas como reembolso no extrato PJ</p>
+        <div className="p-4 border-b bg-blue-50 flex justify-between items-start">
+          <div>
+            <h2 className="text-lg font-semibold text-blue-800">
+              PIX Enviados ao Sócio ({movimentacoes.length})
+            </h2>
+            <p className="text-sm text-blue-600">Transferências identificadas como reembolso no extrato PJ</p>
+          </div>
+          {movimentacoes.length > 0 && (
+            <button
+              onClick={handleCheckDuplicates}
+              disabled={loadingAction}
+              className="px-3 py-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              <Copy size={16} />
+              Verificar duplicadas
+            </button>
+          )}
         </div>
         {movimentacoes.length === 0 ? (
           <div className="p-8 text-center text-slate-500">
@@ -268,6 +345,7 @@ export default function ReconciliacaoPage() {
                   <th className="p-3 text-left">Descrição</th>
                   <th className="p-3 text-right">Valor</th>
                   <th className="p-3 text-center">Vinculado</th>
+                  <th className="p-3 text-center w-12"></th>
                 </tr>
               </thead>
               <tbody>
@@ -284,6 +362,15 @@ export default function ReconciliacaoPage() {
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}
+                    </td>
+                    <td className="p-3 text-center">
+                      <button
+                        onClick={() => setDeleteModal({ open: true, movimentacao: m })}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title="Remover movimentacao"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -331,6 +418,27 @@ export default function ReconciliacaoPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Modal */}
+      <ConfirmModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, movimentacao: null })}
+        onConfirm={handleDeleteMovimentacao}
+        title="Remover movimentacao"
+        message={`Tem certeza que deseja remover "${deleteModal.movimentacao?.descricao?.substring(0, 50)}..."? Esta acao nao pode ser desfeita.`}
+        confirmText="Remover"
+        variant="danger"
+        loading={loadingAction}
+      />
+
+      {/* Duplicates Modal */}
+      <DuplicatesModal
+        isOpen={duplicatesModal.open}
+        onClose={() => setDuplicatesModal({ open: false, duplicatas: [] })}
+        duplicatas={duplicatesModal.duplicatas}
+        onConfirm={handleDeleteDuplicates}
+        loading={loadingAction}
+      />
     </div>
   )
 }
