@@ -82,6 +82,10 @@ export default function DuplicatesModal({
                   desmarcar todas
                 </button>
               </div>
+              <p className="text-xs text-slate-500 mb-3">
+                Transacoes com mesma data, descricao e valor que ja existem na fatura.
+                A versao original sera mantida, apenas as copias serao removidas.
+              </p>
               <div className="space-y-2">
                 {duplicatas.map(d => (
                   <label
@@ -99,8 +103,11 @@ export default function DuplicatesModal({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-700 truncate">{d.descricao}</p>
                       <p className="text-xs text-slate-500">
-                        {new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR')} - {d.categoria}
+                        {d.data ? new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'} - {d.categoria}
                       </p>
+                      {d.motivo && (
+                        <p className="text-xs text-amber-600 mt-1">{d.motivo}</p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-slate-700">

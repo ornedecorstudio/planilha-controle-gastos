@@ -302,9 +302,15 @@ export async function DELETE(request) {
         return NextResponse.json({ error: fetchError.message }, { status: 500 })
       }
 
+      // Agrupa transacoes por chave EXATA: data + descricao COMPLETA + valor EXATO
+      // Uma transacao so e duplicada se TODOS os campos forem identicos
       const grupos = {}
       transacoes.forEach(t => {
-        const chave = `${t.data}|${t.descricao}|${t.valor}`
+        // Normaliza: data exata, descricao completa em maiusculo sem espacos extras, valor com 2 decimais
+        const dataExata = t.data || ''
+        const descricaoNorm = (t.descricao || '').toUpperCase().replace(/\s+/g, ' ').trim()
+        const valorExato = parseFloat(t.valor || 0).toFixed(2)
+        const chave = `${dataExata}|${descricaoNorm}|${valorExato}`
         if (!grupos[chave]) {
           grupos[chave] = []
         }
@@ -314,20 +320,34 @@ export async function DELETE(request) {
       const duplicadas = []
       const idsParaRemover = []
 
-      Object.values(grupos).forEach(grupo => {
+      Object.entries(grupos).forEach(([chave, grupo]) => {
         if (grupo.length > 1) {
-          grupo.slice(1).forEach(t => {
-            duplicadas.push(t)
+          // Ordena por ID para manter sempre o mesmo "original"
+          const ordenados = grupo.sort((a, b) => a.id.localeCompare(b.id))
+          const original = ordenados[0]
+          // Marca todas exceto a primeira como duplicadas
+          ordenados.slice(1).forEach(t => {
+            duplicadas.push({
+              ...t,
+              original_id: original.id,
+              original_descricao: original.descricao,
+              motivo: `Duplicada de: ${original.descricao} (${original.data})`
+            })
             idsParaRemover.push(t.id)
           })
         }
       })
+
+      // Log para debug
+      console.log(`Encontradas ${duplicadas.length} duplicatas em ${transacoes.length} transacoes`)
 
       if (!confirm) {
         return NextResponse.json({
           duplicadas,
           quantidade: duplicadas.length,
           idsParaRemover,
+          total_transacoes: transacoes.length,
+          grupos_com_duplicatas: Object.values(grupos).filter(g => g.length > 1).length,
           preview: true
         })
       }
