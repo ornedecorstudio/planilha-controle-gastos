@@ -234,14 +234,16 @@ Responda APENAS com JSON:
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-opus-4-5-20251101',
+      model: 'claude-sonnet-4-5-20250514',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }]
     })
   });
 
   if (!response.ok) {
-    throw new Error('Erro na API Claude');
+    const errorText = await response.text();
+    console.error('Erro API Claude:', response.status, errorText);
+    throw new Error(`Erro na API Claude: ${response.status}`);
   }
 
   const data = await response.json();
