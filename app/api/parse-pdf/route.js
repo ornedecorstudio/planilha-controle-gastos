@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 
 // Modelo correto da Anthropic - IMPORTANTE: usar este exatamente
 const ANTHROPIC_MODEL = 'claude-sonnet-4-5-20250929';
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 export async function POST(request) {
   try {
@@ -18,7 +18,8 @@ export async function POST(request) {
     }
 
     // Verificar se a API key esta configurada
-    if (!process.env.ANTHROPIC_API_KEY) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
         { error: 'ANTHROPIC_API_KEY nao configurada no servidor' },
         { status: 500 }
@@ -30,11 +31,6 @@ export async function POST(request) {
     const buffer = Buffer.from(bytes);
     const base64 = buffer.toString('base64');
     
-    // Inicializar cliente Anthropic
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-
     // Prompt para extracao de transacoes do PDF
     const prompt = `Voce e um especialista em extrair transacoes de faturas de cartao de credito brasileiras.
 
@@ -68,33 +64,58 @@ Retorne um JSON valido com a seguinte estrutura:
 
 Retorne APENAS o JSON, sem explicacoes adicionais ou markdown.`;
 
-    // Chamar API da Anthropic com o PDF
-    const response = await anthropic.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 8192,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: base64,
+    // Chamar API da Anthropic diretamente com fetch
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 8192,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: base64,
+                },
               },
-            },
-            {
-              type: 'text',
-              text: prompt,
-            },
-          ],
-        },
-      ],
+              {
+                type: 'text',
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      }),
     });
 
+    // Verificar se a resposta foi bem sucedida
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Erro da API Anthropic:', response.status, errorData);
+      
+      return NextResponse.json(
+        { 
+          error: `API Anthropic retornou ${response.status}`,
+          details: errorData,
+          modelo_usado: ANTHROPIC_MODEL
+        },
+        { status: 500 }
+      );
+    }
+
+    const data = await response.json();
+    
     // Extrair texto da resposta
-    const responseText = response.content[0]?.text || '';
+    const responseText = data.content?.[0]?.text || '';
     
     // Tentar fazer parse do JSON
     let result;
@@ -140,28 +161,6 @@ Retorne APENAS o JSON, sem explicacoes adicionais ou markdown.`;
   } catch (error) {
     console.error('Erro no parse-pdf:', error);
     
-    // Tratar erros especificos da Anthropic
-    if (error.status === 404) {
-      return NextResponse.json(
-        { 
-          error: 'Modelo de IA nao encontrado',
-          details: `O modelo ${ANTHROPIC_MODEL} pode nao estar disponivel. Verifique a documentacao da Anthropic.`,
-          api_error: error.message
-        },
-        { status: 500 }
-      );
-    }
-    
-    if (error.status === 401) {
-      return NextResponse.json(
-        { 
-          error: 'API Key invalida',
-          details: 'Verifique se a ANTHROPIC_API_KEY esta correta no Vercel'
-        },
-        { status: 500 }
-      );
-    }
-
     return NextResponse.json(
       { 
         error: 'Erro ao processar PDF',
