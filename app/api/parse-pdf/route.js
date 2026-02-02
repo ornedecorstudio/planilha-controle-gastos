@@ -7,7 +7,9 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 export async function POST(request) {
   try {
     const formData = await request.formData();
-    const file = formData.get('file');
+    
+    // CORRECAO: Buscar campo 'pdf' que e o nome enviado pelo frontend
+    const file = formData.get('pdf');
     const cartaoNome = formData.get('cartao_nome') || '';
     
     if (!file) {
