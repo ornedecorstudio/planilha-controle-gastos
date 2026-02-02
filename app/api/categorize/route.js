@@ -7,10 +7,10 @@ import { NextResponse } from 'next/server';
 function categorizarDeterministico(descricao) {
   const desc = descricao.toUpperCase().trim();
 
-  // ===== REGRA: Compra de Cambio via PayPal (ANTES das regras de Marketing) =====
-  // PAYPAL*PAYPAL *FA = Compra de cambio para pagamentos internacionais
+  // ===== REGRA: PAYPAL*PAYPAL *FA = Facebook Ads (Marketing Digital) =====
+  // FA = abreviacao de Facebook em faturas de cartao
   if (desc.match(/PAYPAL\*PAYPAL\s*\*FA/)) {
-    return { categoria: 'Compra de Cambio', incluir: true, confianca: 'alta' };
+    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
   }
 
   // ===== REGRA ABSOLUTA 1: FACEBK = Marketing Digital =====

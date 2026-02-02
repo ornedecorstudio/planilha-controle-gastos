@@ -61,26 +61,26 @@ export default function UploadPage() {
     const parsed = []
     let mesVencimento = null
     let anoVencimento = null
-    
+
     if (mesAno && mesAno.includes('-')) {
       const [ano, mes] = mesAno.split('-')
       mesVencimento = parseInt(mes)
       anoVencimento = parseInt(ano)
     }
-    
+
     const calcularAnoTransacao = (mesTransacao) => {
       if (!mesVencimento || !anoVencimento) return anoVencimento || new Date().getFullYear()
       if (mesTransacao > mesVencimento) return anoVencimento - 1
       return anoVencimento
     }
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
       if (line.toLowerCase().includes('date,title,amount')) continue
       if (line.toLowerCase().includes('data de compra')) continue
-      
+
       let data = null, descricao = null, valor = null
-      
+
       if (line.match(/^\d{4}-\d{2}-\d{2},/)) {
         const parts = line.split(',')
         if (parts.length >= 3) {
@@ -130,6 +130,12 @@ export default function UploadPage() {
     return parsed
   }
 
+  // Funcao auxiliar para obter nome do cartao selecionado
+  const getCartaoNome = () => {
+    const cartao = cartoes.find(c => c.id === selectedCartao)
+    return cartao ? cartao.nome : ''
+  }
+
   const handleProcessar = async () => {
     if (!rawData.trim() && !pdfFile) { setError('Cole os dados ou faca upload de PDF'); return }
     if (!selectedCartao) { setError('Selecione o cartao'); return }
@@ -137,26 +143,59 @@ export default function UploadPage() {
 
     setError('')
     setLoading(true)
-    let textToProcess = rawData
+    let parsed = []
 
+    // Se for PDF, usar a API de parse com IA
     if (pdfFile) {
       try {
         const formData = new FormData()
-        formData.append('pdf', pdfFile)
-        const pdfResponse = await fetch('/api/parse-pdf', { method: 'POST', body: formData })
+        formData.append('pdf', pdfFile) // Nome correto: 'pdf'
+        formData.append('cartao_nome', getCartaoNome()) // Enviar nome do cartao para contexto
+
+        const pdfResponse = await fetch('/api/parse-pdf', {
+          method: 'POST',
+          body: formData
+        })
         const pdfResult = await pdfResponse.json()
-        if (pdfResult.error) throw new Error(pdfResult.error)
-        textToProcess = pdfResult.text || ''
+
+        if (pdfResult.error) {
+          throw new Error(pdfResult.error)
+        }
+
+        // Se a IA retornou transacoes, usar diretamente
+        if (pdfResult.transacoes && pdfResult.transacoes.length > 0) {
+          parsed = pdfResult.transacoes.map(t => ({
+            id: Math.random().toString(36).substr(2, 9),
+            data: t.data ? formatarData(t.data) : null,
+            descricao: t.descricao,
+            valor: parseFloat(t.valor) || 0,
+            parcela: t.parcela || null,
+            categoria: 'Outros PJ',
+            tipo: 'PJ'
+          })).filter(t => t.data && t.valor > 0)
+        }
+
+        if (parsed.length === 0) {
+          throw new Error('Nenhuma transacao encontrada no PDF')
+        }
+
       } catch (pdfError) {
         setError(`Erro PDF: ${pdfError.message}`)
         setLoading(false)
         return
       }
+    } else {
+      // Se for texto colado, usar parser local
+      parsed = parseData(rawData, mesReferencia)
     }
 
-    const parsed = parseData(textToProcess, mesReferencia)
-    if (parsed.length === 0) { setError('Nenhuma transacao encontrada'); setLoading(false); return }
+    if (parsed.length === 0) {
+      setError('Nenhuma transacao encontrada');
+      setLoading(false);
+      return
+    }
 
+    // Categorizar as transacoes
     try {
       const response = await fetch('/api/categorize', {
         method: 'POST',
@@ -164,6 +203,7 @@ export default function UploadPage() {
         body: JSON.stringify({ transacoes: parsed })
       })
       const result = await response.json()
+
       if (result.resultados?.length > 0) {
         setTransactions(parsed.map((t, i) => ({
           ...t,
@@ -175,11 +215,39 @@ export default function UploadPage() {
       }
       setStep(2)
     } catch (err) {
+      // Se categorizacao falhar, usar transacoes sem categoria
       setTransactions(parsed)
       setStep(2)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Funcao para formatar data de DD/MM/YYYY para YYYY-MM-DD
+  const formatarData = (dataStr) => {
+    if (!dataStr) return null
+
+    // Se ja esta no formato YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dataStr)) {
+      return dataStr
+    }
+
+    // Formato DD/MM/YYYY
+    const match = dataStr.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+    if (match) {
+      const [, dia, mes, ano] = match
+      return `${ano}-${mes}-${dia}`
+    }
+
+    // Formato DD/MM (sem ano)
+    const matchSemAno = dataStr.match(/(\d{2})\/(\d{2})/)
+    if (matchSemAno && mesReferencia) {
+      const [, dia, mes] = matchSemAno
+      const [ano] = mesReferencia.split('-')
+      return `${ano}-${mes}-${dia}`
+    }
+
+    return null
   }
 
   const handleSalvar = async () => {
@@ -198,7 +266,7 @@ export default function UploadPage() {
       })
       const faturaResult = await faturaRes.json()
       if (faturaResult.error) throw new Error(faturaResult.error)
-      
+
       const transacoesRes = await fetch('/api/transacoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,7 +280,7 @@ export default function UploadPage() {
       })
       const transacoesResult = await transacoesRes.json()
       if (transacoesResult.error) throw new Error(transacoesResult.error)
-      
+
       setSuccess(`Fatura salva com ${transacoesResult.quantidade} transacoes!`)
       setTimeout(() => router.push('/faturas'), 2000)
     } catch (err) {
@@ -269,17 +337,18 @@ export default function UploadPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Upload PDF</label>
+            <label className="block text-sm font-medium mb-2">Upload PDF (processado com IA)</label>
             <input type="file" accept=".pdf" onChange={(e) => { setPdfFile(e.target.files?.[0] || null); setRawData('') }}
               className="w-full p-2 border rounded-lg" />
-            {pdfFile && <p className="mt-2 text-green-600 text-sm">PDF: {pdfFile.name}</p>}
+            {pdfFile && <p className="mt-2 text-green-600 text-sm">PDF selecionado: {pdfFile.name}</p>}
           </div>
 
           {!pdfFile && (
             <div>
-              <label className="block text-sm font-medium mb-2">Ou cole os dados CSV</label>
+              <label className="block text-sm font-medium mb-2">Ou cole os dados CSV/texto</label>
               <textarea value={rawData} onChange={(e) => setRawData(e.target.value)}
-                placeholder="Cole aqui..." className="w-full h-48 p-4 border rounded-lg font-mono text-sm" />
+                placeholder="Cole aqui os dados da fatura (CSV, texto tabulado, etc)..."
+                className="w-full h-48 p-4 border rounded-lg font-mono text-sm" />
             </div>
           )}
 
@@ -318,8 +387,8 @@ export default function UploadPage() {
               <tbody>
                 {transactions.map(t => (
                   <tr key={t.id} className={`border-t ${t.tipo === 'PF' ? 'bg-red-50' : ''}`}>
-                    <td className="p-3 font-mono text-xs">{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td className="p-3 max-w-xs truncate">{t.descricao}</td>
+                    <td className="p-3 font-mono text-xs">{t.data ? new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td className="p-3 max-w-xs truncate" title={t.descricao}>{t.descricao}</td>
                     <td className="p-3">
                       <select value={t.categoria} onChange={(e) => updateTransaction(t.id, 'categoria', e.target.value)}
                         className={`px-2 py-1 rounded text-xs font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-gray-100'}`}>
@@ -342,7 +411,7 @@ export default function UploadPage() {
 
           <button onClick={handleSalvar} disabled={saving}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium">
-            {saving ? 'Salvando...' : '💾 Salvar no Supabase'}
+            {saving ? 'Salvando...' : 'Salvar no Supabase'}
           </button>
         </div>
       )}
