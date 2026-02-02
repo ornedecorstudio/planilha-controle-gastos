@@ -9,20 +9,20 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     const file = formData.get('pdf');
-    
+
     if (!file) {
       return NextResponse.json({ error: 'Nenhum arquivo PDF enviado' }, { status: 400 });
     }
-    
+
     // Verificar se e PDF
     if (!file.type.includes('pdf') && !file.name?.endsWith('.pdf')) {
       return NextResponse.json({ error: 'O arquivo deve ser um PDF' }, { status: 400 });
     }
-    
+
     // Converter para Buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
+
     // Extrair texto usando pdf2json
     let rawText = '';
     
@@ -32,236 +32,293 @@ export async function POST(request) {
       rawText = await new Promise((resolve, reject) => {
         const pdfParser = new PDFParser();
         
-        pdfParser.on('pdfParser_dataReady', pdfData => {
-          let allText = '';
-          
-          if (pdfData.Pages) {
-            pdfData.Pages.forEach((page) => {
-              if (page.Texts) {
-                page.Texts.forEach(textItem => {
-                  if (textItem.R) {
-                    textItem.R.forEach(run => {
-                      if (run.T) {
-                        try {
-                          allText += decodeURIComponent(run.T) + ' ';
-                        } catch (e) {
-                          allText += run.T + ' ';
-                        }
-                      }
-                    });
-                  }
-                });
-              }
-              allText += '\n';
-            });
-          }
-          
-          resolve(allText);
+        pdfParser.on('pdfParser_dataError', (errData) => {
+          reject(new Error(errData.parserError));
         });
         
-        pdfParser.on('pdfParser_dataError', err => {
-          reject(err);
+        pdfParser.on('pdfParser_dataReady', (pdfData) => {
+          try {
+            let text = '';
+            if (pdfData && pdfData.Pages) {
+              pdfData.Pages.forEach((page) => {
+                if (page.Texts) {
+                  page.Texts.forEach((textItem) => {
+                    if (textItem.R) {
+                      textItem.R.forEach((r) => {
+                        if (r.T) {
+                          text += decodeURIComponent(r.T) + ' ';
+                        }
+                      });
+                    }
+                  });
+                  text += '\n';
+                }
+              });
+            }
+            resolve(text);
+          } catch (parseError) {
+            reject(parseError);
+          }
         });
         
         pdfParser.parseBuffer(buffer);
       });
-      
-      console.log('Texto bruto extraido (500 chars):', rawText.substring(0, 500));
-      
     } catch (pdfError) {
       console.error('Erro ao parsear PDF:', pdfError);
       return NextResponse.json({ 
-        error: 'Erro ao processar PDF',
-        details: pdfError.message 
+        error: 'Erro ao ler PDF: ' + pdfError.message 
       }, { status: 500 });
     }
-    
-    // Detectar tipo de PDF baseado no conteudo
-    const isRenner = rawText.includes('Realize Credito') || 
-                     rawText.includes('LOJAS RENNER') || 
-                     rawText.includes('Meu Cartao') ||
-                     rawText.includes('Compra a Vista sem Juros');
-    
-    const isMercadoPago = rawText.includes('Mercado Pago') || 
-                          rawText.includes('$4 ') ||
-                          rawText.includes('POKPOL') ||
-                          rawText.includes('OPPLE');
-    
-    console.log(`Tipo detectado: ${isRenner ? 'RENNER' : isMercadoPago ? 'MERCADO PAGO' : 'DESCONHECIDO'}`);
-    
-    // ===== PROCESSAMENTO RENNER (texto legivel) =====
+
+    // Detectar tipo de PDF
+    const fileName = file.name?.toLowerCase() || '';
+    const isMercadoPago = fileName.includes('mercado') || 
+                          fileName.includes('mp') || 
+                          rawText.includes('Mercado Pago') ||
+                          rawText.includes('MERCADOPAGO') ||
+                          rawText.includes('$4') || // Encoding corrompido comum
+                          rawText.includes('POKPOL'); // PayPal com encoding errado
+
+    const isRenner = fileName.includes('renner') || 
+                     rawText.includes('Renner') ||
+                     rawText.includes('RENNER') ||
+                     rawText.includes('Lojas Renner');
+
+    let transacoes = [];
+    let method = 'regex';
+
     if (isRenner) {
-      return processarRenner(rawText);
+      // Renner: usar regex (formato limpo)
+      transacoes = processarRenner(rawText);
+    } else if (isMercadoPago) {
+      // Mercado Pago: usar IA (encoding corrompido)
+      // Verificar se ANTHROPIC_API_KEY existe
+      if (!process.env.ANTHROPIC_API_KEY) {
+        console.error('ANTHROPIC_API_KEY nao configurada');
+        return NextResponse.json({ 
+          error: 'Configuracao de IA ausente. Verifique ANTHROPIC_API_KEY no Vercel.' 
+        }, { status: 500 });
+      }
+      
+      try {
+        transacoes = await processarComIA(rawText);
+        method = 'ia';
+      } catch (iaError) {
+        console.error('Erro ao processar com IA:', iaError);
+        return NextResponse.json({ 
+          error: 'Erro ao processar com IA: ' + iaError.message 
+        }, { status: 500 });
+      }
+    } else {
+      // Tentar extrator generico
+      transacoes = processarGenerico(rawText);
     }
-    
-    // ===== PROCESSAMENTO MERCADO PAGO (precisa IA) =====
-    if (isMercadoPago) {
-      return processarMercadoPagoComIA(rawText);
-    }
-    
-    // ===== FALLBACK: tentar extrair com regex generico, senao usar IA =====
-    const transacoesGenericas = extrairTransacoesGenericas(rawText);
-    if (transacoesGenericas.length > 0) {
-      return NextResponse.json({ 
-        text: transacoesGenericas.join('\n'),
-        totalLines: transacoesGenericas.length,
-        rawTextLength: rawText.length,
-        method: 'regex-generico'
-      });
-    }
-    
-    // Se nao conseguiu extrair, usar IA
-    return processarMercadoPagoComIA(rawText);
-    
-  } catch (error) {
-    console.error('Erro ao processar PDF:', error);
-    return NextResponse.json({ 
-      error: 'Erro ao processar PDF',
-      details: error.message 
-    }, { status: 500 });
-  }
-}
 
-// ===== PROCESSADOR RENNER =====
-function processarRenner(rawText) {
-  const transacoes = [];
-  
-  let textoNormalizado = rawText.replace(/(\d),\s+(\d)/g, '$1,$2');
-  
-  const regexCompra = /(\d{2}\/\d{2}\/\d{4})\s+Compra a\s*Vista sem Juros Visa\s+([\d.,]+)\s+([A-Z0-9\s*]+?)(?=\s+\d{2}\/\d{2}\/\d{4}|\s+Fatura Segura|\s+ANUIDADE|\s+AVAL|\s+Compras parceladas|\s*$)/gi;
-  
-  let match;
-  while ((match = regexCompra.exec(textoNormalizado)) !== null) {
-    const data = match[1];
-    let valorStr = match[2];
-    let estabelecimento = match[3].trim();
-    
-    valorStr = valorStr.replace(/\./g, '').replace(',', '.');
-    const valor = parseFloat(valorStr);
-    
-    estabelecimento = estabelecimento.replace(/^\d+\s+/, '').trim();
-    
-    if (valor > 0 && estabelecimento.length > 0) {
-      transacoes.push(`${data} ${estabelecimento} R$ ${valor.toFixed(2).replace('.', ',')}`);
-    }
-  }
-  
-  console.log(`RENNER: ${transacoes.length} transacoes extraidas`);
-  
-  return NextResponse.json({ 
-    text: transacoes.join('\n'),
-    totalLines: transacoes.length,
-    rawTextLength: rawText.length,
-    method: 'regex-renner'
-  });
-}
-
-// ===== PROCESSADOR MERCADO PAGO (com IA) =====
-async function processarMercadoPagoComIA(rawText) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ 
-      error: 'API Key do Claude nao configurada',
-      details: 'Configure ANTHROPIC_API_KEY nas variaveis de ambiente'
-    }, { status: 500 });
-  }
-  
-  try {
-    const prompt = `Voce e um especialista em extrair dados de faturas de cartao de credito.
-
-O texto abaixo foi extraido de um PDF de fatura. O PDF pode usar uma fonte com encoding estranho onde caracteres sao substituidos. Por exemplo:
-- "$4" significa "R$"
-- "J" as vezes significa "."
-- "POKPOL B5OIEZOOGSE$" significa "PAYPAL *FACEBOOKSER"
-- "OPPLEJIO/ZFLL" significa "APPLE.COM/BILL"
-- "alie.press" significa "aliexpress"
-
-Extraia APENAS as transacoes de compra (nao inclua pagamentos de fatura, tarifas, anuidades, seguros ou totais).
-Cada transacao deve ter: DATA (DD/MM) e DESCRICAO e VALOR.
-
-IMPORTANTE: 
-- Ignore valores negativos (sao pagamentos)
-- Ignore "Pagamento Fatura", "Tarifa", "Fatura Segura", "Anuidade", "Aval Emerg", etc.
-- Foque em compras reais (FACEBK, PAYPAL, ALIEXPRESS, etc.)
-
-Responda APENAS com JSON no formato:
-{"transacoes":[{"data":"DD/MM","descricao":"NOME DO ESTABELECIMENTO","valor":123.45}]}
-
-TEXTO DO PDF:
-${rawText.substring(0, 10000)}`;
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250514',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+    return NextResponse.json({
+      success: true,
+      transacoes,
+      totalTransacoes: transacoes.length,
+      method,
+      rawTextLength: rawText.length,
+      tipoDetectado: isRenner ? 'Renner' : isMercadoPago ? 'Mercado Pago' : 'Generico'
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Erro API Claude:', response.status, errorData);
-      throw new Error(`Erro na API Claude: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text || '';
-    
-    console.log('Resposta Claude (500 chars):', text.substring(0, 500));
-    
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0]);
-      const transacoes = result.transacoes || [];
-      
-      const lines = transacoes.map(t => 
-        `${t.data} ${t.descricao} R$ ${typeof t.valor === 'number' ? t.valor.toFixed(2).replace('.', ',') : t.valor}`
-      );
-      
-      console.log(`MERCADO PAGO (IA): ${lines.length} transacoes extraidas`);
-      
-      return NextResponse.json({ 
-        text: lines.join('\n'),
-        totalLines: lines.length,
-        rawTextLength: rawText.length,
-        method: 'claude-ai'
-      });
-    }
-    
+  } catch (error) {
+    console.error('Erro geral no parse-pdf:', error);
     return NextResponse.json({ 
-      error: 'Nao foi possivel extrair transacoes do PDF',
-      details: 'Claude nao retornou JSON valido'
-    }, { status: 500 });
-    
-  } catch (aiError) {
-    console.error('Erro na IA:', aiError);
-    return NextResponse.json({ 
-      error: 'Erro ao processar com IA',
-      details: aiError.message 
+      error: 'Erro ao processar PDF: ' + error.message 
     }, { status: 500 });
   }
 }
 
-// ===== EXTRATOR GENERICO =====
-function extrairTransacoesGenericas(rawText) {
+// Processador para Renner (regex)
+function processarRenner(text) {
   const transacoes = [];
+  const lines = text.split('\n');
   
-  const regex = /(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+(-?[\d.,]+)\s*$/gm;
-  let match;
+  // Padrao Renner: "dd/mm/yyyy DESCRICAO VALOR"
+  const regex = /(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*$/;
   
-  while ((match = regex.exec(rawText)) !== null) {
-    const [, data, desc, valor] = match;
-    const valorNum = parseFloat(valor.replace(/\./g, '').replace(',', '.'));
-    
-    if (valorNum > 0 && desc.length > 2) {
-      transacoes.push(`${data} ${desc.trim()} R$ ${valor}`);
+  for (const line of lines) {
+    const match = line.match(regex);
+    if (match) {
+      const [, data, descricao, valorStr] = match;
+      const valor = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
+      
+      // Filtrar taxas do cartao
+      const descUpper = descricao.toUpperCase();
+      if (descUpper.includes('ANUIDADE') || 
+          descUpper.includes('FATURA SEGURA') ||
+          descUpper.includes('AVAL EMERG')) {
+        continue;
+      }
+      
+      transacoes.push({
+        data: formatarData(data),
+        descricao: descricao.trim(),
+        valor
+      });
     }
   }
   
   return transacoes;
+}
+
+// Processador para Mercado Pago (IA)
+async function processarComIA(rawText) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY nao configurada');
+  }
+
+  const prompt = `Voce e um especialista em extrair dados de faturas de cartao de credito brasileiras.
+
+O texto abaixo foi extraido de um PDF do Mercado Pago e pode ter encoding corrompido. Exemplos de corrupcao:
+- "$4" pode significar "R$"
+- "POKPOL" pode ser "PAYPAL"
+- Caracteres estranhos no lugar de acentos
+
+Extraia TODAS as transacoes encontradas no formato JSON array:
+[
+  {
+    "data": "YYYY-MM-DD",
+    "descricao": "NOME DO ESTABELECIMENTO",
+    "valor": 123.45
+  }
+]
+
+REGRAS:
+1. Datas no formato YYYY-MM-DD
+2. Valores como numero decimal (sem R$)
+3. Descricao limpa (corrigir encoding)
+4. Ignorar taxas de cartao (anuidade, seguro, IOF de servicos)
+5. Se nao encontrar transacoes, retorne []
+
+Texto do PDF:
+${rawText.substring(0, 15000)}
+
+Retorne APENAS o JSON array, sem markdown, sem explicacoes.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5-20250514',
+      max_tokens: 4096,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Erro da API Anthropic:', response.status, errorText);
+    throw new Error(`API Anthropic retornou ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  
+  if (!data.content || !data.content[0] || !data.content[0].text) {
+    throw new Error('Resposta invalida da API');
+  }
+
+  const responseText = data.content[0].text.trim();
+  
+  // Tentar parsear JSON
+  try {
+    // Remover possivel markdown
+    let jsonText = responseText;
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```$/g, '');
+    }
+    
+    const transacoes = JSON.parse(jsonText);
+    
+    if (!Array.isArray(transacoes)) {
+      throw new Error('Resposta nao e um array');
+    }
+    
+    return transacoes.map(t => ({
+      data: t.data,
+      descricao: t.descricao,
+      valor: typeof t.valor === 'number' ? t.valor : parseFloat(t.valor) || 0
+    }));
+    
+  } catch (parseError) {
+    console.error('Erro ao parsear resposta da IA:', parseError);
+    console.error('Resposta recebida:', responseText);
+    throw new Error('Falha ao interpretar resposta da IA');
+  }
+}
+
+// Processador generico (fallback)
+function processarGenerico(text) {
+  const transacoes = [];
+  const lines = text.split('\n');
+  
+  // Tentar varios padroes comuns
+  const patterns = [
+    // dd/mm/yyyy DESCRICAO R$ 123,45
+    /(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+R?\$?\s*(\d{1,3}(?:\.\d{3})*,\d{2})/,
+    // dd/mm DESCRICAO 123,45
+    /(\d{2}\/\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*$/,
+    // DESCRICAO dd/mm/yyyy 123,45
+    /(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{1,3}(?:\.\d{3})*,\d{2})/
+  ];
+  
+  for (const line of lines) {
+    for (const regex of patterns) {
+      const match = line.match(regex);
+      if (match) {
+        let data, descricao, valorStr;
+        
+        // Ajustar baseado no padrao
+        if (match[1].match(/^\d{2}\/\d{2}/)) {
+          data = match[1];
+          descricao = match[2];
+          valorStr = match[3];
+        } else {
+          descricao = match[1];
+          data = match[2];
+          valorStr = match[3];
+        }
+        
+        const valor = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
+        
+        if (valor > 0) {
+          transacoes.push({
+            data: formatarData(data),
+            descricao: descricao.trim(),
+            valor
+          });
+        }
+        break;
+      }
+    }
+  }
+  
+  return transacoes;
+}
+
+// Converter data para YYYY-MM-DD
+function formatarData(dataStr) {
+  const parts = dataStr.split('/');
+  if (parts.length === 3) {
+    const [dia, mes, ano] = parts;
+    return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+  } else if (parts.length === 2) {
+    const [dia, mes] = parts;
+    const ano = new Date().getFullYear();
+    return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+  }
+  return dataStr;
 }
