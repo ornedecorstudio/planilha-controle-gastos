@@ -1,0 +1,159 @@
+'use client'
+
+import { useState } from 'react'
+import { X, AlertTriangle, Check } from 'lucide-react'
+
+export default function DuplicatesModal({
+  isOpen,
+  onClose,
+  duplicatas = [],
+  onConfirm,
+  loading = false
+}) {
+  const [selectedIds, setSelectedIds] = useState(new Set(duplicatas.map(d => d.id)))
+  const [confirmStep, setConfirmStep] = useState(false)
+
+  if (!isOpen) return null
+
+  const toggleSelection = (id) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  const selectAll = () => setSelectedIds(new Set(duplicatas.map(d => d.id)))
+  const deselectAll = () => setSelectedIds(new Set())
+
+  const handleConfirm = () => {
+    if (!confirmStep) {
+      setConfirmStep(true)
+      return
+    }
+    onConfirm(Array.from(selectedIds))
+  }
+
+  const handleClose = () => {
+    setConfirmStep(false)
+    setSelectedIds(new Set(duplicatas.map(d => d.id)))
+    onClose()
+  }
+
+  const total = duplicatas.reduce((acc, d) => selectedIds.has(d.id) ? acc + parseFloat(d.valor) : acc, 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
+      <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+        <div className="p-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="text-amber-500" size={20} />
+            <h3 className="text-lg font-semibold text-slate-800">
+              {duplicatas.length} transacoes duplicadas encontradas
+            </h3>
+          </div>
+          <button onClick={handleClose} className="text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 overflow-y-auto flex-1">
+          {confirmStep ? (
+            <div className="text-center py-8">
+              <AlertTriangle className="text-red-500 mx-auto mb-4" size={48} />
+              <h4 className="text-lg font-semibold text-slate-800 mb-2">Confirmar remocao</h4>
+              <p className="text-slate-600 mb-4">
+                Voce esta prestes a remover <strong>{selectedIds.size}</strong> transacoes
+                totalizando <strong>R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>.
+              </p>
+              <p className="text-red-600 text-sm">Esta acao nao pode ser desfeita.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 mb-4">
+                <button onClick={selectAll} className="text-xs text-slate-600 hover:text-slate-800 underline">
+                  selecionar todas
+                </button>
+                <span className="text-slate-300">|</span>
+                <button onClick={deselectAll} className="text-xs text-slate-600 hover:text-slate-800 underline">
+                  desmarcar todas
+                </button>
+              </div>
+              <div className="space-y-2">
+                {duplicatas.map(d => (
+                  <label
+                    key={d.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      selectedIds.has(d.id) ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(d.id)}
+                      onChange={() => toggleSelection(d.id)}
+                      className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-700 truncate">{d.descricao}</p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR')} - {d.categoria}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-slate-700">
+                        R$ {parseFloat(d.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        d.tipo === 'PJ' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {d.tipo}
+                      </span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="p-4 border-t bg-slate-50 flex items-center justify-between">
+          <div className="text-sm text-slate-600">
+            {selectedIds.size} selecionadas - R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleClose}
+              disabled={loading}
+              className="px-4 py-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 font-medium disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            {confirmStep && (
+              <button
+                onClick={() => setConfirmStep(false)}
+                disabled={loading}
+                className="px-4 py-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 font-medium disabled:opacity-50"
+              >
+                Voltar
+              </button>
+            )}
+            <button
+              onClick={handleConfirm}
+              disabled={loading || selectedIds.size === 0}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? 'Removendo...' : confirmStep ? (
+                <><Check size={16} /> Confirmar remocao</>
+              ) : (
+                `Remover ${selectedIds.size} duplicadas`
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

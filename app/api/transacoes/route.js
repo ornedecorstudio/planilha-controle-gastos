@@ -174,9 +174,196 @@ export async function PATCH(request) {
     }
     
     return NextResponse.json({ transacao: data })
-    
+
   } catch (error) {
     console.error('Erro na API transacoes:', error)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  }
+}
+
+// Funcao auxiliar para recalcular totais da fatura
+async function recalcularTotaisFatura(supabase, fatura_id) {
+  const { data: todasTransacoes } = await supabase
+    .from('transacoes')
+    .select('valor, tipo')
+    .eq('fatura_id', fatura_id)
+
+  const totalPJ = (todasTransacoes || [])
+    .filter(t => t.tipo === 'PJ')
+    .reduce((acc, t) => acc + parseFloat(t.valor), 0)
+
+  const totalPF = (todasTransacoes || [])
+    .filter(t => t.tipo === 'PF')
+    .reduce((acc, t) => acc + parseFloat(t.valor), 0)
+
+  await supabase
+    .from('faturas')
+    .update({
+      valor_total: totalPJ + totalPF,
+      valor_pj: totalPJ,
+      valor_pf: totalPF
+    })
+    .eq('id', fatura_id)
+
+  return { totalPJ, totalPF, total: totalPJ + totalPF }
+}
+
+// DELETE - Remove transacoes (individual ou duplicadas em lote)
+export async function DELETE(request) {
+  try {
+    const supabase = createServerClient()
+    const { searchParams } = new URL(request.url)
+
+    const id = searchParams.get('id')
+    const fatura_id = searchParams.get('fatura_id')
+    const duplicates = searchParams.get('duplicates') === 'true'
+    const confirm = searchParams.get('confirm') === 'true'
+    const ids = searchParams.get('ids')
+
+    // Delecao individual
+    if (id) {
+      const { data: transacao } = await supabase
+        .from('transacoes')
+        .select('fatura_id')
+        .eq('id', id)
+        .single()
+
+      if (!transacao) {
+        return NextResponse.json({ error: 'Transacao nao encontrada' }, { status: 404 })
+      }
+
+      const { error } = await supabase
+        .from('transacoes')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.error('Erro ao deletar transacao:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      const totais = await recalcularTotaisFatura(supabase, transacao.fatura_id)
+
+      return NextResponse.json({
+        success: true,
+        message: 'Transacao removida',
+        totais
+      })
+    }
+
+    // Delecao em lote por IDs
+    if (ids) {
+      const idList = ids.split(',').filter(Boolean)
+
+      if (idList.length === 0) {
+        return NextResponse.json({ error: 'Nenhum ID fornecido' }, { status: 400 })
+      }
+
+      const { data: primeiraTransacao } = await supabase
+        .from('transacoes')
+        .select('fatura_id')
+        .eq('id', idList[0])
+        .single()
+
+      if (!primeiraTransacao) {
+        return NextResponse.json({ error: 'Transacoes nao encontradas' }, { status: 404 })
+      }
+
+      const { error } = await supabase
+        .from('transacoes')
+        .delete()
+        .in('id', idList)
+
+      if (error) {
+        console.error('Erro ao deletar transacoes:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      const totais = await recalcularTotaisFatura(supabase, primeiraTransacao.fatura_id)
+
+      return NextResponse.json({
+        success: true,
+        message: `${idList.length} transacoes removidas`,
+        quantidade: idList.length,
+        totais
+      })
+    }
+
+    // Deteccao/delecao de duplicadas
+    if (fatura_id && duplicates) {
+      const { data: transacoes, error: fetchError } = await supabase
+        .from('transacoes')
+        .select('*')
+        .eq('fatura_id', fatura_id)
+        .order('data', { ascending: true })
+
+      if (fetchError) {
+        console.error('Erro ao buscar transacoes:', fetchError)
+        return NextResponse.json({ error: fetchError.message }, { status: 500 })
+      }
+
+      const grupos = {}
+      transacoes.forEach(t => {
+        const chave = `${t.data}|${t.descricao}|${t.valor}`
+        if (!grupos[chave]) {
+          grupos[chave] = []
+        }
+        grupos[chave].push(t)
+      })
+
+      const duplicadas = []
+      const idsParaRemover = []
+
+      Object.values(grupos).forEach(grupo => {
+        if (grupo.length > 1) {
+          grupo.slice(1).forEach(t => {
+            duplicadas.push(t)
+            idsParaRemover.push(t.id)
+          })
+        }
+      })
+
+      if (!confirm) {
+        return NextResponse.json({
+          duplicadas,
+          quantidade: duplicadas.length,
+          idsParaRemover,
+          preview: true
+        })
+      }
+
+      if (idsParaRemover.length === 0) {
+        return NextResponse.json({
+          success: true,
+          message: 'Nenhuma duplicata encontrada',
+          quantidade: 0
+        })
+      }
+
+      const { error: deleteError } = await supabase
+        .from('transacoes')
+        .delete()
+        .in('id', idsParaRemover)
+
+      if (deleteError) {
+        console.error('Erro ao deletar duplicadas:', deleteError)
+        return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      }
+
+      const totais = await recalcularTotaisFatura(supabase, fatura_id)
+
+      return NextResponse.json({
+        success: true,
+        message: `${idsParaRemover.length} transacoes duplicadas removidas`,
+        quantidade: idsParaRemover.length,
+        totais
+      })
+    }
+
+    return NextResponse.json({ error: 'Parametros invalidos' }, { status: 400 })
+
+  } catch (error) {
+    console.error('Erro na API transacoes DELETE:', error)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }
