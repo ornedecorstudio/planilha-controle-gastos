@@ -1,136 +1,131 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 
-// GET - Dados agregados para o dashboard
+// GET - Lista faturas com filtros opcionais
 export async function GET(request) {
   try {
     const supabase = createServerClient()
     const { searchParams } = new URL(request.url)
     
-    // Parametros opcionais
-    const ano = searchParams.get('ano') || new Date().getFullYear()
-    const mes = searchParams.get('mes') // Se nao informado, retorna do ano todo
+    const cartao_id = searchParams.get('cartao_id')
+    const status = searchParams.get('status')
+    const ano = searchParams.get('ano')
+    const limit = parseInt(searchParams.get('limit')) || 50
     
-    // 1. Resumo de faturas
-    let queryFaturas = supabase
+    let query = supabase
       .from('faturas')
       .select(`
-        id,
-        mes_referencia,
-        valor_total,
-        valor_pj,
-        valor_pf,
-        status,
+        *,
         cartoes (
+          id,
           nome,
-          banco
+          banco,
+          tipo
         )
       `)
-      .gte('mes_referencia', `${ano}-01-01`)
-      .lte('mes_referencia', `${ano}-12-31`)
       .order('mes_referencia', { ascending: false })
+      .limit(limit)
     
-    if (mes) {
-      const mesFormatado = mes.toString().padStart(2, '0')
-      queryFaturas = queryFaturas
-        .gte('mes_referencia', `${ano}-${mesFormatado}-01`)
-        .lte('mes_referencia', `${ano}-${mesFormatado}-31`)
+    if (cartao_id) {
+      query = query.eq('cartao_id', cartao_id)
     }
     
-    const { data: faturas, error: errorFaturas } = await queryFaturas
-    
-    if (errorFaturas) {
-      console.error('Erro ao buscar faturas:', errorFaturas)
-      return NextResponse.json({ error: errorFaturas.message }, { status: 500 })
+    if (status) {
+      query = query.eq('status', status)
     }
     
-    // 2. Calcula totais gerais
-    const totaisGerais = {
-      valor_total: faturas.reduce((acc, f) => acc + parseFloat(f.valor_total || 0), 0),
-      valor_pj: faturas.reduce((acc, f) => acc + parseFloat(f.valor_pj || 0), 0),
-      valor_pf: faturas.reduce((acc, f) => acc + parseFloat(f.valor_pf || 0), 0),
-      quantidade_faturas: faturas.length,
-      faturas_pendentes: faturas.filter(f => f.status === 'pendente').length,
-      faturas_pagas: faturas.filter(f => f.status === 'pago').length,
-      faturas_reembolsadas: faturas.filter(f => f.status === 'reembolsado').length
+    if (ano) {
+      query = query
+        .gte('mes_referencia', `${ano}-01-01`)
+        .lte('mes_referencia', `${ano}-12-31`)
     }
     
-    // 3. Busca transacoes para agrupar por categoria
-    const faturaIds = faturas.map(f => f.id)
+    const { data, error } = await query
     
-    let categoriasPorTipo = { PJ: {}, PF: {} }
-    
-    if (faturaIds.length > 0) {
-      const { data: transacoes, error: errorTransacoes } = await supabase
-        .from('transacoes')
-        .select('categoria, tipo, valor')
-        .in('fatura_id', faturaIds)
-      
-      if (!errorTransacoes && transacoes) {
-        transacoes.forEach(t => {
-          const tipo = t.tipo || 'PJ'
-          const categoria = t.categoria || 'Outros'
-          
-          if (!categoriasPorTipo[tipo][categoria]) {
-            categoriasPorTipo[tipo][categoria] = { valor: 0, quantidade: 0 }
-          }
-          
-          categoriasPorTipo[tipo][categoria].valor += parseFloat(t.valor || 0)
-          categoriasPorTipo[tipo][categoria].quantidade += 1
-        })
-      }
+    if (error) {
+      console.error('Erro ao buscar faturas:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
     
-    // Converte para array ordenado por valor
-    const categoriasArray = (tipo) => {
-      return Object.entries(categoriasPorTipo[tipo])
-        .map(([nome, dados]) => ({ nome, ...dados }))
-        .sort((a, b) => b.valor - a.valor)
-    }
-    
-    // 4. Resumo por mes (para grafico)
-    const resumoPorMes = {}
-    faturas.forEach(f => {
-      const mesRef = f.mes_referencia.substring(0, 7) // YYYY-MM
-      if (!resumoPorMes[mesRef]) {
-        resumoPorMes[mesRef] = { valor_pj: 0, valor_pf: 0, valor_total: 0 }
-      }
-      resumoPorMes[mesRef].valor_pj += parseFloat(f.valor_pj || 0)
-      resumoPorMes[mesRef].valor_pf += parseFloat(f.valor_pf || 0)
-      resumoPorMes[mesRef].valor_total += parseFloat(f.valor_total || 0)
-    })
-    
-    const evolucaoMensal = Object.entries(resumoPorMes)
-      .map(([mes, valores]) => ({ mes, ...valores }))
-      .sort((a, b) => a.mes.localeCompare(b.mes))
-    
-    // 5. Reembolsos pendentes
-    const { data: reembolsosPendentes } = await supabase
-      .from('faturas')
-      .select(`
-        id,
-        mes_referencia,
-        valor_pj,
-        cartoes (nome)
-      `)
-      .eq('status', 'pago')
-      .gt('valor_pj', 0)
-      .order('mes_referencia', { ascending: false })
-      .limit(10)
-    
-    return NextResponse.json({
-      ano: parseInt(ano),
-      mes: mes ? parseInt(mes) : null,
-      totais: totaisGerais,
-      categorias_pj: categoriasArray('PJ'),
-      categorias_pf: categoriasArray('PF'),
-      evolucao_mensal: evolucaoMensal,
-      faturas_recentes: faturas.slice(0, 5),
-      reembolsos_pendentes: reembolsosPendentes || []
-    })
+    return NextResponse.json({ faturas: data })
     
   } catch (error) {
-    console.error('Erro na API dashboard:', error)
+    console.error('Erro na API faturas:', error)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  }
+}
+
+// POST - Cria nova fatura
+export async function POST(request) {
+  try {
+    const supabase = createServerClient()
+    const body = await request.json()
+    
+    const { cartao_id, mes_referencia, data_vencimento, status } = body
+    
+    if (!cartao_id || !mes_referencia) {
+      return NextResponse.json({ error: 'cartao_id e mes_referencia sao obrigatorios' }, { status: 400 })
+    }
+    
+    const { data, error } = await supabase
+      .from('faturas')
+      .insert([{
+        cartao_id,
+        mes_referencia,
+        data_vencimento: data_vencimento || null,
+        status: status || 'pendente',
+        valor_total: 0,
+        valor_pj: 0,
+        valor_pf: 0
+      }])
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Erro ao criar fatura:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    
+    return NextResponse.json({ fatura: data }, { status: 201 })
+    
+  } catch (error) {
+    console.error('Erro na API faturas:', error)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  }
+}
+
+// PATCH - Atualiza status da fatura
+export async function PATCH(request) {
+  try {
+    const supabase = createServerClient()
+    const body = await request.json()
+    
+    const { id, status, data_pagamento } = body
+    
+    if (!id) {
+      return NextResponse.json({ error: 'ID da fatura e obrigatorio' }, { status: 400 })
+    }
+    
+    const updateData = {}
+    if (status) updateData.status = status
+    if (data_pagamento) updateData.data_pagamento = data_pagamento
+    
+    const { data, error } = await supabase
+      .from('faturas')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Erro ao atualizar fatura:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    
+    return NextResponse.json({ fatura: data })
+    
+  } catch (error) {
+    console.error('Erro na API faturas:', error)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }
