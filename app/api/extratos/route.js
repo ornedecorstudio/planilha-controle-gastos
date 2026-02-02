@@ -1,6 +1,55 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 
+/**
+ * Gera uma hash única para identificar uma movimentação
+ * Tripla checagem: data + valor + descrição normalizada
+ */
+function gerarHashMovimentacao(mov) {
+  const data = mov.data || ''
+  const valor = parseFloat(mov.valor || 0).toFixed(2)
+  const descricaoNormalizada = (mov.descricao || '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 100) // Primeiros 100 chars para comparação
+
+  return `${data}|${valor}|${descricaoNormalizada}`
+}
+
+/**
+ * Verifica se uma movimentação é duplicada
+ * Critérios de duplicação:
+ * 1. Mesma data
+ * 2. Mesmo valor (com tolerância de R$ 0.01)
+ * 3. Descrição similar (primeiros 50 caracteres)
+ */
+function isDuplicada(nova, existentes) {
+  const novaData = nova.data || ''
+  const novaValor = parseFloat(nova.valor || 0)
+  const novaDesc = (nova.descricao || '').toUpperCase().substring(0, 50)
+
+  return existentes.some(existente => {
+    const existenteData = existente.data || ''
+    const existenteValor = parseFloat(existente.valor || 0)
+    const existenteDesc = (existente.descricao || '').toUpperCase().substring(0, 50)
+
+    // Critério 1: Mesma data
+    const mesmaData = novaData === existenteData
+
+    // Critério 2: Mesmo valor (tolerância de R$ 0.01)
+    const mesmoValor = Math.abs(novaValor - existenteValor) <= 0.01
+
+    // Critério 3: Descrição similar (80% match ou início igual)
+    const descricaoSimilar = novaDesc === existenteDesc ||
+      novaDesc.startsWith(existenteDesc.substring(0, 30)) ||
+      existenteDesc.startsWith(novaDesc.substring(0, 30))
+
+    // Considera duplicada se TODOS os critérios forem atendidos
+    return mesmaData && mesmoValor && descricaoSimilar
+  })
+}
+
 // GET - Lista extratos com filtros opcionais
 export async function GET(request) {
   try {
@@ -42,7 +91,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Cria novo extrato com movimentações
+// POST - Cria novo extrato com movimentações (com detecção de duplicatas)
 export async function POST(request) {
   try {
     const supabase = createServerClient()
@@ -58,12 +107,48 @@ export async function POST(request) {
       return NextResponse.json({ error: 'movimentacoes é obrigatório e deve ser um array' }, { status: 400 })
     }
 
-    // Calcular totais
-    const totalEntradas = movimentacoes
+    // Buscar movimentações existentes do mesmo período para detectar duplicatas
+    const mesInicio = mes_referencia.substring(0, 7) + '-01'
+    const mesFim = mes_referencia.substring(0, 7) + '-31'
+
+    const { data: movimentacoesExistentes } = await supabase
+      .from('movimentacoes')
+      .select('data, descricao, valor, tipo')
+      .gte('data', mesInicio)
+      .lte('data', mesFim)
+
+    // Filtrar movimentações duplicadas
+    const movimentacoesNovas = []
+    const movimentacoesDuplicadas = []
+
+    for (const mov of movimentacoes) {
+      if (movimentacoesExistentes && isDuplicada(mov, movimentacoesExistentes)) {
+        movimentacoesDuplicadas.push(mov)
+      } else {
+        // Verificar também duplicatas dentro do próprio lote
+        if (!isDuplicada(mov, movimentacoesNovas)) {
+          movimentacoesNovas.push(mov)
+        } else {
+          movimentacoesDuplicadas.push(mov)
+        }
+      }
+    }
+
+    // Se todas são duplicadas, retornar aviso
+    if (movimentacoesNovas.length === 0) {
+      return NextResponse.json({
+        warning: 'Todas as movimentações já existem no banco de dados',
+        duplicadas: movimentacoesDuplicadas.length,
+        inseridas: 0
+      }, { status: 200 })
+    }
+
+    // Calcular totais apenas das novas
+    const totalEntradas = movimentacoesNovas
       .filter(m => m.tipo === 'entrada')
       .reduce((sum, m) => sum + (parseFloat(m.valor) || 0), 0)
 
-    const totalSaidas = movimentacoes
+    const totalSaidas = movimentacoesNovas
       .filter(m => m.tipo === 'saida')
       .reduce((sum, m) => sum + (parseFloat(m.valor) || 0), 0)
 
@@ -85,8 +170,8 @@ export async function POST(request) {
       return NextResponse.json({ error: extratoError.message }, { status: 500 })
     }
 
-    // Inserir movimentações
-    const movimentacoesParaInserir = movimentacoes.map(m => ({
+    // Inserir apenas movimentações novas
+    const movimentacoesParaInserir = movimentacoesNovas.map(m => ({
       extrato_id: extrato.id,
       data: m.data,
       descricao: m.descricao,
@@ -111,7 +196,11 @@ export async function POST(request) {
       extrato,
       quantidade: movs.length,
       total_entradas: totalEntradas,
-      total_saidas: totalSaidas
+      total_saidas: totalSaidas,
+      duplicadas_ignoradas: movimentacoesDuplicadas.length,
+      message: movimentacoesDuplicadas.length > 0
+        ? `${movs.length} movimentações inseridas, ${movimentacoesDuplicadas.length} duplicadas ignoradas`
+        : `${movs.length} movimentações inseridas com sucesso`
     }, { status: 201 })
 
   } catch (error) {

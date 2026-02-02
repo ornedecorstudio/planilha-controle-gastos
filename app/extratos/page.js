@@ -150,8 +150,17 @@ export default function ExtratosPage() {
       const result = await response.json()
       if (result.error) throw new Error(result.error)
 
-      setSuccess(`Extrato salvo com ${movimentacoes.length} movimentações!`)
-      setTimeout(() => router.push('/reconciliacao'), 2000)
+      // Mensagem personalizada baseada no resultado
+      if (result.warning) {
+        setError(result.warning)
+        return
+      }
+
+      const msgDuplicadas = result.duplicadas_ignoradas > 0
+        ? ` (${result.duplicadas_ignoradas} duplicadas ignoradas)`
+        : ''
+      setSuccess(`${result.message || `Extrato salvo com ${result.quantidade} movimentações`}${msgDuplicadas}`)
+      setTimeout(() => router.push('/reconciliacao'), 2500)
     } catch (err) {
       setError(err.message)
     } finally {
