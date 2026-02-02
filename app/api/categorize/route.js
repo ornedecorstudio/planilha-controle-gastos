@@ -6,7 +6,13 @@ import { NextResponse } from 'next/server';
 
 function categorizarDeterministico(descricao) {
   const desc = descricao.toUpperCase().trim();
-  
+
+  // ===== REGRA: Compra de Cambio via PayPal (ANTES das regras de Marketing) =====
+  // PAYPAL*PAYPAL *FA = Compra de cambio para pagamentos internacionais
+  if (desc.match(/PAYPAL\*PAYPAL\s*\*FA/)) {
+    return { categoria: 'Compra de Cambio', incluir: true, confianca: 'alta' };
+  }
+
   // ===== REGRA ABSOLUTA 1: FACEBK = Marketing Digital =====
   if (desc.includes('FACEBK') || desc.includes('FACEBOOK') || desc.startsWith('FB ') || desc.includes('META ADS')) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
@@ -14,9 +20,7 @@ function categorizarDeterministico(descricao) {
   if (desc.includes('PAYPAL') && (desc.includes('FACEBOOK') || desc.includes('FACEB'))) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
   }
-  if (desc.includes('PAYPAL') && desc.includes(' FA')) {
-    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
-  }
+  // Removida regra PAYPAL + FA que era muito generica e causava falsos positivos
   
   // ===== REGRA ABSOLUTA 2: YAMPI = Taxas Checkout =====
   if (desc.includes('YAMPI') || desc.includes('PG *YAMPI') || desc.includes('CARTPANDA') || desc.includes('BRCARTPANDA')) {
@@ -137,7 +141,30 @@ function categorizarDeterministico(descricao) {
   if (/^[A-Z]+ [A-Z]+ ?[A-Z]?$/.test(desc) || desc.includes('NORMA') || desc.includes('PIX ')) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
   }
-  
+
+  // ===== REGRA 9: Transferencias Mercado Pago (MP*) = PESSOAL =====
+  // Padroes comuns: MP*DIRETOSIM, MP*NOMEVENDEDOR, MP*MELIMAIS
+  // Geralmente sao transferencias pessoais ou compras no Mercado Livre
+  if (desc.startsWith('MP*') || desc.startsWith('MP *')) {
+    // Verifica se nao e um estabelecimento comercial conhecido
+    if (!desc.includes('TINY') && !desc.includes('YAMPI') && !desc.includes('CANVA')) {
+      return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
+    }
+  }
+
+  // ===== REGRA 10: Pagamentos PagSeguro/Ecommerce (EC*) = PESSOAL =====
+  // Padroes: EC *GUSTAMMUNIZ, EC *NOMEVENDEDOR
+  // Geralmente sao compras pessoais em vendedores individuais
+  if (desc.startsWith('EC *') || desc.startsWith('EC*')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
+  }
+
+  // ===== REGRA 11: Pagamentos via Pix/transferencias = PESSOAL =====
+  // PAG* = PagSeguro transferencias
+  if (desc.startsWith('PAG*') && !desc.includes('PAGSEGURO')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
+  }
+
   // ===== CASO NAO IDENTIFICADO = Duvida =====
   return { categoria: null, incluir: null, confianca: 'baixa' };
 }
@@ -207,24 +234,52 @@ export async function POST(request) {
 }
 
 // ===== Funcao para chamar a IA apenas para casos duvidosos =====
+// Usando Opus 4.5 para melhor precisao na categorizacao
 async function categorizarComIA(duvidosos) {
-  const prompt = `Analise APENAS estas ${duvidosos.length} transacoes DUVIDOSAS e categorize cada uma.
+  const prompt = `Voce e um especialista em contabilidade para e-commerce brasileiro. Analise estas ${duvidosos.length} transacoes e categorize cada uma com precisao.
 
-CONTEXTO: Cartao de e-commerce de iluminacao (ORNE). Separar gastos empresariais de pessoais.
+CONTEXTO DO NEGOCIO:
+- Empresa: ORNE (e-commerce de iluminacao)
+- Objetivo: Separar gastos empresariais (PJ) de gastos pessoais (PF) para contabilidade
+
+PADROES COMUNS EM FATURAS BRASILEIRAS:
+- MP* = Mercado Pago (geralmente compras pessoais ou transferencias)
+- EC* = PagSeguro/Ecommerce (geralmente compras em vendedores individuais)
+- PAG* = PagSeguro transferencias
+- PAYPAL*FACEBOOKSER = Marketing Digital (Facebook Ads)
+- PAYPAL*PAYPAL*FA = Compra de cambio para pagamentos internacionais
+- DL*ALIEXPRESS = Fornecedores (AliExpress)
+- FACEBK*, FB* = Marketing Digital
+- APPLE.COM/BILL = Geralmente pessoal (Apple Store, iCloud, etc)
 
 CATEGORIAS EMPRESARIAIS (incluir: true):
-- Marketing Digital, Pagamento Fornecedores, Taxas Checkout, Compra de Cambio
-- IA e Automacao, Design/Ferramentas, Telefonia, ERP, Gestao
+- Marketing Digital: Facebook Ads, Google Ads, Meta Ads, campanhas pagas
+- Pagamento Fornecedores: AliExpress, Alibaba, fornecedores de produtos
+- Taxas Checkout: Yampi, CartPanda, Shopify, NuvemShop, plataformas de venda
+- Compra de Cambio: Wise, TransferWise, Remessa Online, conversao de moeda
+- IA e Automacao: OpenAI, ChatGPT, Claude, ferramentas de automacao
+- Design/Ferramentas: Canva, Adobe, Figma, ferramentas de design
+- Telefonia: BrDID, VOIP, Twilio, telefonia empresarial
+- ERP: Tiny, Bling, sistemas de gestao
+- Gestao: Trello, Notion, Asana, ferramentas de produtividade empresarial
+- Viagem Trabalho: Passagens e hospedagens para trabalho
+- Outros PJ: Outros gastos claramente empresariais
 
 CATEGORIAS PESSOAIS (incluir: false):
-- Pessoal (gastos pessoais identificaveis)
-- Outros (desconhecidos - na duvida, excluir)
+- Pessoal: Compras pessoais, restaurantes, entretenimento, streaming, jogos
+- Tarifas Cartao: Anuidades, seguros, taxas bancarias
+- Entretenimento: Netflix, Spotify, Disney+, jogos, lazer
+- Transporte Pessoal: Uber, 99, taxi para uso pessoal
+- Compras Pessoais: Roupas, eletronicos pessoais, presentes
+- Outros: Na duvida, categorize como pessoal
 
-TRANSACOES:
+REGRA DE OURO: Na duvida entre empresarial e pessoal, sempre opte por PESSOAL (incluir: false) para evitar problemas fiscais.
+
+TRANSACOES PARA ANALISAR:
 ${duvidosos.map((d, i) => `${i + 1}. "${d.descricao}" - R$ ${d.valor}`).join('\n')}
 
-Responda APENAS com JSON:
-{"resultados":[{"categoria":"...","incluir":true/false},...]}`;
+IMPORTANTE: Retorne APENAS um JSON valido, sem explicacoes:
+{"resultados":[{"categoria":"NomeDaCategoria","incluir":true},...]}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -234,8 +289,8 @@ Responda APENAS com JSON:
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250514',
-      max_tokens: 2000,
+      model: 'claude-opus-4-5-20251101',
+      max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -248,12 +303,12 @@ Responda APENAS com JSON:
 
   const data = await response.json();
   const text = data.content?.[0]?.text || '';
-  
+
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     const result = JSON.parse(jsonMatch[0]);
     return result.resultados || [];
   }
-  
+
   return [];
 }

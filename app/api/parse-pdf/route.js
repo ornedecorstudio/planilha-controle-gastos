@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-// Modelo correto da Anthropic - IMPORTANTE: usar este exatamente
-const ANTHROPIC_MODEL = 'claude-sonnet-4-5-20250929';
+// Modelo mais poderoso para melhor extracao de dados
+const ANTHROPIC_MODEL = 'claude-opus-4-5-20251101';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 export async function POST(request) {
@@ -33,38 +33,63 @@ export async function POST(request) {
     const buffer = Buffer.from(bytes);
     const base64 = buffer.toString('base64');
     
-    // Prompt para extracao de transacoes do PDF
+    // Prompt robusto para extracao de transacoes - suporta Nubank, Itau, Santander e outros
     const prompt = `Voce e um especialista em extrair transacoes de faturas de cartao de credito brasileiras.
-
 Analise este PDF de fatura do cartao "${cartaoNome}" e extraia TODAS as transacoes.
 
-Para cada transacao, identifique:
-1. data: Data da transacao (formato DD/MM/YYYY)
-2. descricao: Descricao completa da transacao
-3. valor: Valor em reais (numero positivo, sem R$)
-4. parcela: Se houver parcelamento, extraia (ex: "2/10" significa parcela 2 de 10)
+BANCOS SUPORTADOS E SEUS FORMATOS:
 
-IMPORTANTE:
-- Ignore taxas como "Fatura Segura", "ANUIDADE", "AVAL EMERG. CREDITO", "IOF"
-- Ignore pagamentos/creditos (valores negativos ou com indicacao de pagamento)
-- Extraia apenas compras/despesas reais
-- Se a data estiver incompleta, use o mes/ano da fatura
+1. NUBANK:
+   - Transacoes aparecem com data no formato "DD MMM" (ex: "15 DEZ")
+   - Descricao vem em uma linha
+   - Valor vem separado, formato "R$ 1.234,56" ou apenas "1.234,56"
+   - Parcelamentos aparecem como "PARCELA 2/10" ou similar
 
-Retorne um JSON valido com a seguinte estrutura:
+2. ITAU:
+   - Transacoes no formato tabular: DATA | DESCRICAO | VALOR
+   - Data pode ser "DD/MM" ou "DD/MM/AA"
+   - Valores negativos indicam estornos/pagamentos
+   - Parcelamentos: "PARC 02/10" ou "2/10"
+   - Pode ter secoes separadas: "COMPRAS PARCELADAS" e "COMPRAS A VISTA"
+
+3. SANTANDER:
+   - Formato similar ao Itau
+   - Data: "DD/MM/AAAA" ou "DD/MM"
+   - Valores com "R$" ou sem
+   - Parcelamentos no final da descricao: "(02/10)" ou "PARC. 02/10"
+
+4. OUTROS BANCOS:
+   - Bradesco, Banco do Brasil, Inter, C6 seguem padroes similares
+   - Priorize extrair: data, descricao completa, valor, parcela
+
+Para cada transacao, extraia:
+1. data: Data da transacao (SEMPRE no formato DD/MM/YYYY - complete o ano se necessario)
+2. descricao: Descricao completa da transacao (mantenha exatamente como aparece)
+3. valor: Valor em reais (numero positivo, sem R$, use ponto como decimal ex: 1234.56)
+4. parcela: Se houver parcelamento (ex: "2/10"), senao null
+
+REGRAS DE EXTRACAO:
+- EXTRAIA todas as compras e despesas
+- IGNORE: pagamentos recebidos, creditos, estornos (valores com sinal negativo ou indicacao)
+- IGNORE: taxas como "Fatura Segura", "ANUIDADE", "AVAL EMERG. CREDITO", "IOF", "ENCARGOS"
+- IGNORE: "PAGAMENTO DE FATURA", "PAGAMENTO EFETUADO", "CREDITO EM CONTA"
+- Se a data estiver incompleta (sem ano), use o ano/mes da fatura
+- Para valores com virgula brasileira (1.234,56), converta para formato decimal (1234.56)
+
+Retorne APENAS um JSON valido, SEM markdown ou explicacoes:
 {
   "transacoes": [
     {
       "data": "DD/MM/YYYY",
       "descricao": "descricao da transacao",
       "valor": 123.45,
-      "parcela": "1/3" ou null
+      "parcela": "1/3"
     }
   ],
   "total_encontrado": numero_de_transacoes,
-  "valor_total": soma_dos_valores
-}
-
-Retorne APENAS o JSON, sem explicacoes adicionais ou markdown.`;
+  "valor_total": soma_dos_valores,
+  "banco_detectado": "nome do banco identificado ou desconhecido"
+}`;
 
     // Chamar API da Anthropic diretamente com fetch
     const response = await fetch(ANTHROPIC_API_URL, {
@@ -157,6 +182,7 @@ Retorne APENAS o JSON, sem explicacoes adicionais ou markdown.`;
       transacoes: result.transacoes,
       total_encontrado: result.total_encontrado || result.transacoes.length,
       valor_total: result.valor_total || result.transacoes.reduce((sum, t) => sum + (t.valor || 0), 0),
+      banco_detectado: result.banco_detectado || 'desconhecido',
       modelo_usado: ANTHROPIC_MODEL
     });
 
