@@ -33,7 +33,7 @@ export default function FaturasPage() {
       })
       const result = await response.json()
       if (result.error) throw new Error(result.error)
-      
+
       setFaturas(prev => prev.map(f => f.id === id ? { ...f, status: novoStatus } : f))
     } catch (err) {
       alert('Erro ao atualizar: ' + err.message)
@@ -81,7 +81,7 @@ export default function FaturasPage() {
           </p>
         </div>
         <div className="bg-green-50 rounded-xl border border-green-200 p-4">
-          <p className="text-sm text-green-600">Total PJ (Reembolsavel)</p>
+          <p className="text-sm text-green-600">Total PJ (Reembolsável)</p>
           <p className="text-xl font-bold text-green-700">
             R$ {totalPJ.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
@@ -101,14 +101,14 @@ export default function FaturasPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-3 text-left font-medium">Cartao</th>
-                  <th className="p-3 text-left font-medium">Mes</th>
+                  <th className="p-3 text-left font-medium">Cartão</th>
+                  <th className="p-3 text-left font-medium">Mês</th>
                   <th className="p-3 text-left font-medium">Vencimento</th>
                   <th className="p-3 text-right font-medium">Total</th>
                   <th className="p-3 text-right font-medium">PJ</th>
                   <th className="p-3 text-right font-medium">PF</th>
                   <th className="p-3 text-center font-medium">Status</th>
-                  <th className="p-3 text-center font-medium">Acoes</th>
+                  <th className="p-3 text-center font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -163,7 +163,7 @@ export default function FaturasPage() {
         <div className="bg-white rounded-xl border p-8 text-center">
           <div className="text-5xl mb-4">📄</div>
           <h3 className="text-lg font-semibold text-slate-700">Nenhuma fatura</h3>
-          <p className="text-slate-500">Importe sua primeira fatura para comecar</p>
+          <p className="text-slate-500">Importe sua primeira fatura para começar</p>
           <Link href="/upload" className="inline-block mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600">
             + Importar Fatura
           </Link>

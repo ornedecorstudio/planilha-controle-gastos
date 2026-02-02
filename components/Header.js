@@ -10,6 +10,7 @@ export default function Header() {
     { href: '/', label: 'Dashboard' },
     { href: '/upload', label: 'Nova Fatura' },
     { href: '/faturas', label: 'Faturas' },
+    { href: '/extratos', label: 'Extratos' },
   ]
   
   return (
