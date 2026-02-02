@@ -1,17 +1,43 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 
-// GET - Lista faturas com filtros opcionais
+// GET - Lista faturas com filtros opcionais ou busca uma fatura especifica
 export async function GET(request) {
   try {
     const supabase = createServerClient()
     const { searchParams } = new URL(request.url)
-    
+
+    const id = searchParams.get('id')
     const cartao_id = searchParams.get('cartao_id')
     const status = searchParams.get('status')
     const ano = searchParams.get('ano')
     const limit = parseInt(searchParams.get('limit')) || 50
-    
+
+    // Se tem ID, busca fatura especifica
+    if (id) {
+      const { data, error } = await supabase
+        .from('faturas')
+        .select(`
+          *,
+          cartoes (
+            id,
+            nome,
+            banco,
+            tipo
+          )
+        `)
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        console.error('Erro ao buscar fatura:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({ fatura: data })
+    }
+
+    // Senao, lista todas com filtros
     let query = supabase
       .from('faturas')
       .select(`
@@ -25,30 +51,30 @@ export async function GET(request) {
       `)
       .order('mes_referencia', { ascending: false })
       .limit(limit)
-    
+
     if (cartao_id) {
       query = query.eq('cartao_id', cartao_id)
     }
-    
+
     if (status) {
       query = query.eq('status', status)
     }
-    
+
     if (ano) {
       query = query
         .gte('mes_referencia', `${ano}-01-01`)
         .lte('mes_referencia', `${ano}-12-31`)
     }
-    
+
     const { data, error } = await query
-    
+
     if (error) {
       console.error('Erro ao buscar faturas:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
-    
+
     return NextResponse.json({ faturas: data })
-    
+
   } catch (error) {
     console.error('Erro na API faturas:', error)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })

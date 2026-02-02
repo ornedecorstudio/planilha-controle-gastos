@@ -274,12 +274,11 @@ export async function DELETE(request) {
       })
     }
 
-    // Detecção de duplicadas
+    // Detecção de duplicadas - busca TODAS movimentacoes (nao apenas Reembolso Socio)
     if (duplicates) {
       const { data: movimentacoes, error: fetchError } = await supabase
         .from('movimentacoes')
         .select('*')
-        .eq('categoria', 'Reembolso Sócio')
         .order('data', { ascending: true })
 
       if (fetchError) {
@@ -287,11 +286,18 @@ export async function DELETE(request) {
         return NextResponse.json({ error: fetchError.message }, { status: 500 })
       }
 
-      // Agrupar por data + valor + descrição normalizada
+      // Agrupar por data + valor (com tolerancia de R$ 0.01) + primeiros 30 chars da descricao
       const grupos = {}
       movimentacoes.forEach(m => {
-        const descNorm = (m.descricao || '').toUpperCase().substring(0, 50)
-        const chave = `${m.data}|${parseFloat(m.valor).toFixed(2)}|${descNorm}`
+        // Normaliza descricao: remove espacos extras, converte para maiusculo, pega primeiros 30 chars
+        const descNorm = (m.descricao || '')
+          .toUpperCase()
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 30)
+        // Arredonda valor para comparacao
+        const valorArredondado = Math.round(parseFloat(m.valor || 0) * 100) / 100
+        const chave = `${m.data}|${valorArredondado.toFixed(2)}|${descNorm}`
         if (!grupos[chave]) {
           grupos[chave] = []
         }
@@ -303,7 +309,9 @@ export async function DELETE(request) {
 
       Object.values(grupos).forEach(grupo => {
         if (grupo.length > 1) {
-          grupo.slice(1).forEach(m => {
+          // Mantém a primeira (mais antiga pelo ID) e marca as outras como duplicadas
+          const ordenadas = grupo.sort((a, b) => a.id.localeCompare(b.id))
+          ordenadas.slice(1).forEach(m => {
             duplicadas.push(m)
             idsParaRemover.push(m.id)
           })

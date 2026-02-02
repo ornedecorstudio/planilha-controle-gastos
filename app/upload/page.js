@@ -36,6 +36,7 @@ export default function UploadPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [duplicateWarning, setDuplicateWarning] = useState(null)
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -66,9 +67,11 @@ export default function UploadPage() {
     if (!mesReferencia) { setError('Informe o mês de referência'); return }
 
     setError('')
+    setDuplicateWarning(null)
     setLoading(true)
 
     try {
+      // Primeiro processa o PDF para extrair transacoes
       const formData = new FormData()
       formData.append('pdf', pdfFile)
       formData.append('cartao_nome', getCartaoNome())
@@ -101,7 +104,80 @@ export default function UploadPage() {
         throw new Error('Nenhuma transação válida encontrada no PDF')
       }
 
-      // Categorizar as transações
+      // Verifica se a fatura ja existe
+      const checkFormData = new FormData()
+      checkFormData.append('cartao_id', selectedCartao)
+      checkFormData.append('mes_referencia', mesReferencia)
+      checkFormData.append('transacoes_preview', JSON.stringify(parsed))
+
+      const checkResponse = await fetch('/api/faturas/check-duplicate', {
+        method: 'POST',
+        body: checkFormData
+      })
+      const checkResult = await checkResponse.json()
+
+      if (checkResult.duplicada) {
+        setDuplicateWarning({
+          message: checkResult.message,
+          fatura_id: checkResult.fatura_existente_id,
+          similaridade: checkResult.similaridade,
+          valor_existente: checkResult.valor_existente
+        })
+        setLoading(false)
+        return // Para aqui e mostra o aviso
+      }
+
+      // Continua com a categorizacao
+      const response = await fetch('/api/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transacoes: parsed })
+      })
+      const result = await response.json()
+
+      if (result.resultados?.length > 0) {
+        setTransactions(parsed.map((t, i) => ({
+          ...t,
+          categoria: result.resultados[i]?.categoria || 'Outros PJ',
+          tipo: result.resultados[i]?.incluir === false ? 'PF' : 'PJ'
+        })))
+      } else {
+        setTransactions(parsed)
+      }
+      setStep(2)
+    } catch (err) {
+      setError(`Erro: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleContinuarMesmoAssim = async () => {
+    // Usuario decidiu continuar mesmo com fatura duplicada
+    setDuplicateWarning(null)
+    setLoading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('pdf', pdfFile)
+      formData.append('cartao_nome', getCartaoNome())
+
+      const pdfResponse = await fetch('/api/parse-pdf', {
+        method: 'POST',
+        body: formData
+      })
+      const pdfResult = await pdfResponse.json()
+
+      const parsed = pdfResult.transacoes.map(t => ({
+        id: Math.random().toString(36).substr(2, 9),
+        data: t.data ? formatarData(t.data) : null,
+        descricao: t.descricao,
+        valor: parseFloat(t.valor) || 0,
+        parcela: t.parcela || null,
+        categoria: 'Outros PJ',
+        tipo: 'PJ'
+      })).filter(t => t.data && t.valor > 0)
+
       const response = await fetch('/api/categorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -180,6 +256,23 @@ export default function UploadPage() {
       const transacoesResult = await transacoesRes.json()
       if (transacoesResult.error) throw new Error(transacoesResult.error)
 
+      // Salva o PDF no storage
+      if (pdfFile) {
+        const pdfFormData = new FormData()
+        pdfFormData.append('fatura_id', faturaResult.fatura.id)
+        pdfFormData.append('pdf', pdfFile)
+
+        const uploadRes = await fetch('/api/faturas/upload-pdf', {
+          method: 'POST',
+          body: pdfFormData
+        })
+        const uploadResult = await uploadRes.json()
+        if (uploadResult.error) {
+          console.warn('Aviso: PDF nao foi salvo -', uploadResult.error)
+          // Nao bloqueia, apenas avisa
+        }
+      }
+
       setSuccess(`Fatura salva com ${transacoesResult.quantidade} transações!`)
       setTimeout(() => router.push('/faturas'), 2000)
     } catch (err) {
@@ -211,6 +304,38 @@ export default function UploadPage() {
 
       {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>}
       {success && <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">{success}</div>}
+
+      {duplicateWarning && (
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
+          <h3 className="font-bold text-amber-800 mb-2">Fatura possivelmente duplicada</h3>
+          <p className="text-amber-700 mb-3">{duplicateWarning.message}</p>
+          {duplicateWarning.valor_existente && (
+            <p className="text-sm text-amber-600 mb-3">
+              Valor da fatura existente: R$ {parseFloat(duplicateWarning.valor_existente).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </p>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setDuplicateWarning(null)}
+              className="px-4 py-2 bg-white border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleContinuarMesmoAssim}
+              className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+            >
+              Continuar mesmo assim
+            </button>
+            <a
+              href={`/faturas/${duplicateWarning.fatura_id}`}
+              className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
+            >
+              Ver fatura existente
+            </a>
+          </div>
+        </div>
+      )}
 
       {step === 1 && (
         <div className="bg-white rounded-xl border p-6 space-y-4">

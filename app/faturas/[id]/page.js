@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, Copy, Download, Search, X } from 'lucide-react'
+import { Trash2, Copy, Download, Search, X, FileText } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
 import DuplicatesModal from '@/components/DuplicatesModal'
 
@@ -138,6 +138,12 @@ export default function FaturaDetalhesPage() {
     window.open(`/api/transacoes/export?fatura_id=${params.id}`, '_blank')
   }
 
+  const handleOpenPDF = () => {
+    if (fatura?.pdf_url) {
+      window.open(fatura.pdf_url, '_blank')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -175,6 +181,15 @@ export default function FaturaDetalhesPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {fatura?.pdf_url && (
+            <button
+              onClick={handleOpenPDF}
+              className="px-3 py-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 text-sm flex items-center gap-2"
+            >
+              <FileText size={16} />
+              Ver PDF
+            </button>
+          )}
           <button
             onClick={handleCheckDuplicates}
             disabled={loadingAction}

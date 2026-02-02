@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-// Modelo para extracao de dados - usar Sonnet para melhor estabilidade com PDFs
-const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
+// Modelo para extracao de dados - Opus 4.5 para melhor precisao
+const ANTHROPIC_MODEL = 'claude-opus-4-20250514';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 export async function POST(request) {
