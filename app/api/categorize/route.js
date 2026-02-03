@@ -1,58 +1,127 @@
 import { NextResponse } from 'next/server';
 
 // ============================================================
-// CATEGORIZAÇÃO DETERMINÍSTICA (100% CONFIÁVEL)
+// CATEGORIZACAO DETERMINISTICA AMPLIADA
+// Regras fixas do negocio: AliExpress = SEMPRE PJ
 // ============================================================
 
 function categorizarDeterministico(descricao) {
   const desc = descricao.toUpperCase().trim();
 
-  // ===== REGRA: PAYPAL*PAYPAL *FA = Facebook Ads (Marketing Digital) =====
-  // FA = abreviação de Facebook em faturas de cartão
+  // ===== REGRA FIXA: AliExpress = SEMPRE Pagamento Fornecedores =====
+  // Usuario confirmou que NUNCA compra pessoal no AliExpress
+  if (desc.includes('ALIEXPRESS') || desc.includes('ALIPAY') || desc.includes('ALIBABA') || desc.includes('ALI EXPRESS')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+  if (desc.startsWith('DL*ALIEXPRESS') || desc.includes('DL*ALI')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+  if (desc.includes('PAYPAL') && desc.includes('ALIPAY')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+
+  // ===== MARKETING DIGITAL (PJ) =====
   if (desc.match(/PAYPAL\*PAYPAL\s*\*FA/)) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
   }
-
-  // ===== REGRA ABSOLUTA 1: FACEBK = Marketing Digital =====
   if (desc.includes('FACEBK') || desc.includes('FACEBOOK') || desc.startsWith('FB ') || desc.includes('META ADS')) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
   }
-  if (desc.includes('PAYPAL') && (desc.includes('FACEBOOK') || desc.includes('FACEB'))) {
+  if (desc.includes('PAYPAL') && (desc.includes('FACEBOOK') || desc.includes('FACEB') || desc.includes('FACEBOOKSER'))) {
+    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
+  }
+  if (desc.includes('GOOGLE ADS') || desc.includes('GOOGLE AD') || desc.includes('ADWORDS')) {
+    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
+  }
+  if (desc.includes('MICROSOFT') && (desc.includes('ADS') || desc.includes('ADVERTISING'))) {
+    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
+  }
+  const marketingTermos = ['HUBSPOT', 'MAILCHIMP', 'SEMRUSH', 'TABOOLA', 'OUTBRAIN', 'LINKEDIN ADS', 'PINTEREST ADS'];
+  for (const termo of marketingTermos) {
+    if (desc.includes(termo)) return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
+  }
+  // TikTok e Kwai - podem ser ads ou pessoal, mas como empresa de e-commerce, geralmente sao ads
+  if (desc.includes('TIKTOK') && (desc.includes('ADS') || desc.includes('ADVERT'))) {
+    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
+  }
+  if (desc.includes('KWAI') && (desc.includes('ADS') || desc.includes('ADVERT'))) {
     return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
   }
 
-  // ===== REGRA ABSOLUTA 2: YAMPI = Taxas Checkout =====
-  if (desc.includes('YAMPI') || desc.includes('PG *YAMPI') || desc.includes('CARTPANDA') || desc.includes('BRCARTPANDA')) {
+  // ===== TAXAS CHECKOUT (PJ) =====
+  const checkoutTermos = [
+    'YAMPI', 'CARTPANDA', 'BRCARTPANDA', 'SHOPIFY', 'NUVEMSHOP',
+    'APPMAX', 'VINDI', 'PAGBR', 'HOTMART', 'EDUZZ', 'MONETIZZE',
+    'STRIPE', 'PAGARME', 'MUNDIPAGG', 'CIELO', 'GETNET', 'STONE'
+  ];
+  for (const termo of checkoutTermos) {
+    if (desc.includes(termo)) return { categoria: 'Taxas Checkout', incluir: true, confianca: 'alta' };
+  }
+  if (desc.includes('PG *YAMPI') || desc.includes('PG*YAMPI')) {
     return { categoria: 'Taxas Checkout', incluir: true, confianca: 'alta' };
   }
 
-  // ===== REGRA ABSOLUTA 3: TINY = ERP =====
-  if (desc.includes('TINY')) {
-    return { categoria: 'ERP', incluir: true, confianca: 'alta' };
+  // ===== ERP (PJ) =====
+  const erpTermos = ['TINY', 'BLING', 'OMIE', 'CONTA AZUL', 'OLIST'];
+  for (const termo of erpTermos) {
+    if (desc.includes(termo)) return { categoria: 'ERP', incluir: true, confianca: 'alta' };
   }
 
-  // ===== REGRA ABSOLUTA 4: CANVA = Design/Ferramentas =====
-  if (desc.includes('CANVA')) {
-    return { categoria: 'Design/Ferramentas', incluir: true, confianca: 'alta' };
+  // ===== DESIGN/FERRAMENTAS (PJ) =====
+  const designTermos = [
+    'CANVA', 'ADOBE', 'FIGMA', 'SKETCH', 'FREEPIK', 'MAGNIFIC',
+    'ENVATO', 'SHUTTERSTOCK', 'ISTOCK', 'UNSPLASH',
+    'VERCEL', 'NETLIFY', 'HEROKU', 'DIGITAL OCEAN', 'HOSTINGER',
+    'GITHUB', 'GITLAB', 'BITBUCKET', 'JETBRAINS'
+  ];
+  for (const termo of designTermos) {
+    if (desc.includes(termo)) return { categoria: 'Design/Ferramentas', incluir: true, confianca: 'alta' };
   }
 
-  // ===== REGRA ABSOLUTA 5: Pagamento de fatura = EXCLUIR =====
+  // ===== IA E AUTOMACAO (PJ) =====
+  const iaTermos = [
+    'OPENAI', 'CHATGPT', 'CLAUDE', 'ANTHROPIC',
+    'AWS', 'AMAZON WEB', 'GOOGLE CLOUD', 'GCP', 'AZURE',
+    'MAKE.COM', 'ZAPIER', 'N8N', 'INTEGROMAT'
+  ];
+  for (const termo of iaTermos) {
+    if (desc.includes(termo)) return { categoria: 'IA e Automacao', incluir: true, confianca: 'alta' };
+  }
+
+  // ===== TELEFONIA (PJ) =====
+  const telefoniaTermos = ['BRDID', 'VOIP', 'TWILIO', 'ZENVIA'];
+  for (const termo of telefoniaTermos) {
+    if (desc.includes(termo)) return { categoria: 'Telefonia', incluir: true, confianca: 'alta' };
+  }
+
+  // ===== GESTAO (PJ) =====
+  const gestaoTermos = [
+    'TRELLO', 'ATLASSIAN', 'NOTION', 'ASANA', 'MONDAY',
+    'ZOOM', 'SLACK', 'CLICKUP', 'BASECAMP', 'JIRA'
+  ];
+  for (const termo of gestaoTermos) {
+    if (desc.includes(termo)) return { categoria: 'Gestao', incluir: true, confianca: 'alta' };
+  }
+
+  // ===== PAGAMENTO FORNECEDORES (PJ) =====
+  const fornecedoresTermos = [
+    'ROGER FULFILLMENT', 'LOGGI', 'CORREIOS', 'JADLOG', 'SEQUOIA',
+    'TOTAL EXPRESS', 'MELHOR ENVIO', 'KANGU', 'MANDAE'
+  ];
+  for (const termo of fornecedoresTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+
+  // ===== TARIFAS E TAXAS BANCARIAS (EXCLUIR) =====
   if (desc.includes('PAGAMENTO') && desc.includes('FATURA')) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
   if (desc === 'PAGAMENTO DE FATURA' || desc.startsWith('PAGAMENTO DE FATURA') || desc.startsWith('PAGAMENTO FATURA')) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
-
-  // ===== REGRA: IOF e taxas bancárias = Outros (INCLUIR como gasto empresarial) =====
-  if (desc.includes('IOF') || desc.includes('IMPOSTO OPERACOES FINANCEIRAS')) {
-    return { categoria: 'Outros', incluir: true, confianca: 'alta' };
-  }
   if (desc.includes('PAGAMENTO RECEBIDO') || desc.includes('INCLUSAO DE PAGAMENTO')) {
     return { categoria: 'Outros', incluir: false, confianca: 'alta' };
   }
-
-  // ===== REGRA: Tarifas e seguros de cartão = EXCLUIR =====
   if (desc.includes('FATURA SEGURA') || desc.includes('SEGURO FATURA')) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
@@ -66,126 +135,183 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
 
-  // ===== REGRA: Passagens aéreas e viagens = PESSOAL =====
-  // Companhias aéreas e sites de viagem são gastos pessoais por padrão
-  const viagens = [
-    'GOL', 'LATAM', 'AZUL', 'AVIANCA', 'TAM', 'AMERICAN AIRLINES', 'UNITED', 'DELTA',
-    'SMILES', 'MULTIPLUS', 'LIVELO', 'TUDOAZUL',
-    'PASSAGEM', 'PASSAGENS', 'AEREO', 'AEREA', 'AIRLINE', 'AIRLINES',
-    'MAXMILHAS', 'VOEAZUL', 'VOEGOL', 'VOELATAM', '123MILHAS',
-    'HOTEIS.COM', 'HOTEIS', 'BOOKING', 'AIRBNB', 'DECOLAR', 'TRIVAGO', 'EXPEDIA',
-    'HOTEL', 'POUSADA', 'HOSPEDAGEM'
+  // ===== IOF - incluir como gasto empresarial =====
+  if (desc.includes('IOF') || desc.includes('IMPOSTO OPERACOES FINANCEIRAS')) {
+    return { categoria: 'Outros', incluir: true, confianca: 'alta' };
+  }
+
+  // ===== ALIMENTACAO (PF) =====
+  const alimentacaoTermos = [
+    'SUSHI', 'BURGER', 'PIZZA', 'MCDONALDS', 'MCDONALD', 'SUBWAY',
+    'HABIB', 'OUTBACK', 'RESTAURANTE', 'LANCHONETE', 'PADARIA',
+    'CAFETERIA', 'STARBUCKS', 'IFOOD', 'RAPPI',
+    'SMASH', 'CHURRASCARIA', 'ACAI', 'SORVETERIA', 'BOBS',
+    'KFC', 'POPEYES', 'MADERO', 'COCO BAMBU', 'SPOLETO',
+    'GIRAFFAS', 'CHINA IN BOX', 'DOMINOS', 'PIZZA HUT',
+    'BURGER KING', 'JERONIMO', 'VIVENDA DO CAMARAO'
   ];
-  for (const termo of viagens) {
-    if (desc.includes(termo)) {
-      return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
-    }
+  for (const termo of alimentacaoTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+  // iFood com prefixo IFD*
+  if (desc.startsWith('IFD*') || desc.includes('IFD*')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
 
-  // ===== REGRA ABSOLUTA 6: Outros gastos empresariais conhecidos =====
-  if (desc.includes('GOOGLE ADS') || desc.includes('GOOGLE AD') || desc.includes('ADWORDS')) {
-    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('MICROSOFT') && (desc.includes('ADS') || desc.includes('ADVERTISING'))) {
-    return { categoria: 'Marketing Digital', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('ALIEXPRESS') || desc.includes('ALIPAY') || desc.includes('ALIBABA') || desc.includes('ALI EXPRESS')) {
-    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('PAYPAL') && desc.includes('ALIPAY')) {
-    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
-  }
-  if (desc.startsWith('DL*ALIEXPRESS') || desc.includes('DL*ALI')) {
-    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('PICPAY')) {
-    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('LOGGI') || desc.includes('CORREIOS') || desc.includes('JADLOG') || desc.includes('SEQUOIA')) {
-    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('WISE') || desc.includes('TRANSFERWISE') || desc.includes('REMESSA ONLINE')) {
-    return { categoria: 'Compra de Câmbio', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('OPENAI') || desc.includes('CHATGPT') || desc.includes('CLAUDE') || desc.includes('ANTHROPIC')) {
-    return { categoria: 'IA e Automação', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('ADOBE') || desc.includes('FIGMA') || desc.includes('SKETCH') || desc.includes('FREEPIK') || desc.includes('MAGNIFIC')) {
-    return { categoria: 'Design/Ferramentas', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('BRDID') || desc.includes('VOIP') || desc.includes('TWILIO')) {
-    return { categoria: 'Telefonia', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('TRELLO') || desc.includes('ATLASSIAN') || desc.includes('NOTION') || desc.includes('ASANA') || desc.includes('MONDAY')) {
-    return { categoria: 'Gestão', incluir: true, confianca: 'alta' };
-  }
-  if (desc.includes('SHOPIFY') || desc.includes('NUVEMSHOP')) {
-    return { categoria: 'Taxas Checkout', incluir: true, confianca: 'alta' };
-  }
-
-  // ===== REGRA ABSOLUTA 7: Gastos pessoais conhecidos = EXCLUIR =====
-  const gastosExcluir = [
-    'SUSHI', 'BURGER', 'PIZZA', 'MCDONALDS', 'MCDONALD', 'SUBWAY', 'HABIB', 'OUTBACK',
-    'RESTAURANTE', 'LANCHONETE', 'PADARIA', 'CAFETERIA', 'STARBUCKS', 'IFOOD',
-    'FARMACIA', 'DROGASIL', 'DROGARIA', 'REDEPHARMA', 'PACHECO', 'PANVEL', 'DROGA RAIA', 'DROGARAIA',
-    'RAYBAN', 'RAY-BAN', 'RENNER', 'C&A', 'CEA', 'ZARA', 'NIKE', 'ADIDAS', 'CENTAURO', 'NETSHOES', 'RIACHUELO',
-    'CARREFOUR', 'EXTRA', 'PAO DE ACUCAR', 'ASSAI', 'ATACADAO', 'BIG', 'SUPERMERCADO', 'MERCADO',
-    'SHELL', 'IPIRANGA', 'POSTO', 'PETROBRAS', 'GASOLINA', 'COMBUSTIVEL', 'AUTO POSTO',
-    'PARKING', 'ESTACIONAMENTO', 'LAZ PARKING', 'ESTAPAR', 'ZONA AZUL', 'AGILPARK',
-    'FERREIRA COSTA', 'PNEUMAC', 'LEROY MERLIN', 'TELHA NORTE', 'CASA SHOW', 'MCA',
-    'ART INST', 'INSTITUTO', 'MUSEUM', 'MUSEU', 'TEATRO', 'CINEMA', 'INGRESSO',
-    'UBER', '99POP', '99APP', 'CABIFY', '99 ', 'TAXI',
-    'NETFLIX', 'SPOTIFY', 'DISNEY', 'HBO', 'AMAZON PRIME', 'DEEZER', 'YOUTUBE PREMIUM',
-    'PRODUTOS GLOBO', 'GLOBOPLAY', 'TELECINE',
-    'PLAYSTATION', 'SONY PLAYSTATION', 'SONYPLAYSTAT', 'XBOX', 'STEAM', 'NINTENDO',
-    'APPLE.COM/BILL', 'APPLE.COM', 'ITUNES',
-    'GIFT CARD', 'GIFTCARD',
-    'DAFONTE', 'CASAS BAHIA', 'MAGAZINE LUIZA', 'MAGALU', 'AMERICANAS', 'PONTO FRIO',
-    'SHOPEE', 'SWOPEE', 'MERCADOLIVRE', 'MERCADO LIVRE', 'MELI',
-    'SERASA', 'EXPERIAN'
+  // ===== SAUDE E FARMACIA (PF) =====
+  const saudeTermos = [
+    'FARMACIA', 'DROGASIL', 'DROGARIA', 'REDEPHARMA', 'PACHECO',
+    'PANVEL', 'DROGA RAIA', 'DROGARAIA', 'PAGUE MENOS',
+    'ULTRAFARMA', 'DROGASARAUJO', 'EXTRAFARMA',
+    'HOSPITAL', 'CLINICA', 'LABORATORIO', 'UNIMED', 'AMIL',
+    'HAPVIDA', 'ODONTO', 'DENTISTA', 'OTICA'
   ];
-
-  for (const termo of gastosExcluir) {
-    if (desc.includes(termo)) {
-      return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
-    }
+  for (const termo of saudeTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
 
-  // ===== REGRA 8: Nomes de pessoas (transferências) = EXCLUIR =====
-  if (/^[A-Z]+ [A-Z]+ ?[A-Z]?$/.test(desc) || desc.includes('NORMA') || desc.includes('PIX ')) {
+  // ===== MODA E VESTUARIO (PF) =====
+  const modaTermos = [
+    'RAYBAN', 'RAY-BAN', 'RENNER', 'C&A', 'CEA', 'ZARA',
+    'NIKE', 'ADIDAS', 'CENTAURO', 'NETSHOES', 'RIACHUELO',
+    'HERING', 'MARISA', 'PERNAMBUCANAS', 'LUPO', 'RESERVA',
+    'OSKLEN', 'HAVAIANAS', 'MELISSA', 'AREZZO', 'SCHUTZ',
+    'SHEIN', 'TEMU'
+  ];
+  for (const termo of modaTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== SUPERMERCADO E CASA (PF) =====
+  const superTermos = [
+    'CARREFOUR', 'EXTRA', 'PAO DE ACUCAR', 'ASSAI', 'ATACADAO',
+    'BIG', 'SUPERMERCADO', 'SAM S CLUB', 'SAMS CLUB',
+    'NATURAL DA TERRA', 'HORTIFRUTI', 'HORTIFRUIT',
+    'FERREIRA COSTA', 'LEROY MERLIN', 'TELHA NORTE', 'CASA SHOW',
+    'TOKSTOK', 'ETNA', 'CAMICADO', 'DPASCHOAL', 'PNEUMAC'
+  ];
+  for (const termo of superTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== TRANSPORTE PESSOAL (PF) =====
+  const transporteTermos = [
+    'UBER', '99POP', '99APP', 'CABIFY', 'TAXI',
+    'SHELL', 'IPIRANGA', 'POSTO', 'PETROBRAS', 'GASOLINA',
+    'COMBUSTIVEL', 'AUTO POSTO', 'BR DISTRIBUIDORA',
+    'PARKING', 'ESTACIONAMENTO', 'LAZ PARKING', 'ESTAPAR',
+    'ZONA AZUL', 'AGILPARK', 'INDIGO PARK'
+  ];
+  for (const termo of transporteTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+  // 99 com espaco (para nao confundir com numeros)
+  if (desc.match(/\b99\s/)) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
   }
 
-  // ===== REGRA 9: Transferências Mercado Pago (MP*) = PESSOAL =====
+  // ===== VIAGENS PESSOAIS (PF) =====
+  const viagensTermos = [
+    'GOL', 'LATAM', 'AZUL', 'AVIANCA', 'TAM',
+    'AMERICAN AIRLINES', 'UNITED', 'DELTA',
+    'SMILES', 'MULTIPLUS', 'LIVELO', 'TUDOAZUL',
+    'PASSAGEM', 'PASSAGENS', 'AEREO', 'AEREA', 'AIRLINE', 'AIRLINES',
+    'MAXMILHAS', 'VOEAZUL', 'VOEGOL', 'VOELATAM', '123MILHAS',
+    'HOTEIS.COM', 'HOTEIS', 'BOOKING', 'AIRBNB', 'DECOLAR',
+    'TRIVAGO', 'EXPEDIA', 'HOTEL', 'POUSADA', 'HOSPEDAGEM',
+    'RENT A CAR', 'LOCALIZA', 'MOVIDA', 'UNIDAS'
+  ];
+  for (const termo of viagensTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== ENTRETENIMENTO E STREAMING (PF) =====
+  const entretenimentoTermos = [
+    'NETFLIX', 'SPOTIFY', 'DISNEY', 'HBO', 'AMAZON PRIME',
+    'DEEZER', 'YOUTUBE PREMIUM', 'GLOBOPLAY', 'TELECINE',
+    'PARAMOUNT', 'APPLE TV', 'CRUNCHYROLL', 'STAR PLUS',
+    'PLAYSTATION', 'SONY PLAYSTATION', 'SONYPLAYSTAT',
+    'XBOX', 'STEAM', 'NINTENDO',
+    'CINEMA', 'INGRESSO', 'TEATRO', 'MUSEUM', 'MUSEU',
+    'GIFT CARD', 'GIFTCARD'
+  ];
+  for (const termo of entretenimentoTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+  // EBN*SONYPLAYSTAT (formato de fatura)
+  if (desc.startsWith('EBN*') && desc.includes('SONY')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+  // Apple
+  if (desc.includes('APPLE.COM/BILL') || desc.includes('APPLE.COM') || desc.includes('ITUNES')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== LOJAS E COMPRAS PESSOAIS (PF) =====
+  const lojasTermos = [
+    'DAFONTE', 'CASAS BAHIA', 'MAGAZINE LUIZA', 'MAGALU',
+    'AMERICANAS', 'PONTO FRIO', 'SHOPEE', 'MERCADOLIVRE',
+    'MERCADO LIVRE', 'MELI', 'AMAZON.COM.BR',
+    'KABUM', 'PICHAU', 'TERABYTE', 'FAST SHOP'
+  ];
+  for (const termo of lojasTermos) {
+    if (desc.includes(termo)) return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== SERVICOS PESSOAIS (PF) =====
+  if (desc.includes('SERASA') || desc.includes('EXPERIAN')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== REGRAS DE PADRAO (PF - confianca media) =====
+
+  // Nomes de pessoas (transferencias) = PESSOAL
+  if (/^[A-Z]+ [A-Z]+ ?[A-Z]?$/.test(desc) || desc.includes('NORMA')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
+  }
+
+  // PIX transferencias pessoais
+  if (desc.startsWith('PIX ') || desc.includes('PIX ENVIADO') || desc.includes('PIX RECEBIDO')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
+  }
+
+  // MP* = Mercado Pago (geralmente pessoal)
   if (desc.startsWith('MP*') || desc.startsWith('MP *')) {
+    // Exceto se for ferramenta empresarial conhecida
     if (!desc.includes('TINY') && !desc.includes('YAMPI') && !desc.includes('CANVA')) {
       return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
     }
   }
 
-  // ===== REGRA 10: Pagamentos PagSeguro/Ecommerce (EC*) = PESSOAL =====
+  // EC* = PagSeguro/Ecommerce
   if (desc.startsWith('EC *') || desc.startsWith('EC*')) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
   }
 
-  // ===== REGRA 11: Pagamentos via Pix/transferências = PESSOAL =====
+  // PAG* = PagSeguro transferencias
   if (desc.startsWith('PAG*') && !desc.includes('PAGSEGURO')) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
   }
 
-  // ===== CASO NÃO IDENTIFICADO = Dúvida =====
+  // MERCADO com contexto ambiguo (pode ser supermercado ou Mercado Livre)
+  if (desc.includes('MERCADO') && !desc.includes('MERCADO PAGO') && !desc.includes('MERCADOLIVRE') && !desc.includes('MERCADO LIVRE')) {
+    return { categoria: 'Pessoal', incluir: false, confianca: 'media' };
+  }
+
+  // ===== CASO NAO IDENTIFICADO = envia para IA =====
   return { categoria: null, incluir: null, confianca: 'baixa' };
 }
 
 export async function POST(request) {
   try {
-    const { transacoes } = await request.json();
+    const body = await request.json();
+    const { transacoes, tipo_cartao } = body;
 
     if (!transacoes || transacoes.length === 0) {
-      return NextResponse.json({ error: 'Nenhuma transação fornecida' }, { status: 400 });
+      return NextResponse.json({ error: 'Nenhuma transacao fornecida' }, { status: 400 });
     }
 
-    // ===== PASSO 1: Categorização determinística =====
+    // ===== PASSO 1: Categorizacao deterministica =====
     const resultados = [];
     const duvidosos = [];
 
@@ -201,10 +327,10 @@ export async function POST(request) {
       }
     }
 
-    // ===== PASSO 2: Se há casos duvidosos, usar IA =====
+    // ===== PASSO 2: Se ha casos duvidosos, usar IA =====
     if (duvidosos.length > 0 && process.env.ANTHROPIC_API_KEY) {
       try {
-        const respostasIA = await categorizarComIA(duvidosos);
+        const respostasIA = await categorizarComIA(duvidosos, tipo_cartao);
 
         for (let j = 0; j < duvidosos.length; j++) {
           const idx = duvidosos[j].index;
@@ -237,56 +363,65 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Erro ao categorizar:', error);
-    return NextResponse.json({ error: 'Erro ao processar categorização' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao processar categorizacao' }, { status: 500 });
   }
 }
 
-// ===== Função para chamar a IA apenas para casos duvidosos =====
-async function categorizarComIA(duvidosos) {
-  const prompt = `Você é um especialista em contabilidade para e-commerce brasileiro. Analise estas ${duvidosos.length} transações e categorize cada uma com precisão.
+// ===== Funcao para chamar a IA apenas para casos duvidosos =====
+async function categorizarComIA(duvidosos, tipoCartao) {
+  const contextoCartao = tipoCartao === 'PJ'
+    ? 'Este e um cartao EMPRESARIAL (PJ). Transacoes neste cartao tendem a ser gastos empresariais, a menos que sejam claramente pessoais (restaurantes, streaming, roupas, etc).'
+    : tipoCartao === 'PF'
+    ? 'Este e um cartao PESSOAL (PF). Transacoes neste cartao tendem a ser gastos pessoais, a menos que sejam claramente empresariais (ferramentas, ads, fornecedores, etc).'
+    : 'Tipo do cartao nao informado. Na duvida, classifique como pessoal.';
 
-CONTEXTO DO NEGÓCIO:
-- Empresa: ORNE (e-commerce de iluminação)
+  const prompt = `Voce e um especialista em contabilidade para e-commerce brasileiro. Analise estas ${duvidosos.length} transacoes e categorize cada uma com precisao.
+
+CONTEXTO DO NEGOCIO:
+- Empresa: ORNE (e-commerce de iluminacao/decoracao)
 - Objetivo: Separar gastos empresariais (PJ) de gastos pessoais (PF) para contabilidade
+- ${contextoCartao}
 
-PADRÕES COMUNS EM FATURAS BRASILEIRAS:
-- MP* = Mercado Pago (geralmente compras pessoais ou transferências)
+REGRA IMPORTANTE: AliExpress e SEMPRE empresarial (Pagamento Fornecedores) pois a empresa compra produtos no AliExpress.
+
+PADROES COMUNS EM FATURAS BRASILEIRAS:
+- MP* = Mercado Pago (geralmente compras pessoais ou transferencias)
 - EC* = PagSeguro/Ecommerce (geralmente compras em vendedores individuais)
-- PAG* = PagSeguro transferências
+- PAG* = PagSeguro transferencias
 - PAYPAL*FACEBOOKSER = Marketing Digital (Facebook Ads)
 - PAYPAL*PAYPAL*FA = Marketing Digital (Facebook Ads)
-- DL*ALIEXPRESS = Fornecedores (AliExpress)
+- DL*ALIEXPRESS = Fornecedores (AliExpress) - SEMPRE PJ
 - FACEBK*, FB* = Marketing Digital
 - APPLE.COM/BILL = Geralmente pessoal (Apple Store, iCloud, etc)
-- GOL, LATAM, AZUL = Passagens aéreas pessoais
+- GOL, LATAM, AZUL = Passagens aereas pessoais
+- IFD* = iFood (pessoal)
+- EBN* = PlayStation/Sony (pessoal)
 
 CATEGORIAS EMPRESARIAIS (incluir: true):
 - Marketing Digital: Facebook Ads, Google Ads, Meta Ads, campanhas pagas
-- Pagamento Fornecedores: AliExpress, Alibaba, fornecedores de produtos
+- Pagamento Fornecedores: AliExpress (SEMPRE), Alibaba, fornecedores de produtos, logistica
 - Taxas Checkout: Yampi, CartPanda, Shopify, NuvemShop, plataformas de venda
-- Compra de Câmbio: Wise, TransferWise, Remessa Online, conversão de moeda
-- IA e Automação: OpenAI, ChatGPT, Claude, ferramentas de automação
-- Design/Ferramentas: Canva, Adobe, Figma, ferramentas de design
+- IA e Automacao: OpenAI, ChatGPT, Claude, ferramentas de automacao, cloud (AWS, GCP)
+- Design/Ferramentas: Canva, Adobe, Figma, ferramentas de design, hospedagem web
 - Telefonia: BrDID, VOIP, Twilio, telefonia empresarial
-- ERP: Tiny, Bling, sistemas de gestão
-- Gestão: Trello, Notion, Asana, ferramentas de produtividade empresarial
+- ERP: Tiny, Bling, sistemas de gestao
+- Gestao: Trello, Notion, Asana, Zoom, Slack, ferramentas de produtividade
+- Viagem Trabalho: APENAS se for claramente viagem a trabalho comprovada
 - Outros PJ: Outros gastos claramente empresariais
 
 CATEGORIAS PESSOAIS (incluir: false):
-- Pessoal: Compras pessoais, restaurantes, entretenimento, streaming, jogos, PASSAGENS AÉREAS, HOSPEDAGENS
-- Tarifas Cartão: Anuidades, seguros, taxas bancárias
+- Pessoal: Compras pessoais, restaurantes, entretenimento, streaming, jogos
+- Tarifas Cartao: Anuidades, seguros, taxas bancarias
 - Entretenimento: Netflix, Spotify, Disney+, jogos, lazer
 - Transporte Pessoal: Uber, 99, taxi para uso pessoal
-- Compras Pessoais: Roupas, eletrônicos pessoais, presentes
-- Outros: Na dúvida, categorize como pessoal
+- Compras Pessoais: Roupas, eletronicos pessoais, presentes
 
-REGRA DE OURO: Na dúvida entre empresarial e pessoal, SEMPRE opte por PESSOAL (incluir: false) para evitar problemas fiscais.
-IMPORTANTE: Passagens aéreas e hospedagens são SEMPRE pessoais, a menos que seja claramente viagem a trabalho comprovada.
+REGRA DE OURO: Na duvida entre empresarial e pessoal, SEMPRE opte por PESSOAL (incluir: false) para evitar problemas fiscais.
 
-TRANSAÇÕES PARA ANALISAR:
+TRANSACOES PARA ANALISAR:
 ${duvidosos.map((d, i) => `${i + 1}. "${d.descricao}" - R$ ${d.valor}`).join('\n')}
 
-IMPORTANTE: Retorne APENAS um JSON válido, sem explicações:
+IMPORTANTE: Retorne APENAS um JSON valido, sem explicacoes:
 {"resultados":[{"categoria":"NomeDaCategoria","incluir":true},...]}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -297,7 +432,7 @@ IMPORTANTE: Retorne APENAS um JSON válido, sem explicações:
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-opus-4-5-20251101',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }]
     })
