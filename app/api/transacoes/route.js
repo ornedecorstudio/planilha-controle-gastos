@@ -1,38 +1,53 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 
-// GET - Lista transacoes de uma fatura
+// GET - Lista transações de uma fatura ou todas para dashboard
 export async function GET(request) {
   try {
     const supabase = createServerClient()
     const { searchParams } = new URL(request.url)
-    
+
     const fatura_id = searchParams.get('fatura_id')
     const tipo = searchParams.get('tipo') // 'PJ' ou 'PF'
     const categoria = searchParams.get('categoria')
     const limit = parseInt(searchParams.get('limit')) || 100
     const all = searchParams.get('all') === 'true'
+    const mes_referencia = searchParams.get('mes_referencia') // Formato: YYYY-MM
 
-    // Se nao tem fatura_id e nao pediu all, retorna todas (para dashboard)
+    // Query com join em faturas para filtrar por mês de referência
     let query = supabase
       .from('transacoes')
-      .select('*')
+      .select('*, faturas!inner(mes_referencia)')
       .order('data', { ascending: true })
-      .limit(limit)
+
+    // Se all=true, não aplica limite (para cálculos do dashboard)
+    if (!all) {
+      query = query.limit(limit)
+    }
 
     // Se tem fatura_id, filtra por ela
     if (fatura_id) {
       query = query.eq('fatura_id', fatura_id)
     }
-    
+
     if (tipo) {
       query = query.eq('tipo', tipo)
     }
-    
+
     if (categoria) {
       query = query.eq('categoria', categoria)
     }
-    
+
+    // Filtro por mês de referência (YYYY-MM)
+    if (mes_referencia) {
+      const [ano, mes] = mes_referencia.split('-')
+      const inicioMes = `${ano}-${mes}-01`
+      const fimMes = `${ano}-${mes}-31`
+      query = query
+        .gte('faturas.mes_referencia', inicioMes)
+        .lte('faturas.mes_referencia', fimMes)
+    }
+
     const { data, error } = await query
     
     if (error) {

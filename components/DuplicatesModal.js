@@ -52,7 +52,7 @@ export default function DuplicatesModal({
           <div className="flex items-center gap-2">
             <AlertTriangle className="text-amber-500" size={20} />
             <h3 className="text-lg font-semibold text-slate-800">
-              {duplicatas.length} transacoes duplicadas encontradas
+              {duplicatas.length} transações duplicadas encontradas
             </h3>
           </div>
           <button onClick={handleClose} className="text-slate-400 hover:text-slate-600">
@@ -64,12 +64,12 @@ export default function DuplicatesModal({
           {confirmStep ? (
             <div className="text-center py-8">
               <AlertTriangle className="text-red-500 mx-auto mb-4" size={48} />
-              <h4 className="text-lg font-semibold text-slate-800 mb-2">Confirmar remocao</h4>
+              <h4 className="text-lg font-semibold text-slate-800 mb-2">Confirmar remoção</h4>
               <p className="text-slate-600 mb-4">
-                Voce esta prestes a remover <strong>{selectedIds.size}</strong> transacoes
+                Você está prestes a remover <strong>{selectedIds.size}</strong> transações
                 totalizando <strong>R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>.
               </p>
-              <p className="text-red-600 text-sm">Esta acao nao pode ser desfeita.</p>
+              <p className="text-red-600 text-sm">Esta ação não pode ser desfeita.</p>
             </div>
           ) : (
             <>
@@ -83,8 +83,8 @@ export default function DuplicatesModal({
                 </button>
               </div>
               <p className="text-xs text-slate-500 mb-3">
-                Transacoes com mesma data, descricao e valor que ja existem na fatura.
-                A versao original sera mantida, apenas as copias serao removidas.
+                Transações com mesma data, descrição e valor que já existem na fatura.
+                A versão original será mantida, apenas as cópias serão removidas.
               </p>
               <div className="space-y-2">
                 {duplicatas.map(d => (
@@ -153,7 +153,7 @@ export default function DuplicatesModal({
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 flex items-center gap-2"
             >
               {loading ? 'Removendo...' : confirmStep ? (
-                <><Check size={16} /> Confirmar remocao</>
+                <><Check size={16} /> Confirmar remoção</>
               ) : (
                 `Remover ${selectedIds.size} duplicadas`
               )}

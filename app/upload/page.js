@@ -9,17 +9,17 @@ const CATEGORY_COLORS = {
   'Pagamento Fornecedores': 'bg-violet-50 text-violet-700 border border-violet-200',
   'Logística': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
   'Taxas Checkout': 'bg-amber-50 text-amber-700 border border-amber-200',
-  'Compra de Cambio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  'IA e Automacao': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  'IA e Automação': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
   'Design/Ferramentas': 'bg-purple-50 text-purple-700 border border-purple-200',
   'Telefonia': 'bg-pink-50 text-pink-700 border border-pink-200',
   'ERP': 'bg-orange-50 text-orange-700 border border-orange-200',
-  'Gestao': 'bg-teal-50 text-teal-700 border border-teal-200',
+  'Gestão': 'bg-teal-50 text-teal-700 border border-teal-200',
   'Viagem Trabalho': 'bg-sky-50 text-sky-700 border border-sky-200',
   'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Tarifas Cartao': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Tarifas Cartão': 'bg-rose-50 text-rose-600 border border-rose-200',
   'Entretenimento': 'bg-rose-50 text-rose-600 border border-rose-200',
   'Transporte Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
   'Compras Pessoais': 'bg-rose-50 text-rose-600 border border-rose-200',
@@ -81,8 +81,8 @@ export default function UploadPage() {
 
   const handleProcessar = async () => {
     if (!pdfFile) { setError('Selecione um arquivo'); return }
-    if (!selectedCartao) { setError('Selecione o cartao'); return }
-    if (!mesReferencia) { setError('Informe o mes de referencia'); return }
+    if (!selectedCartao) { setError('Selecione o cartão'); return }
+    if (!mesReferencia) { setError('Informe o mês de referência'); return }
 
     setError('')
     setDuplicateWarning(null)
@@ -382,17 +382,17 @@ export default function UploadPage() {
         <div className="bg-white rounded-xl border p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-neutral-700">Cartao *</label>
+              <label className="block text-sm font-medium mb-2 text-neutral-700">Cartão *</label>
               <select value={selectedCartao} onChange={(e) => setSelectedCartao(e.target.value)}
                 className="w-full p-3 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200">
-                <option value="">Selecione o cartao...</option>
+                <option value="">Selecione o cartão...</option>
                 {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.tipo})</option>)}
               </select>
             </div>
             <MonthPicker 
               value={mesReferencia} 
               onChange={setMesReferencia}
-              label="Mes de referencia"
+              label="Mês de referência"
               required
             />
           </div>
@@ -404,7 +404,7 @@ export default function UploadPage() {
                 .OFX (Recomendado - sem IA)
               </span>
               <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded font-medium">
-                .PDF (usa IA se necessario)
+                .PDF (usa IA se necessário)
               </span>
             </div>
             <p className="text-xs text-neutral-500 mb-2">
@@ -421,7 +421,7 @@ export default function UploadPage() {
                 <span className="text-emerald-600 text-sm">Arquivo selecionado: {pdfFile.name}</span>
                 {tipoArquivo === 'ofx' || tipoArquivo === 'qfx' ? (
                   <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
-                    Parser deterministico
+                    Parser determinístico
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded font-medium">

@@ -12,17 +12,17 @@ const CATEGORY_COLORS = {
   'Pagamento Fornecedores': 'bg-violet-50 text-violet-700 border border-violet-200',
   'Logística': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
   'Taxas Checkout': 'bg-amber-50 text-amber-700 border border-amber-200',
-  'Compra de Cambio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  'IA e Automacao': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  'IA e Automação': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
   'Design/Ferramentas': 'bg-purple-50 text-purple-700 border border-purple-200',
   'Telefonia': 'bg-pink-50 text-pink-700 border border-pink-200',
   'ERP': 'bg-orange-50 text-orange-700 border border-orange-200',
-  'Gestao': 'bg-teal-50 text-teal-700 border border-teal-200',
+  'Gestão': 'bg-teal-50 text-teal-700 border border-teal-200',
   'Viagem Trabalho': 'bg-sky-50 text-sky-700 border border-sky-200',
   'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Tarifas Cartao': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Tarifas Cartão': 'bg-rose-50 text-rose-600 border border-rose-200',
   'Entretenimento': 'bg-rose-50 text-rose-600 border border-rose-200',
   'Transporte Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
   'Compras Pessoais': 'bg-rose-50 text-rose-600 border border-rose-200',
@@ -40,7 +40,7 @@ export default function FaturaDetalhesPage() {
   const [busca, setBusca] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
 
-  // Selecao
+  // Seleção
   const [selectedIds, setSelectedIds] = useState(new Set())
 
   // Modals
@@ -81,14 +81,14 @@ export default function FaturaDetalhesPage() {
     return new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')
   }
 
-  // Filtrar transacoes
+  // Filtrar transações
   const transacoesFiltradas = transacoes.filter(t => {
     if (filtroTipo && t.tipo !== filtroTipo) return false
     if (busca && !t.descricao.toLowerCase().includes(busca.toLowerCase())) return false
     return true
   })
 
-  // Selecao
+  // Seleção
   const toggleSelection = (id) => {
     const newSet = new Set(selectedIds)
     if (newSet.has(id)) {
@@ -151,7 +151,7 @@ export default function FaturaDetalhesPage() {
       if (result.duplicadas && result.duplicadas.length > 0) {
         setDuplicatesModal({ open: true, duplicatas: result.duplicadas })
       } else {
-        alert('Nenhuma transacao duplicada encontrada.')
+        alert('Nenhuma transação duplicada encontrada.')
       }
     } catch (err) {
       alert('Erro ao verificar duplicadas: ' + err.message)
@@ -221,7 +221,7 @@ export default function FaturaDetalhesPage() {
         <Link href="/faturas" className="text-neutral-500 hover:text-neutral-900 text-sm">← Voltar para faturas</Link>
         <div className="bg-rose-50 border border-rose-200 rounded-lg p-6 text-center">
           <h2 className="text-lg font-semibold text-rose-800">Erro ao carregar fatura</h2>
-          <p className="text-rose-600 mt-1">{error || 'Fatura nao encontrada'}</p>
+          <p className="text-rose-600 mt-1">{error || 'Fatura não encontrada'}</p>
         </div>
       </div>
     )
@@ -231,8 +231,8 @@ export default function FaturaDetalhesPage() {
   const totalPF = transacoesFiltradas.filter(t => t.tipo === 'PF').reduce((a, t) => a + parseFloat(t.valor || 0), 0)
 
   const deleteMessage = deleteModal.multiple
-    ? `Tem certeza que deseja remover ${selectedIds.size} transacoes selecionadas? Esta acao nao pode ser desfeita.`
-    : `Tem certeza que deseja remover "${deleteModal.transacao?.descricao}"? Esta acao nao pode ser desfeita.`
+    ? `Tem certeza que deseja remover ${selectedIds.size} transações selecionadas? Esta ação não pode ser desfeita.`
+    : `Tem certeza que deseja remover "${deleteModal.transacao?.descricao}"? Esta ação não pode ser desfeita.`
 
   return (
     <div className="space-y-6">
@@ -299,7 +299,7 @@ export default function FaturaDetalhesPage() {
         <div className="bg-white rounded-lg border border-neutral-200 p-5">
           <p className="text-sm font-medium text-neutral-500">Total da fatura</p>
           <p className="text-2xl font-semibold text-neutral-900 mt-1">R$ {formatCurrency(totalPJ + totalPF)}</p>
-          <p className="text-xs text-neutral-400 mt-1">{transacoesFiltradas.length} transacoes</p>
+          <p className="text-xs text-neutral-400 mt-1">{transacoesFiltradas.length} transações</p>
         </div>
         <div className="bg-emerald-50 rounded-lg border border-emerald-200 p-5">
           <p className="text-sm font-medium text-emerald-600">Total PJ (reembolsavel)</p>
@@ -319,7 +319,7 @@ export default function FaturaDetalhesPage() {
             type="text"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por descricao..."
+            placeholder="Buscar por descrição..."
             className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg text-sm focus:border-neutral-400 focus:ring-2 focus:ring-neutral-100"
           />
           {busca && (
@@ -387,7 +387,7 @@ export default function FaturaDetalhesPage() {
                     <button
                       onClick={() => handleDeleteSingle(t)}
                       className="p-1.5 text-neutral-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                      title="Remover transacao"
+                      title="Remover transação"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -404,7 +404,7 @@ export default function FaturaDetalhesPage() {
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, transacao: null, multiple: false })}
         onConfirm={handleConfirmDelete}
-        title={deleteModal.multiple ? `Remover ${selectedIds.size} transacoes` : 'Remover transacao'}
+        title={deleteModal.multiple ? `Remover ${selectedIds.size} transações` : 'Remover transação'}
         message={deleteMessage}
         confirmText="Remover"
         variant="danger"

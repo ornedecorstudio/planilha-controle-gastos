@@ -85,7 +85,7 @@ export default function ReconciliacaoPage() {
       if (result.error) throw new Error(result.error)
       setMovimentacoes(prev => prev.filter(m => m.id !== deleteModal.movimentacao.id))
       setDeleteModal({ open: false, movimentacao: null })
-      setSuccess('Movimentacao removida')
+      setSuccess('Movimentação removida')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError('Erro ao remover: ' + err.message)
@@ -104,7 +104,7 @@ export default function ReconciliacaoPage() {
       if (result.duplicadas && result.duplicadas.length > 0) {
         setDuplicatesModal({ open: true, duplicatas: result.duplicadas })
       } else {
-        setSuccess('Nenhuma movimentacao duplicada encontrada.')
+        setSuccess('Nenhuma movimentação duplicada encontrada.')
         setTimeout(() => setSuccess(''), 3000)
       }
     } catch (err) {
@@ -367,7 +367,7 @@ export default function ReconciliacaoPage() {
                       <button
                         onClick={() => setDeleteModal({ open: true, movimentacao: m })}
                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                        title="Remover movimentacao"
+                        title="Remover movimentação"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -424,8 +424,8 @@ export default function ReconciliacaoPage() {
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, movimentacao: null })}
         onConfirm={handleDeleteMovimentacao}
-        title="Remover movimentacao"
-        message={`Tem certeza que deseja remover "${deleteModal.movimentacao?.descricao?.substring(0, 50)}..."? Esta acao nao pode ser desfeita.`}
+        title="Remover movimentação"
+        message={`Tem certeza que deseja remover "${deleteModal.movimentacao?.descricao?.substring(0, 50)}..."? Esta ação não pode ser desfeita.`}
         confirmText="Remover"
         variant="danger"
         loading={loadingAction}

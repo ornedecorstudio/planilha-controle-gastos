@@ -118,8 +118,8 @@ export default function FaturasPage() {
   const totalPF = faturas.reduce((a, f) => a + parseFloat(f.valor_pf || 0), 0)
 
   const deleteMessage = deleteModal.multiple
-    ? `Tem certeza que deseja remover ${selectedIds.size} faturas selecionadas? Todas as transacoes dessas faturas tambem serao removidas. Esta acao nao pode ser desfeita.`
-    : `Tem certeza que deseja remover a fatura "${deleteModal.fatura?.cartoes?.nome || 'N/A'} - ${deleteModal.fatura?.mes_referencia ? new Date(deleteModal.fatura.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : ''}"? Todas as transacoes dessa fatura tambem serao removidas. Esta acao nao pode ser desfeita.`
+    ? `Tem certeza que deseja remover ${selectedIds.size} faturas selecionadas? Todas as transações dessas faturas também serão removidas. Esta ação não pode ser desfeita.`
+    : `Tem certeza que deseja remover a fatura "${deleteModal.fatura?.cartoes?.nome || 'N/A'} - ${deleteModal.fatura?.mes_referencia ? new Date(deleteModal.fatura.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : ''}"? Todas as transações dessa fatura também serão removidas. Esta ação não pode ser desfeita.`
 
   return (
     <div className="space-y-6">
@@ -153,7 +153,7 @@ export default function FaturasPage() {
           </p>
         </div>
         <div className="bg-green-50 rounded-xl border border-green-200 p-4">
-          <p className="text-sm text-green-600">Total PJ (reembolsavel)</p>
+          <p className="text-sm text-green-600">Total PJ (reembolsável)</p>
           <p className="text-xl font-bold text-green-700">
             R$ {totalPJ.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
@@ -178,14 +178,14 @@ export default function FaturasPage() {
                       {selectedIds.size === faturas.length ? <CheckSquare size={18} /> : <Square size={18} />}
                     </button>
                   </th>
-                  <th className="p-3 text-left font-medium">Cartao</th>
-                  <th className="p-3 text-left font-medium">Mes</th>
+                  <th className="p-3 text-left font-medium">Cartão</th>
+                  <th className="p-3 text-left font-medium">Mês</th>
                   <th className="p-3 text-left font-medium">Vencimento</th>
                   <th className="p-3 text-right font-medium">Total</th>
                   <th className="p-3 text-right font-medium">PJ</th>
                   <th className="p-3 text-right font-medium">PF</th>
                   <th className="p-3 text-center font-medium">Status</th>
-                  <th className="p-3 text-center font-medium">Acoes</th>
+                  <th className="p-3 text-center font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -263,14 +263,14 @@ export default function FaturasPage() {
         <div className="bg-white rounded-xl border p-8 text-center">
           <FileText className="mx-auto mb-4 text-slate-300" size={48} />
           <h3 className="text-lg font-semibold text-slate-700">Nenhuma fatura</h3>
-          <p className="text-slate-500">Importe sua primeira fatura para comecar</p>
+          <p className="text-slate-500">Importe sua primeira fatura para começar</p>
           <Link href="/upload" className="inline-block mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600">
             + Importar fatura
           </Link>
         </div>
       )}
 
-      {/* Modal de confirmacao */}
+      {/* Modal de confirmação */}
       <ConfirmModal
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, fatura: null, multiple: false })}

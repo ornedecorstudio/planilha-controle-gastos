@@ -11,7 +11,7 @@ export default function Header() {
     { href: '/', label: 'Dashboard' },
     { href: '/faturas', label: 'Faturas' },
     { href: '/extratos', label: 'Extratos' },
-    { href: '/reconciliacao', label: 'Reconciliacao' },
+    { href: '/reconciliacao', label: 'Reconciliação' },
   ]
   
   return (
@@ -28,7 +28,7 @@ export default function Header() {
             </span>
           </Link>
           
-          {/* Navegacao */}
+          {/* Navegação */}
           <nav className="hidden md:flex items-center gap-1">
             {links.map(link => (
               <Link
@@ -47,7 +47,7 @@ export default function Header() {
             ))}
           </nav>
           
-          {/* Acao principal */}
+          {/* Ação principal */}
           <Link
             href="/upload"
             className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors"
@@ -57,7 +57,7 @@ export default function Header() {
           </Link>
         </div>
         
-        {/* Navegacao mobile */}
+        {/* Navegação mobile */}
         <nav className="md:hidden flex items-center gap-1 pb-3 -mx-1 overflow-x-auto">
           {links.map(link => (
             <Link

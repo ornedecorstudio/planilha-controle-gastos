@@ -42,6 +42,7 @@ export default function ExtratosPage() {
   const [banco, setBanco] = useState('')
   const [mesReferencia, setMesReferencia] = useState('')
   const [arquivo, setArquivo] = useState(null)
+  const [arquivoFile, setArquivoFile] = useState(null) // Arquivo original para upload
   const [tipoArquivo, setTipoArquivo] = useState('')
   const [movimentacoes, setMovimentacoes] = useState([])
   const [extratoInfo, setExtratoInfo] = useState(null)
@@ -67,6 +68,7 @@ export default function ExtratosPage() {
     const file = e.target.files?.[0]
     if (file) {
       setArquivo(file)
+      setArquivoFile(file) // Salva o arquivo original para upload posterior
       const ext = file.name.split('.').pop()?.toLowerCase()
       setTipoArquivo(ext)
     }
@@ -154,6 +156,23 @@ export default function ExtratosPage() {
       if (result.warning) {
         setError(result.warning)
         return
+      }
+
+      // Fazer upload do arquivo original se existir
+      if (arquivoFile && result.extrato?.id) {
+        try {
+          const uploadForm = new FormData()
+          uploadForm.append('extrato_id', result.extrato.id)
+          uploadForm.append('arquivo', arquivoFile)
+
+          await fetch('/api/extratos/upload-arquivo', {
+            method: 'POST',
+            body: uploadForm
+          })
+        } catch (uploadErr) {
+          console.error('Erro ao fazer upload do arquivo:', uploadErr)
+          // Não falha se o upload falhar - o extrato já foi salvo
+        }
       }
 
       const msgDuplicadas = result.duplicadas_ignoradas > 0

@@ -6,7 +6,7 @@ export default function ConfirmModal({
   isOpen,
   onClose,
   onConfirm,
-  title = 'Confirmar acao',
+  title = 'Confirmar ação',
   message = 'Tem certeza que deseja continuar?',
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',

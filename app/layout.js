@@ -3,7 +3,7 @@ import Header from '@/components/Header'
 
 export const metadata = {
   title: 'ORNE - Categorizador de Faturas',
-  description: 'Categorizacao automatica de faturas com IA',
+  description: 'Categorização automática de faturas com IA',
 }
 
 export default function RootLayout({ children }) {
