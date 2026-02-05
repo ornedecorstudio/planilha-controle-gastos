@@ -3,27 +3,29 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, Copy, Download, Search, X, FileText, CheckSquare, Square } from 'lucide-react'
+import { Trash2, Copy, Download, Search, X, FileText, CheckSquare, Square, File } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
 import DuplicatesModal from '@/components/DuplicatesModal'
 
 const CATEGORY_COLORS = {
-  'Marketing Digital': 'bg-blue-100 text-blue-800',
-  'Pagamento Fornecedores': 'bg-purple-100 text-purple-800',
-  'Taxas Checkout': 'bg-yellow-100 text-yellow-800',
-  'Compra de Cambio': 'bg-green-100 text-green-800',
-  'IA e Automacao': 'bg-indigo-100 text-indigo-800',
-  'Design/Ferramentas': 'bg-violet-100 text-violet-800',
-  'Telefonia': 'bg-pink-100 text-pink-800',
-  'ERP': 'bg-orange-100 text-orange-800',
-  'Gestao': 'bg-teal-100 text-teal-800',
-  'Viagem Trabalho': 'bg-cyan-100 text-cyan-800',
-  'Outros PJ': 'bg-gray-100 text-gray-800',
-  'Pessoal': 'bg-red-100 text-red-800',
-  'Tarifas Cartao': 'bg-red-100 text-red-700',
-  'Entretenimento': 'bg-red-100 text-red-600',
-  'Transporte Pessoal': 'bg-red-100 text-red-600',
-  'Compras Pessoais': 'bg-red-100 text-red-600',
+  'Marketing Digital': 'bg-blue-50 text-blue-700 border border-blue-200',
+  'Pagamento Fornecedores': 'bg-violet-50 text-violet-700 border border-violet-200',
+  'Logística': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
+  'Taxas Checkout': 'bg-amber-50 text-amber-700 border border-amber-200',
+  'Compra de Cambio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  'IA e Automacao': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+  'Design/Ferramentas': 'bg-purple-50 text-purple-700 border border-purple-200',
+  'Telefonia': 'bg-pink-50 text-pink-700 border border-pink-200',
+  'ERP': 'bg-orange-50 text-orange-700 border border-orange-200',
+  'Gestao': 'bg-teal-50 text-teal-700 border border-teal-200',
+  'Viagem Trabalho': 'bg-sky-50 text-sky-700 border border-sky-200',
+  'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
+  'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
+  'Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Tarifas Cartao': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Entretenimento': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Transporte Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Compras Pessoais': 'bg-rose-50 text-rose-600 border border-rose-200',
 }
 
 export default function FaturaDetalhesPage() {
@@ -178,16 +180,37 @@ export default function FaturaDetalhesPage() {
     window.open(`/api/transacoes/export?fatura_id=${params.id}`, '_blank')
   }
 
+  const handleDownloadArquivo = () => {
+    if (fatura?.pdf_url) {
+      // Cria um link temporário para download
+      const link = document.createElement('a')
+      link.href = fatura.pdf_url
+      link.download = fatura.arquivo_nome || `fatura-${fatura.id}.pdf`
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
+
   const handleOpenPDF = () => {
     if (fatura?.pdf_url) {
       window.open(fatura.pdf_url, '_blank')
     }
   }
 
+  // Detecta o tipo do arquivo
+  const getArquivoInfo = () => {
+    if (!fatura?.pdf_url) return null
+    const tipo = fatura.arquivo_tipo || (fatura.pdf_url.includes('.ofx') ? 'ofx' : fatura.pdf_url.includes('.qfx') ? 'qfx' : 'pdf')
+    const nome = fatura.arquivo_nome || `fatura.${tipo}`
+    return { tipo: tipo.toUpperCase(), nome }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-300 border-t-neutral-900"></div>
       </div>
     )
   }
@@ -195,10 +218,10 @@ export default function FaturaDetalhesPage() {
   if (error || !fatura) {
     return (
       <div className="space-y-4">
-        <Link href="/faturas" className="text-amber-600 hover:underline">← Voltar para faturas</Link>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <h2 className="text-lg font-bold text-red-800">Erro ao carregar fatura</h2>
-          <p className="text-red-600">{error || 'Fatura nao encontrada'}</p>
+        <Link href="/faturas" className="text-neutral-500 hover:text-neutral-900 text-sm">← Voltar para faturas</Link>
+        <div className="bg-rose-50 border border-rose-200 rounded-lg p-6 text-center">
+          <h2 className="text-lg font-semibold text-rose-800">Erro ao carregar fatura</h2>
+          <p className="text-rose-600 mt-1">{error || 'Fatura nao encontrada'}</p>
         </div>
       </div>
     )
@@ -216,15 +239,25 @@ export default function FaturaDetalhesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Link href="/faturas" className="text-amber-600 hover:underline text-sm">← Voltar para faturas</Link>
-          <h1 className="text-2xl font-bold text-slate-800 mt-1">
+          <Link href="/faturas" className="text-neutral-500 hover:text-neutral-900 text-sm">← Voltar para faturas</Link>
+          <h1 className="text-2xl font-semibold text-neutral-900 mt-1">
             {fatura.cartoes?.nome || 'Fatura'}
           </h1>
-          <p className="text-slate-500">
+          <p className="text-neutral-500">
             {new Date(fatura.mes_referencia).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Botao de Download de Arquivo - Destaque */}
+          {fatura?.pdf_url && (
+            <button
+              onClick={handleDownloadArquivo}
+              className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-sm flex items-center gap-2 font-medium"
+            >
+              <Download size={16} />
+              Baixar arquivo {getArquivoInfo()?.tipo && `(${getArquivoInfo().tipo})`}
+            </button>
+          )}
           {selectedIds.size > 0 && (
             <button
               onClick={handleDeleteMultiple}
@@ -237,10 +270,10 @@ export default function FaturaDetalhesPage() {
           {fatura?.pdf_url && (
             <button
               onClick={handleOpenPDF}
-              className="px-3 py-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 text-sm flex items-center gap-2"
+              className="px-3 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 text-sm flex items-center gap-2"
             >
               <FileText size={16} />
-              Ver PDF
+              Visualizar
             </button>
           )}
           <button
@@ -263,34 +296,34 @@ export default function FaturaDetalhesPage() {
 
       {/* Totais */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border p-4">
-          <p className="text-sm text-slate-500">Total da fatura</p>
-          <p className="text-2xl font-bold text-slate-800">R$ {formatCurrency(totalPJ + totalPF)}</p>
-          <p className="text-xs text-slate-400">{transacoesFiltradas.length} transacoes</p>
+        <div className="bg-white rounded-lg border border-neutral-200 p-5">
+          <p className="text-sm font-medium text-neutral-500">Total da fatura</p>
+          <p className="text-2xl font-semibold text-neutral-900 mt-1">R$ {formatCurrency(totalPJ + totalPF)}</p>
+          <p className="text-xs text-neutral-400 mt-1">{transacoesFiltradas.length} transacoes</p>
         </div>
-        <div className="bg-green-50 rounded-xl border border-green-200 p-4">
-          <p className="text-sm text-green-600">Total PJ (reembolsavel)</p>
-          <p className="text-2xl font-bold text-green-700">R$ {formatCurrency(totalPJ)}</p>
+        <div className="bg-emerald-50 rounded-lg border border-emerald-200 p-5">
+          <p className="text-sm font-medium text-emerald-600">Total PJ (reembolsavel)</p>
+          <p className="text-2xl font-semibold text-emerald-700 mt-1">R$ {formatCurrency(totalPJ)}</p>
         </div>
-        <div className="bg-red-50 rounded-xl border border-red-200 p-4">
-          <p className="text-sm text-red-600">Total PF (pessoal)</p>
-          <p className="text-2xl font-bold text-red-700">R$ {formatCurrency(totalPF)}</p>
+        <div className="bg-rose-50 rounded-lg border border-rose-200 p-5">
+          <p className="text-sm font-medium text-rose-600">Total PF (pessoal)</p>
+          <p className="text-2xl font-semibold text-rose-700 mt-1">R$ {formatCurrency(totalPF)}</p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-lg border p-4 flex flex-wrap gap-4 items-center">
+      <div className="bg-white rounded-lg border border-neutral-200 p-4 flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
           <input
             type="text"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar por descricao..."
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm"
+            className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg text-sm focus:border-neutral-400 focus:ring-2 focus:ring-neutral-100"
           />
           {busca && (
-            <button onClick={() => setBusca('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <button onClick={() => setBusca('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
               <X size={16} />
             </button>
           )}
@@ -298,7 +331,7 @@ export default function FaturaDetalhesPage() {
         <select
           value={filtroTipo}
           onChange={(e) => setFiltroTipo(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+          className="px-3 py-2 border border-neutral-200 rounded-lg text-sm bg-white focus:border-neutral-400"
         >
           <option value="">Todos os tipos</option>
           <option value="PJ">PJ (empresarial)</option>
@@ -307,53 +340,53 @@ export default function FaturaDetalhesPage() {
       </div>
 
       {/* Lista de Transacoes */}
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
                 <th className="p-3 text-center w-12">
-                  <button onClick={selectAll} className="text-slate-400 hover:text-slate-600">
+                  <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
                     {selectedIds.size === transacoesFiltradas.length && transacoesFiltradas.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
                   </button>
                 </th>
-                <th className="p-3 text-left">Data</th>
-                <th className="p-3 text-left">Descricao</th>
-                <th className="p-3 text-left">Categoria</th>
-                <th className="p-3 text-center">Tipo</th>
-                <th className="p-3 text-right">Valor</th>
+                <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Data</th>
+                <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descricao</th>
+                <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Categoria</th>
+                <th className="p-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Tipo</th>
+                <th className="p-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Valor</th>
                 <th className="p-3 text-center w-12"></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-neutral-100">
               {transacoesFiltradas.map(t => (
-                <tr key={t.id} className={`border-t hover:bg-gray-50 ${t.tipo === 'PF' ? 'bg-red-50/50' : ''} ${selectedIds.has(t.id) ? 'bg-amber-50' : ''}`}>
+                <tr key={t.id} className={`hover:bg-neutral-50 ${t.tipo === 'PF' ? 'bg-rose-50/30' : ''} ${selectedIds.has(t.id) ? 'bg-neutral-100' : ''}`}>
                   <td className="p-3 text-center">
-                    <button onClick={() => toggleSelection(t.id)} className="text-slate-400 hover:text-slate-600">
-                      {selectedIds.has(t.id) ? <CheckSquare size={18} className="text-amber-500" /> : <Square size={18} />}
+                    <button onClick={() => toggleSelection(t.id)} className="text-neutral-400 hover:text-neutral-600">
+                      {selectedIds.has(t.id) ? <CheckSquare size={18} className="text-neutral-900" /> : <Square size={18} />}
                     </button>
                   </td>
-                  <td className="p-3 font-mono text-xs">{formatDate(t.data)}</td>
+                  <td className="p-3 font-mono text-xs text-neutral-600">{formatDate(t.data)}</td>
                   <td className="p-3 max-w-xs">
-                    <span className="truncate block" title={t.descricao}>{t.descricao}</span>
+                    <span className="truncate block text-neutral-900" title={t.descricao}>{t.descricao}</span>
                   </td>
                   <td className="p-3">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-gray-100 text-gray-800'}`}>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}>
                       {t.categoria || 'Outros'}
                     </span>
                   </td>
                   <td className="p-3 text-center">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
                       {t.tipo}
                     </span>
                   </td>
-                  <td className="p-3 text-right font-mono font-medium">
+                  <td className="p-3 text-right font-mono font-medium text-neutral-900">
                     R$ {formatCurrency(t.valor)}
                   </td>
                   <td className="p-3 text-center">
                     <button
                       onClick={() => handleDeleteSingle(t)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                      className="p-1.5 text-neutral-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
                       title="Remover transacao"
                     >
                       <Trash2 size={16} />

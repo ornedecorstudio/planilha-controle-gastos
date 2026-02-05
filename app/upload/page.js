@@ -2,25 +2,27 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import MonthPicker from '@/components/MonthPicker'
 
 const CATEGORY_COLORS = {
-  'Marketing Digital': 'bg-blue-100 text-blue-800',
-  'Pagamento Fornecedores': 'bg-purple-100 text-purple-800',
-  'Taxas Checkout': 'bg-yellow-100 text-yellow-800',
-  'Compra de Cambio': 'bg-green-100 text-green-800',
-  'IA e Automacao': 'bg-indigo-100 text-indigo-800',
-  'Design/Ferramentas': 'bg-violet-100 text-violet-800',
-  'Telefonia': 'bg-pink-100 text-pink-800',
-  'ERP': 'bg-orange-100 text-orange-800',
-  'Gestao': 'bg-teal-100 text-teal-800',
-  'Viagem Trabalho': 'bg-cyan-100 text-cyan-800',
-  'Outros PJ': 'bg-gray-100 text-gray-800',
-  'Outros': 'bg-gray-100 text-gray-800',
-  'Pessoal': 'bg-red-100 text-red-800',
-  'Tarifas Cartao': 'bg-red-100 text-red-700',
-  'Entretenimento': 'bg-red-100 text-red-600',
-  'Transporte Pessoal': 'bg-red-100 text-red-600',
-  'Compras Pessoais': 'bg-red-100 text-red-600',
+  'Marketing Digital': 'bg-blue-50 text-blue-700 border border-blue-200',
+  'Pagamento Fornecedores': 'bg-violet-50 text-violet-700 border border-violet-200',
+  'Logística': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
+  'Taxas Checkout': 'bg-amber-50 text-amber-700 border border-amber-200',
+  'Compra de Cambio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  'IA e Automacao': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+  'Design/Ferramentas': 'bg-purple-50 text-purple-700 border border-purple-200',
+  'Telefonia': 'bg-pink-50 text-pink-700 border border-pink-200',
+  'ERP': 'bg-orange-50 text-orange-700 border border-orange-200',
+  'Gestao': 'bg-teal-50 text-teal-700 border border-teal-200',
+  'Viagem Trabalho': 'bg-sky-50 text-sky-700 border border-sky-200',
+  'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
+  'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
+  'Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Tarifas Cartao': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Entretenimento': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Transporte Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Compras Pessoais': 'bg-rose-50 text-rose-600 border border-rose-200',
 }
 
 export default function UploadPage() {
@@ -30,7 +32,6 @@ export default function UploadPage() {
   const [categorias, setCategorias] = useState([])
   const [selectedCartao, setSelectedCartao] = useState('')
   const [mesReferencia, setMesReferencia] = useState('')
-  const [dataVencimento, setDataVencimento] = useState('')
   const [pdfFile, setPdfFile] = useState(null)
   const [tipoArquivo, setTipoArquivo] = useState('')
   const [transactions, setTransactions] = useState([])
@@ -274,7 +275,6 @@ export default function UploadPage() {
         body: JSON.stringify({
           cartao_id: selectedCartao,
           mes_referencia: `${mesReferencia}-01`,
-          data_vencimento: dataVencimento || null,
           status: 'pendente'
         })
       })
@@ -295,19 +295,19 @@ export default function UploadPage() {
       const transacoesResult = await transacoesRes.json()
       if (transacoesResult.error) throw new Error(transacoesResult.error)
 
-      // Salva o arquivo original no storage (apenas PDF)
-      if (pdfFile && tipoArquivo === 'pdf') {
-        const pdfFormData = new FormData()
-        pdfFormData.append('fatura_id', faturaResult.fatura.id)
-        pdfFormData.append('pdf', pdfFile)
+      // Salva o arquivo original no storage (PDF, OFX, QFX)
+      if (pdfFile) {
+        const arquivoFormData = new FormData()
+        arquivoFormData.append('fatura_id', faturaResult.fatura.id)
+        arquivoFormData.append('arquivo', pdfFile)
 
         const uploadRes = await fetch('/api/faturas/upload-pdf', {
           method: 'POST',
-          body: pdfFormData
+          body: arquivoFormData
         })
         const uploadResult = await uploadRes.json()
         if (uploadResult.error) {
-          console.warn('Aviso: PDF nao foi salvo -', uploadResult.error)
+          console.warn('Aviso: Arquivo nao foi salvo -', uploadResult.error)
         }
       }
 
@@ -338,36 +338,39 @@ export default function UploadPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-800">Importar fatura - Passo {step}/2</h1>
+      <div>
+        <h1 className="text-2xl font-semibold text-neutral-900">Importar fatura</h1>
+        <p className="text-neutral-500 mt-1">Passo {step} de 2</p>
+      </div>
 
-      {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>}
-      {success && <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">{success}</div>}
+      {error && <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700">{error}</div>}
+      {success && <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">{success}</div>}
 
       {duplicateWarning && (
-        <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
-          <h3 className="font-bold text-amber-800 mb-2">Fatura possivelmente duplicada</h3>
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <h3 className="font-semibold text-amber-800 mb-2">Fatura possivelmente duplicada</h3>
           <p className="text-amber-700 mb-3">{duplicateWarning.message}</p>
           {duplicateWarning.valor_existente && (
             <p className="text-sm text-amber-600 mb-3">
               Valor da fatura existente: R$ {parseFloat(duplicateWarning.valor_existente).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
             </p>
           )}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setDuplicateWarning(null)}
-              className="px-4 py-2 bg-white border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100"
+              className="px-4 py-2 bg-white border border-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-50"
             >
               Cancelar
             </button>
             <button
               onClick={handleContinuarMesmoAssim}
-              className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
             >
               Continuar mesmo assim
             </button>
             <a
               href={`/faturas/${duplicateWarning.fatura_id}`}
-              className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
+              className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
             >
               Ver fatura existente
             </a>
@@ -377,56 +380,52 @@ export default function UploadPage() {
 
       {step === 1 && (
         <div className="bg-white rounded-xl border p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Cartao *</label>
+              <label className="block text-sm font-medium mb-2 text-neutral-700">Cartao *</label>
               <select value={selectedCartao} onChange={(e) => setSelectedCartao(e.target.value)}
-                className="w-full p-3 border rounded-lg">
-                <option value="">Selecione...</option>
+                className="w-full p-3 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200">
+                <option value="">Selecione o cartao...</option>
                 {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.tipo})</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Mes referencia *</label>
-              <input type="month" value={mesReferencia} onChange={(e) => setMesReferencia(e.target.value)}
-                className="w-full p-3 border rounded-lg" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Vencimento</label>
-              <input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)}
-                className="w-full p-3 border rounded-lg" />
-            </div>
+            <MonthPicker 
+              value={mesReferencia} 
+              onChange={setMesReferencia}
+              label="Mes de referencia"
+              required
+            />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Upload da fatura</label>
+            <label className="block text-sm font-medium mb-2 text-neutral-700">Upload da fatura</label>
             <div className="flex gap-2 mb-2">
-              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded font-medium">
+              <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
                 .OFX (Recomendado - sem IA)
               </span>
-              <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded font-medium">
-                .PDF (usa IA)
+              <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded font-medium">
+                .PDF (usa IA se necessario)
               </span>
             </div>
-            <p className="text-xs text-slate-500 mb-2">
+            <p className="text-xs text-neutral-500 mb-2">
               Suporta faturas de Nubank, Itau, Santander, C6 Bank, Mercado Pago, PicPay, Renner, XP e outros bancos brasileiros.
             </p>
             <input
               type="file"
               accept=".pdf,.ofx,.qfx"
               onChange={handleFileChange}
-              className="w-full p-2 border rounded-lg"
+              className="w-full p-2 border border-neutral-300 rounded-lg bg-white text-neutral-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-neutral-100 file:text-neutral-700 hover:file:bg-neutral-200"
             />
             {pdfFile && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-green-600 text-sm">Arquivo selecionado: {pdfFile.name}</span>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <span className="text-emerald-600 text-sm">Arquivo selecionado: {pdfFile.name}</span>
                 {tipoArquivo === 'ofx' || tipoArquivo === 'qfx' ? (
-                  <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded font-medium">
-                    Parser deterministico (sem IA)
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
+                    Parser deterministico
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-medium">
-                    Processamento com IA
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded font-medium">
+                    Parser + IA fallback
                   </span>
                 )}
               </div>
@@ -436,12 +435,13 @@ export default function UploadPage() {
           <button
             onClick={handleProcessar}
             disabled={loading || !selectedCartao || !mesReferencia || !pdfFile}
-            className="px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
+            className="px-6 py-3 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 font-medium transition-colors"
           >
             {loading ? (
-              tipoArquivo === 'ofx' || tipoArquivo === 'qfx'
-                ? 'Processando OFX...'
-                : 'Processando PDF com IA...'
+              <span className="flex items-center gap-2">
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                {tipoArquivo === 'ofx' || tipoArquivo === 'qfx' ? 'Processando OFX...' : 'Processando PDF...'}
+              </span>
             ) : (
               'Processar e categorizar'
             )}
@@ -451,60 +451,65 @@ export default function UploadPage() {
 
       {step === 2 && (
         <div className="space-y-4">
-          <div className="bg-white rounded-xl border p-4 flex justify-between items-center">
+          <div className="bg-white rounded-lg border border-neutral-200 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm text-slate-500">{transactions.length} transacoes</p>
+                <p className="text-sm text-neutral-500">{transactions.length} transacoes encontradas</p>
                 {metodoProcessamento === 'OFX_PARSER' && (
-                  <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded font-medium">
-                    OFX preciso
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
+                    OFX
+                  </span>
+                )}
+                {metodoProcessamento === 'PARSER_DETERMINISTICO' && (
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
+                    Parser
                   </span>
                 )}
                 {metodoProcessamento === 'IA_PDF' && (
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-medium">
-                    Extraido com IA
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded font-medium">
+                    IA
                   </span>
                 )}
               </div>
-              <p className="font-bold">
-                <span className="text-green-600">PJ: R$ {totalPJ.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                {' | '}
-                <span className="text-red-600">PF: R$ {totalPF.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+              <p className="font-semibold text-neutral-900">
+                <span className="text-emerald-600">PJ: R$ {totalPJ.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                <span className="text-neutral-300 mx-2">|</span>
+                <span className="text-rose-600">PF: R$ {totalPF.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
               </p>
             </div>
-            <button onClick={() => setStep(1)} className="text-amber-600 hover:underline">Voltar</button>
+            <button onClick={() => setStep(1)} className="text-neutral-500 hover:text-neutral-900 text-sm">← Voltar</button>
           </div>
 
-          <div className="bg-white rounded-xl border overflow-x-auto">
+          <div className="bg-white rounded-lg border border-neutral-200 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr>
-                  <th className="p-3 text-left">Data</th>
-                  <th className="p-3 text-left">Descricao</th>
-                  <th className="p-3 text-left">Categoria</th>
-                  <th className="p-3 text-center">Tipo</th>
-                  <th className="p-3 text-right">Valor</th>
+                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Data</th>
+                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descricao</th>
+                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Categoria</th>
+                  <th className="p-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Tipo</th>
+                  <th className="p-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Valor</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-neutral-100">
                 {transactions.map(t => (
-                  <tr key={t.id} className={`border-t ${t.tipo === 'PF' ? 'bg-red-50' : ''}`}>
-                    <td className="p-3 font-mono text-xs">{t.data ? new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
-                    <td className="p-3 max-w-xs truncate" title={t.descricao}>{t.descricao}</td>
+                  <tr key={t.id} className={`hover:bg-neutral-50 ${t.tipo === 'PF' ? 'bg-rose-50/30' : ''}`}>
+                    <td className="p-3 font-mono text-xs text-neutral-600">{t.data ? new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td className="p-3 max-w-xs truncate text-neutral-900" title={t.descricao}>{t.descricao}</td>
                     <td className="p-3">
                       <select value={t.categoria} onChange={(e) => updateTransaction(t.id, 'categoria', e.target.value)}
-                        className={`px-2 py-1 rounded text-xs font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-gray-100'}`}>
+                        className={`px-2 py-1 rounded text-xs font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}>
                         {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                       </select>
                     </td>
                     <td className="p-3 text-center">
                       <select value={t.tipo} onChange={(e) => updateTransaction(t.id, 'tipo', e.target.value)}
-                        className={`px-2 py-1 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
                         <option value="PJ">PJ</option>
                         <option value="PF">PF</option>
                       </select>
                     </td>
-                    <td className="p-3 text-right font-mono font-medium">R$ {t.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td className="p-3 text-right font-mono font-medium text-neutral-900">R$ {t.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                   </tr>
                 ))}
               </tbody>
@@ -512,8 +517,13 @@ export default function UploadPage() {
           </div>
 
           <button onClick={handleSalvar} disabled={saving}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium">
-            {saving ? 'Salvando...' : 'Salvar fatura'}
+            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium transition-colors">
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                Salvando...
+              </span>
+            ) : 'Salvar fatura'}
           </button>
         </div>
       )}

@@ -103,9 +103,25 @@ function categorizarDeterministico(descricao) {
     if (desc.includes(termo)) return { categoria: 'Gestao', incluir: true, confianca: 'alta' };
   }
 
+  // ===== LOGÍSTICA (PJ) =====
+  // LOGGI é transportadora/logística, não fornecedor de produtos
+  if (desc.includes('LOGGI') || desc.includes('LOGGI TECNOLOGIA')) {
+    return { categoria: 'Logística', incluir: true, confianca: 'alta' };
+  }
+
+  // ===== PICPAY - Pagamentos a Fornecedores (PJ) =====
+  // PICPAY*ORNE = pagamentos para a própria empresa ou fornecedores
+  if (desc.startsWith('PICPAY*ORNE') || desc.includes('PICPAY*ORNE DECOR')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
+  }
+  // PICPAY* genérico em cartão PJ = geralmente pagamento a fornecedores
+  if (desc.startsWith('PICPAY*') && !desc.includes('PICPAY*NETFLIX') && !desc.includes('PICPAY*SPOTIFY') && !desc.includes('PICPAY*IFOOD')) {
+    return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'media' };
+  }
+
   // ===== PAGAMENTO FORNECEDORES (PJ) =====
   const fornecedoresTermos = [
-    'ROGER FULFILLMENT', 'LOGGI', 'CORREIOS', 'JADLOG', 'SEQUOIA',
+    'ROGER FULFILLMENT', 'CORREIOS', 'JADLOG', 'SEQUOIA',
     'TOTAL EXPRESS', 'MELHOR ENVIO', 'KANGU', 'MANDAE'
   ];
   for (const termo of fornecedoresTermos) {
