@@ -73,6 +73,76 @@ Retorne APENAS um JSON válido, SEM markdown:
 }
 
 /**
+ * Constrói prompt específico para PicPay quando o parser detecta texto intercalado.
+ * Inclui metadados extraídos pelo parser para verificação cruzada.
+ */
+function construirPromptPicPay(cartaoNome, tipoCartao, metadados) {
+  const totalFatura = metadados?.total_fatura_pdf
+    ? `O valor total da fatura é R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`
+    : '';
+
+  const despesasMes = metadados?.despesas_do_mes_pdf
+    ? `\nDespesas do mês (bruto): R$ ${metadados.despesas_do_mes_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`
+    : '';
+
+  const subtotaisInfo = metadados?.subtotais?.length > 0
+    ? `\nSubtotais encontrados no PDF:\n${metadados.subtotais.map(s => `  - ${s.descricao}: R$ ${s.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`).join('\n')}`
+    : '';
+
+  const cartoesInfo = metadados?.cartoes?.length > 0
+    ? `\nCartões presentes na fatura: ${metadados.cartoes.map(c => c === 'PRINCIPAL' ? 'Picpay Card' : `final ${c}`).join(', ')}.`
+    : '';
+
+  return `Você é um especialista em extrair transações de faturas de cartão de crédito PicPay.
+Analise este PDF de fatura do cartão "${cartaoNome}"${tipoCartao ? ` (cartão ${tipoCartao})` : ''}.
+
+CONTEXTO IMPORTANTE:
+Esta fatura PicPay tem layout de DUAS COLUNAS (um cartão à esquerda, outro à direita). ${totalFatura}${despesasMes}${subtotaisInfo}${cartoesInfo}
+
+REGRAS DE EXTRAÇÃO — LEIA COM ATENÇÃO:
+1. EXTRAIA TODAS as transações de TODOS os cartões presentes no PDF
+2. Inclua transações de TODAS as seções: "Transações Nacionais" e "Transações Internacionais"
+3. Para transações internacionais, use SEMPRE o valor já convertido em BRL
+4. NÃO duplique transações
+5. Data deve estar no formato DD/MM/YYYY (adicione o ano baseado no vencimento da fatura)
+6. Valor deve ser número positivo (ex: 1234.56)
+7. Valores NEGATIVOS no PDF representam estornos/créditos — capture-os com tipo_lancamento "estorno" e valor POSITIVO
+8. IGNORE as páginas de informações financeiras (parcelamento, juros, IOF financiamento) — geralmente páginas 9-10
+
+CLASSIFICAÇÃO tipo_lancamento — cada transação DEVE ter um tipo_lancamento:
+- "compra": compras nacionais e internacionais (incluindo parceladas)
+- "iof": IOF (Imposto sobre Operações Financeiras), incluindo "IOF COMPRA INTERNACIONAL"
+- "estorno": estornos, créditos na fatura, devoluções, reembolsos, cashback, ESTORNO DE ANUIDADE
+- "pagamento_antecipado": pagamento antecipado, pagamento parcial
+- "tarifa_cartao": anuidade, tarifa do cartão, seguro fatura, "AJ A DEB TARIFA"
+
+IGNORE completamente (não inclua no JSON):
+- "PAGAMENTO DE FATURA PELO PICPA" (é o pagamento da fatura anterior)
+- "Pagamento recebido" (são pagamentos do cliente)
+- Linhas de subtotal, total, total geral dos lançamentos
+- Cabeçalhos de seções
+- Informações de milhas Smiles
+
+VERIFICAÇÃO: a soma de TODAS as transações tipo "compra" + "iof" + "tarifa_cartao" - "estorno" - "pagamento_antecipado" deve ser próxima de ${metadados?.total_fatura_pdf ? `R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'o total da fatura no PDF'}.
+
+Retorne APENAS um JSON válido, SEM markdown:
+{
+  "transacoes": [
+    {
+      "data": "DD/MM/YYYY",
+      "descricao": "descrição da transação",
+      "valor": 123.45,
+      "parcela": "1/3" ou null,
+      "tipo_lancamento": "compra"
+    }
+  ],
+  "total_encontrado": número,
+  "valor_total": soma_apenas_das_compras,
+  "banco_detectado": "PicPay"
+}`;
+}
+
+/**
  * Constrói prompt genérico para outros bancos (com tipo_lancamento).
  */
 function construirPromptGenerico(cartaoNome, tipoCartao) {
@@ -286,6 +356,9 @@ export async function POST(request) {
     if (bancoDetectado === 'itau') {
       prompt = construirPromptItau(cartaoNome, tipoCartao, metadadosParser);
       console.log('[parse-pdf] Usando prompt específico Itaú com metadados de verificação');
+    } else if (bancoDetectado === 'picpay') {
+      prompt = construirPromptPicPay(cartaoNome, tipoCartao, metadadosParser);
+      console.log('[parse-pdf] Usando prompt específico PicPay com metadados de verificação');
     } else {
       prompt = construirPromptGenerico(cartaoNome, tipoCartao);
     }
