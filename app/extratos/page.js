@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Trash2, CheckSquare, Square } from 'lucide-react'
 import MonthPicker from '@/components/MonthPicker'
+import ConfirmModal from '@/components/ConfirmModal'
 
 const CATEGORIA_EXTRATO_COLORS = {
   'Reembolso Sócio': 'bg-blue-100 text-blue-800',
@@ -55,6 +57,9 @@ export default function ExtratosPage() {
   const [success, setSuccess] = useState('')
   const [extratosImportados, setExtratosImportados] = useState([])
   const [loadingExtratos, setLoadingExtratos] = useState(true)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [deleteModal, setDeleteModal] = useState({ open: false, extrato: null, multiple: false })
+  const [loadingAction, setLoadingAction] = useState(false)
 
   useEffect(() => {
     const carregarExtratos = async () => {
@@ -70,6 +75,62 @@ export default function ExtratosPage() {
     }
     carregarExtratos()
   }, [])
+
+  const toggleSelection = (id) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  const selectAll = () => {
+    if (selectedIds.size === extratosImportados.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(extratosImportados.map(e => e.id)))
+    }
+  }
+
+  const handleDeleteSingle = (extrato) => {
+    setDeleteModal({ open: true, extrato, multiple: false })
+  }
+
+  const handleDeleteMultiple = () => {
+    if (selectedIds.size === 0) return
+    setDeleteModal({ open: true, extrato: null, multiple: true })
+  }
+
+  const handleConfirmDelete = async () => {
+    setLoadingAction(true)
+    try {
+      if (deleteModal.multiple) {
+        const res = await fetch(`/api/extratos?ids=${Array.from(selectedIds).join(',')}`, { method: 'DELETE' })
+        const result = await res.json()
+        if (result.error) throw new Error(result.error)
+        setExtratosImportados(prev => prev.filter(e => !selectedIds.has(e.id)))
+        setSelectedIds(new Set())
+      } else {
+        const res = await fetch(`/api/extratos?id=${deleteModal.extrato.id}`, { method: 'DELETE' })
+        const result = await res.json()
+        if (result.error) throw new Error(result.error)
+        setExtratosImportados(prev => prev.filter(e => e.id !== deleteModal.extrato.id))
+        selectedIds.delete(deleteModal.extrato.id)
+        setSelectedIds(new Set(selectedIds))
+      }
+      setDeleteModal({ open: false, extrato: null, multiple: false })
+    } catch (err) {
+      alert('Erro ao remover: ' + err.message)
+    } finally {
+      setLoadingAction(false)
+    }
+  }
+
+  const deleteMessage = deleteModal.multiple
+    ? `Tem certeza que deseja remover ${selectedIds.size} extratos selecionados? Todas as movimentações desses extratos também serão removidas. Esta ação não pode ser desfeita.`
+    : `Tem certeza que deseja remover o extrato "${deleteModal.extrato?.banco || 'N/A'} - ${deleteModal.extrato?.mes_referencia ? new Date(deleteModal.extrato.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : ''}"? Todas as movimentações desse extrato também serão removidas. Esta ação não pode ser desfeita.`
 
   const bancos = [
     { id: 'itau', nome: 'Itaú' },
@@ -315,9 +376,20 @@ export default function ExtratosPage() {
       {/* Lista de extratos importados */}
       {step === 1 && (
         <div className="bg-white rounded-xl border overflow-hidden">
-          <div className="p-4 border-b">
-            <h2 className="text-lg font-semibold text-neutral-900">Extratos importados</h2>
-            <p className="text-sm text-neutral-500">{extratosImportados.length} extratos</p>
+          <div className="p-4 border-b flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-neutral-900">Extratos importados</h2>
+              <p className="text-sm text-neutral-500">{extratosImportados.length} extratos</p>
+            </div>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleDeleteMultiple}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium flex items-center gap-2 text-sm"
+              >
+                <Trash2 size={16} />
+                Remover {selectedIds.size} {selectedIds.size === 1 ? 'extrato' : 'extratos'}
+              </button>
+            )}
           </div>
           {loadingExtratos ? (
             <div className="flex items-center justify-center h-24">
@@ -332,6 +404,11 @@ export default function ExtratosPage() {
               <table className="w-full text-sm">
                 <thead className="bg-neutral-50">
                   <tr>
+                    <th className="p-3 text-center w-12">
+                      <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
+                        {selectedIds.size === extratosImportados.length && extratosImportados.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                      </button>
+                    </th>
                     <th className="p-3 text-left font-medium text-neutral-600">Banco</th>
                     <th className="p-3 text-left font-medium text-neutral-600">Mês</th>
                     <th className="p-3 text-right font-medium text-neutral-600">Entradas</th>
@@ -342,7 +419,12 @@ export default function ExtratosPage() {
                 </thead>
                 <tbody>
                   {extratosImportados.map(ext => (
-                    <tr key={ext.id} className="border-t hover:bg-neutral-50">
+                    <tr key={ext.id} className={`border-t hover:bg-neutral-50 ${selectedIds.has(ext.id) ? 'bg-neutral-100' : ''}`}>
+                      <td className="p-3 text-center">
+                        <button onClick={() => toggleSelection(ext.id)} className="text-neutral-400 hover:text-neutral-600">
+                          {selectedIds.has(ext.id) ? <CheckSquare size={18} className="text-neutral-900" /> : <Square size={18} />}
+                        </button>
+                      </td>
                       <td className="p-3 font-medium text-neutral-900">{ext.banco}</td>
                       <td className="p-3 text-neutral-600">
                         {ext.mes_referencia ? new Date(ext.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : '-'}
@@ -357,9 +439,18 @@ export default function ExtratosPage() {
                         R$ {(parseFloat(ext.saldo) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="p-3 text-center">
-                        <Link href={`/extratos/${ext.id}`} className="text-neutral-500 hover:text-neutral-900 text-xs">
-                          Ver detalhes
-                        </Link>
+                        <div className="flex items-center justify-center gap-2">
+                          <Link href={`/extratos/${ext.id}`} className="text-neutral-500 hover:text-neutral-900 text-xs">
+                            Ver detalhes
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteSingle(ext)}
+                            className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="Remover extrato"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -369,6 +460,17 @@ export default function ExtratosPage() {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, extrato: null, multiple: false })}
+        onConfirm={handleConfirmDelete}
+        title={deleteModal.multiple ? `Remover ${selectedIds.size} extratos` : 'Remover extrato'}
+        message={deleteMessage}
+        confirmText="Remover"
+        variant="danger"
+        loading={loadingAction}
+      />
 
       {step === 2 && (
         <div className="space-y-4">

@@ -209,13 +209,36 @@ export async function POST(request) {
   }
 }
 
-// DELETE - Remove extrato e suas movimentações
+// DELETE - Remove extrato(s) e suas movimentações
 export async function DELETE(request) {
   try {
     const supabase = createServerClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const ids = searchParams.get('ids')
 
+    // Batch delete (múltiplos extratos)
+    if (ids) {
+      const idList = ids.split(',').filter(Boolean)
+      if (idList.length === 0) {
+        return NextResponse.json({ error: 'Lista de IDs vazia' }, { status: 400 })
+      }
+
+      // Deletar movimentações primeiro
+      await supabase.from('movimentacoes').delete().in('extrato_id', idList)
+
+      // Deletar extratos
+      const { error } = await supabase.from('extratos').delete().in('id', idList)
+
+      if (error) {
+        console.error('Erro ao deletar extratos em batch:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true, quantidade: idList.length })
+    }
+
+    // Single delete
     if (!id) {
       return NextResponse.json({ error: 'ID do extrato é obrigatório' }, { status: 400 })
     }
