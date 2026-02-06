@@ -79,6 +79,7 @@ export default function ExtratosPage() {
     { id: 'inter', nome: 'Banco Inter' },
     { id: 'bb', nome: 'Banco do Brasil' },
     { id: 'caixa', nome: 'Caixa Econômica' },
+    { id: 'c6bank', nome: 'C6 Bank' },
     { id: 'outro', nome: 'Outro' },
   ]
 
