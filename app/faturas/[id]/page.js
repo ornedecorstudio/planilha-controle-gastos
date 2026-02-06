@@ -8,24 +8,24 @@ import ConfirmModal from '@/components/ConfirmModal'
 import DuplicatesModal from '@/components/DuplicatesModal'
 
 const CATEGORY_COLORS = {
-  'Marketing Digital': 'bg-blue-50 text-blue-700 border border-blue-200',
-  'Pagamento Fornecedores': 'bg-violet-50 text-violet-700 border border-violet-200',
-  'Logística': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
-  'Taxas Checkout': 'bg-amber-50 text-amber-700 border border-amber-200',
-  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  'IA e Automação': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
-  'Design/Ferramentas': 'bg-purple-50 text-purple-700 border border-purple-200',
-  'Telefonia': 'bg-pink-50 text-pink-700 border border-pink-200',
-  'ERP': 'bg-orange-50 text-orange-700 border border-orange-200',
-  'Gestão': 'bg-teal-50 text-teal-700 border border-teal-200',
-  'Viagem Trabalho': 'bg-sky-50 text-sky-700 border border-sky-200',
-  'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
-  'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
-  'Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Tarifas Cartão': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Entretenimento': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Transporte Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Compras Pessoais': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Marketing Digital': 'bg-blue-50 text-blue-700',
+  'Pagamento Fornecedores': 'bg-violet-50 text-violet-700',
+  'Logística': 'bg-cyan-50 text-cyan-700',
+  'Taxas Checkout': 'bg-amber-50 text-amber-700',
+  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700',
+  'IA e Automação': 'bg-indigo-50 text-indigo-700',
+  'Design/Ferramentas': 'bg-purple-50 text-purple-700',
+  'Telefonia': 'bg-pink-50 text-pink-700',
+  'ERP': 'bg-orange-50 text-orange-700',
+  'Gestão': 'bg-teal-50 text-teal-700',
+  'Viagem Trabalho': 'bg-sky-50 text-sky-700',
+  'Outros PJ': 'bg-neutral-100 text-neutral-600',
+  'Outros': 'bg-neutral-100 text-neutral-600',
+  'Pessoal': 'bg-rose-50 text-rose-600',
+  'Tarifas Cartão': 'bg-rose-50 text-rose-600',
+  'Entretenimento': 'bg-rose-50 text-rose-600',
+  'Transporte Pessoal': 'bg-rose-50 text-rose-600',
+  'Compras Pessoais': 'bg-rose-50 text-rose-600',
 }
 
 export default function FaturaDetalhesPage() {
@@ -42,6 +42,9 @@ export default function FaturaDetalhesPage() {
 
   // Seleção
   const [selectedIds, setSelectedIds] = useState(new Set())
+
+  // Categorias
+  const [categorias, setCategorias] = useState([])
 
   // Modals
   const [deleteModal, setDeleteModal] = useState({ open: false, transacao: null, multiple: false })
@@ -60,6 +63,10 @@ export default function FaturaDetalhesPage() {
         const transacoesData = await transacoesRes.json()
         if (transacoesData.error) throw new Error(transacoesData.error)
         setTransacoes(transacoesData.transacoes || [])
+
+        const categoriasRes = await fetch('/api/categorias')
+        const categoriasData = await categoriasRes.json()
+        setCategorias(categoriasData.categorias || [])
       } catch (err) {
         setError(err.message)
       } finally {
@@ -176,6 +183,36 @@ export default function FaturaDetalhesPage() {
     }
   }
 
+  const handleUpdateCategoria = async (transacaoId, novaCategoria) => {
+    try {
+      const res = await fetch('/api/transacoes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: transacaoId, categoria: novaCategoria })
+      })
+      const result = await res.json()
+      if (result.error) throw new Error(result.error)
+      setTransacoes(prev => prev.map(t => t.id === transacaoId ? { ...t, categoria: novaCategoria } : t))
+    } catch (err) {
+      alert('Erro ao atualizar categoria: ' + err.message)
+    }
+  }
+
+  const handleUpdateTipo = async (transacaoId, novoTipo) => {
+    try {
+      const res = await fetch('/api/transacoes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: transacaoId, tipo: novoTipo })
+      })
+      const result = await res.json()
+      if (result.error) throw new Error(result.error)
+      setTransacoes(prev => prev.map(t => t.id === transacaoId ? { ...t, tipo: novoTipo } : t))
+    } catch (err) {
+      alert('Erro ao atualizar tipo: ' + err.message)
+    }
+  }
+
   const handleExportCSV = () => {
     window.open(`/api/transacoes/export?fatura_id=${params.id}`, '_blank')
   }
@@ -219,7 +256,7 @@ export default function FaturaDetalhesPage() {
     return (
       <div className="space-y-4">
         <Link href="/faturas" className="text-neutral-500 hover:text-neutral-900 text-sm">← Voltar para faturas</Link>
-        <div className="bg-rose-50 border border-rose-200 rounded-lg p-6 text-center">
+        <div className="bg-rose-50 border border-neutral-200 rounded-lg p-6 text-center">
           <h2 className="text-lg font-semibold text-rose-800">Erro ao carregar fatura</h2>
           <p className="text-rose-600 mt-1">{error || 'Fatura não encontrada'}</p>
         </div>
@@ -301,11 +338,11 @@ export default function FaturaDetalhesPage() {
           <p className="text-2xl font-semibold text-neutral-900 mt-1">R$ {formatCurrency(totalPJ + totalPF)}</p>
           <p className="text-xs text-neutral-400 mt-1">{transacoesFiltradas.length} transações</p>
         </div>
-        <div className="bg-emerald-50 rounded-lg border border-emerald-200 p-5">
-          <p className="text-sm font-medium text-emerald-600">Total PJ (reembolsavel)</p>
+        <div className="bg-emerald-50 rounded-lg border border-neutral-200 p-5">
+          <p className="text-sm font-medium text-emerald-600">Total PJ (reembolsável)</p>
           <p className="text-2xl font-semibold text-emerald-700 mt-1">R$ {formatCurrency(totalPJ)}</p>
         </div>
-        <div className="bg-rose-50 rounded-lg border border-rose-200 p-5">
+        <div className="bg-rose-50 rounded-lg border border-neutral-200 p-5">
           <p className="text-sm font-medium text-rose-600">Total PF (pessoal)</p>
           <p className="text-2xl font-semibold text-rose-700 mt-1">R$ {formatCurrency(totalPF)}</p>
         </div>
@@ -351,7 +388,7 @@ export default function FaturaDetalhesPage() {
                   </button>
                 </th>
                 <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Data</th>
-                <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descricao</th>
+                <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descrição</th>
                 <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Categoria</th>
                 <th className="p-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Tipo</th>
                 <th className="p-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Valor</th>
@@ -371,14 +408,28 @@ export default function FaturaDetalhesPage() {
                     <span className="truncate block text-neutral-900" title={t.descricao}>{t.descricao}</span>
                   </td>
                   <td className="p-3">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}>
-                      {t.categoria || 'Outros'}
-                    </span>
+                    <select
+                      value={t.categoria || 'Outros'}
+                      onChange={(e) => handleUpdateCategoria(t.id, e.target.value)}
+                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer appearance-none bg-transparent ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}
+                    >
+                      {categorias.map(c => (
+                        <option key={c.id} value={c.nome}>{c.nome}</option>
+                      ))}
+                      {!categorias.find(c => c.nome === t.categoria) && t.categoria && (
+                        <option value={t.categoria}>{t.categoria}</option>
+                      )}
+                    </select>
                   </td>
                   <td className="p-3 text-center">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
-                      {t.tipo}
-                    </span>
+                    <select
+                      value={t.tipo}
+                      onChange={(e) => handleUpdateTipo(t.id, e.target.value)}
+                      className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer appearance-none bg-transparent ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}
+                    >
+                      <option value="PJ">PJ</option>
+                      <option value="PF">PF</option>
+                    </select>
                   </td>
                   <td className="p-3 text-right font-mono font-medium text-neutral-900">
                     R$ {formatCurrency(t.valor)}

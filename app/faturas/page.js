@@ -107,7 +107,7 @@ export default function FaturasPage() {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+      <div className="bg-red-50 border border-neutral-200 rounded-xl p-6 text-center">
         <h2 className="text-lg font-bold text-red-800">Erro ao carregar faturas</h2>
         <p className="text-red-600">{error}</p>
       </div>
@@ -149,13 +149,13 @@ export default function FaturasPage() {
             R$ {(totalPJ + totalPF).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="bg-green-50 rounded-xl border border-green-200 p-4">
+        <div className="bg-green-50 rounded-xl border border-neutral-200 p-4">
           <p className="text-sm text-green-600">Total PJ (reembolsável)</p>
           <p className="text-xl font-bold text-green-700">
             R$ {totalPJ.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="bg-red-50 rounded-xl border border-red-200 p-4">
+        <div className="bg-red-50 rounded-xl border border-neutral-200 p-4">
           <p className="text-sm text-red-600">Total PF (pessoal)</p>
           <p className="text-xl font-bold text-red-700">
             R$ {totalPF.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

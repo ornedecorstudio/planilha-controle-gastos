@@ -7,34 +7,34 @@ import MonthPicker from '@/components/MonthPicker'
 
 // Cores para categorias PJ - tons de verde/azul (empresarial)
 const CATEGORY_COLORS_PJ = {
-  'Marketing Digital': 'bg-blue-50 text-blue-700 border border-blue-200',
-  'Pagamento Fornecedores': 'bg-violet-50 text-violet-700 border border-violet-200',
-  'Logística': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
-  'Taxas Checkout': 'bg-amber-50 text-amber-700 border border-amber-200',
-  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  'IA e Automação': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
-  'Design/Ferramentas': 'bg-purple-50 text-purple-700 border border-purple-200',
-  'Telefonia': 'bg-pink-50 text-pink-700 border border-pink-200',
-  'ERP': 'bg-orange-50 text-orange-700 border border-orange-200',
-  'Gestão': 'bg-teal-50 text-teal-700 border border-teal-200',
-  'Viagem Trabalho': 'bg-sky-50 text-sky-700 border border-sky-200',
+  'Marketing Digital': 'bg-blue-50 text-blue-700',
+  'Pagamento Fornecedores': 'bg-violet-50 text-violet-700',
+  'Logística': 'bg-cyan-50 text-cyan-700',
+  'Taxas Checkout': 'bg-amber-50 text-amber-700',
+  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700',
+  'IA e Automação': 'bg-indigo-50 text-indigo-700',
+  'Design/Ferramentas': 'bg-purple-50 text-purple-700',
+  'Telefonia': 'bg-pink-50 text-pink-700',
+  'ERP': 'bg-orange-50 text-orange-700',
+  'Gestão': 'bg-teal-50 text-teal-700',
+  'Viagem Trabalho': 'bg-sky-50 text-sky-700',
   'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
 }
 
 // Cores para categorias PF - tons de rosa/vermelho (pessoal)
 const CATEGORY_COLORS_PF = {
-  'Alimentação': 'bg-rose-50 text-rose-700 border border-rose-200',
-  'Saúde/Farmácia': 'bg-red-50 text-red-700 border border-red-200',
-  'Moda': 'bg-pink-50 text-pink-700 border border-pink-200',
-  'Supermercado': 'bg-orange-50 text-orange-700 border border-orange-200',
-  'Transporte': 'bg-amber-50 text-amber-700 border border-amber-200',
-  'Viagens': 'bg-yellow-50 text-yellow-700 border border-yellow-200',
-  'Entretenimento': 'bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-200',
-  'Lojas': 'bg-purple-50 text-purple-700 border border-purple-200',
-  'Serviços Pessoais': 'bg-violet-50 text-violet-700 border border-violet-200',
+  'Alimentação': 'bg-rose-50 text-rose-700',
+  'Saúde/Farmácia': 'bg-red-50 text-red-700',
+  'Moda': 'bg-pink-50 text-pink-700',
+  'Supermercado': 'bg-orange-50 text-orange-700',
+  'Transporte': 'bg-amber-50 text-amber-700',
+  'Viagens': 'bg-yellow-50 text-yellow-700',
+  'Entretenimento': 'bg-fuchsia-50 text-fuchsia-700',
+  'Lojas': 'bg-purple-50 text-purple-700',
+  'Serviços Pessoais': 'bg-violet-50 text-violet-700',
   'Tarifas Bancárias': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
-  'Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Pessoal': 'bg-rose-50 text-rose-600',
   'Outros PF': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
 }
 
@@ -142,13 +142,8 @@ export default function DashboardPage() {
     return (value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
-  const handleMesChange = (mes, ano) => {
-    if (mes && ano) {
-      const mesFormatado = `${ano}-${String(mes).padStart(2, '0')}`
-      setMesSelecionado(mesFormatado)
-    } else {
-      setMesSelecionado(null)
-    }
+  const handleMesChange = (valor) => {
+    setMesSelecionado(valor || null)
   }
 
   if (loading) {
@@ -196,7 +191,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Total PJ - Reembolsável */}
-        <div className="bg-white rounded-lg border border-emerald-200 p-5">
+        <div className="bg-emerald-50 rounded-lg border border-neutral-200 p-5">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-emerald-600">Gastos PJ</p>
             <Building2 size={18} className="text-emerald-500" />
@@ -210,7 +205,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Total PF - Pessoal */}
-        <div className="bg-white rounded-lg border border-rose-200 p-5">
+        <div className="bg-rose-50 rounded-lg border border-neutral-200 p-5">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-rose-600">Gastos PF</p>
             <User size={18} className="text-rose-500" />
@@ -224,7 +219,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Pendente de Reembolso */}
-        <div className="bg-white rounded-lg border border-amber-200 p-5">
+        <div className="bg-amber-50 rounded-lg border border-neutral-200 p-5">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-amber-600">Pendente</p>
             <RefreshCw size={18} className="text-amber-500" />
@@ -248,7 +243,7 @@ export default function DashboardPage() {
         <h2 className="text-lg font-semibold text-neutral-900 mb-4">Fluxo entre Contas</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* PJ → PF (Reembolsos) */}
-          <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+          <div className="p-4 bg-emerald-50 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <Building2 size={16} className="text-emerald-600" />
               <ArrowRight size={14} className="text-emerald-500" />
@@ -259,7 +254,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Gastos PJ em Cartões PF */}
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="p-4 bg-blue-50 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <CreditCard size={16} className="text-blue-600" />
               <span className="text-xs bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded">PF</span>
@@ -308,7 +303,7 @@ export default function DashboardPage() {
       {/* Grid de Categorias */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gastos PJ por Categoria */}
-        <div className="bg-white rounded-lg border border-emerald-200 p-6">
+        <div className="bg-white rounded-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Building2 size={18} className="text-emerald-600" />
@@ -344,7 +339,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Gastos PF por Categoria */}
-        <div className="bg-white rounded-lg border border-rose-200 p-6">
+        <div className="bg-white rounded-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <User size={18} className="text-rose-600" />

@@ -5,24 +5,24 @@ import { useRouter } from 'next/navigation'
 import MonthPicker from '@/components/MonthPicker'
 
 const CATEGORY_COLORS = {
-  'Marketing Digital': 'bg-blue-50 text-blue-700 border border-blue-200',
-  'Pagamento Fornecedores': 'bg-violet-50 text-violet-700 border border-violet-200',
-  'Logística': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
-  'Taxas Checkout': 'bg-amber-50 text-amber-700 border border-amber-200',
-  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  'IA e Automação': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
-  'Design/Ferramentas': 'bg-purple-50 text-purple-700 border border-purple-200',
-  'Telefonia': 'bg-pink-50 text-pink-700 border border-pink-200',
-  'ERP': 'bg-orange-50 text-orange-700 border border-orange-200',
-  'Gestão': 'bg-teal-50 text-teal-700 border border-teal-200',
-  'Viagem Trabalho': 'bg-sky-50 text-sky-700 border border-sky-200',
+  'Marketing Digital': 'bg-blue-50 text-blue-700',
+  'Pagamento Fornecedores': 'bg-violet-50 text-violet-700',
+  'Logística': 'bg-cyan-50 text-cyan-700',
+  'Taxas Checkout': 'bg-amber-50 text-amber-700',
+  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700',
+  'IA e Automação': 'bg-indigo-50 text-indigo-700',
+  'Design/Ferramentas': 'bg-purple-50 text-purple-700',
+  'Telefonia': 'bg-pink-50 text-pink-700',
+  'ERP': 'bg-orange-50 text-orange-700',
+  'Gestão': 'bg-teal-50 text-teal-700',
+  'Viagem Trabalho': 'bg-sky-50 text-sky-700',
   'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
-  'Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Tarifas Cartão': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Entretenimento': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Transporte Pessoal': 'bg-rose-50 text-rose-600 border border-rose-200',
-  'Compras Pessoais': 'bg-rose-50 text-rose-600 border border-rose-200',
+  'Pessoal': 'bg-rose-50 text-rose-600',
+  'Tarifas Cartão': 'bg-rose-50 text-rose-600',
+  'Entretenimento': 'bg-rose-50 text-rose-600',
+  'Transporte Pessoal': 'bg-rose-50 text-rose-600',
+  'Compras Pessoais': 'bg-rose-50 text-rose-600',
 }
 
 export default function UploadPage() {
@@ -281,6 +281,22 @@ export default function UploadPage() {
       const faturaResult = await faturaRes.json()
       if (faturaResult.error) throw new Error(faturaResult.error)
 
+      // Salva o arquivo original no storage (PDF, OFX, QFX) antes das transações
+      if (pdfFile) {
+        const arquivoFormData = new FormData()
+        arquivoFormData.append('fatura_id', faturaResult.fatura.id)
+        arquivoFormData.append('arquivo', pdfFile)
+
+        const uploadRes = await fetch('/api/faturas/upload-pdf', {
+          method: 'POST',
+          body: arquivoFormData
+        })
+        const uploadResult = await uploadRes.json()
+        if (uploadResult.error) {
+          console.warn('Aviso: Arquivo não foi salvo -', uploadResult.error)
+        }
+      }
+
       const transacoesRes = await fetch('/api/transacoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -295,23 +311,7 @@ export default function UploadPage() {
       const transacoesResult = await transacoesRes.json()
       if (transacoesResult.error) throw new Error(transacoesResult.error)
 
-      // Salva o arquivo original no storage (PDF, OFX, QFX)
-      if (pdfFile) {
-        const arquivoFormData = new FormData()
-        arquivoFormData.append('fatura_id', faturaResult.fatura.id)
-        arquivoFormData.append('arquivo', pdfFile)
-
-        const uploadRes = await fetch('/api/faturas/upload-pdf', {
-          method: 'POST',
-          body: arquivoFormData
-        })
-        const uploadResult = await uploadRes.json()
-        if (uploadResult.error) {
-          console.warn('Aviso: Arquivo nao foi salvo -', uploadResult.error)
-        }
-      }
-
-      setSuccess(`Fatura salva com ${transacoesResult.quantidade} transacoes!`)
+      setSuccess(`Fatura salva com ${transacoesResult.quantidade} transações!`)
       setTimeout(() => router.push('/faturas'), 2000)
     } catch (err) {
       setError(err.message)
@@ -343,11 +343,11 @@ export default function UploadPage() {
         <p className="text-neutral-500 mt-1">Passo {step} de 2</p>
       </div>
 
-      {error && <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700">{error}</div>}
-      {success && <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">{success}</div>}
+      {error && <div className="p-4 bg-rose-50 rounded-lg text-rose-700">{error}</div>}
+      {success && <div className="p-4 bg-emerald-50 rounded-lg text-emerald-700">{success}</div>}
 
       {duplicateWarning && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="p-4 bg-amber-50 rounded-lg">
           <h3 className="font-semibold text-amber-800 mb-2">Fatura possivelmente duplicada</h3>
           <p className="text-amber-700 mb-3">{duplicateWarning.message}</p>
           {duplicateWarning.valor_existente && (
@@ -400,10 +400,10 @@ export default function UploadPage() {
           <div>
             <label className="block text-sm font-medium mb-2 text-neutral-700">Upload da fatura</label>
             <div className="flex gap-2 mb-2">
-              <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
+              <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded font-medium">
                 .OFX (Recomendado - sem IA)
               </span>
-              <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded font-medium">
+              <span className="px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded font-medium">
                 .PDF (usa IA se necessário)
               </span>
             </div>
@@ -420,11 +420,11 @@ export default function UploadPage() {
               <div className="mt-2 flex items-center gap-2 flex-wrap">
                 <span className="text-emerald-600 text-sm">Arquivo selecionado: {pdfFile.name}</span>
                 {tipoArquivo === 'ofx' || tipoArquivo === 'qfx' ? (
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded font-medium">
                     Parser determinístico
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded font-medium">
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded font-medium">
                     Parser + IA fallback
                   </span>
                 )}
@@ -454,19 +454,19 @@ export default function UploadPage() {
           <div className="bg-white rounded-lg border border-neutral-200 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm text-neutral-500">{transactions.length} transacoes encontradas</p>
+                <p className="text-sm text-neutral-500">{transactions.length} transações encontradas</p>
                 {metodoProcessamento === 'OFX_PARSER' && (
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded font-medium">
                     OFX
                   </span>
                 )}
                 {metodoProcessamento === 'PARSER_DETERMINISTICO' && (
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded font-medium">
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded font-medium">
                     Parser
                   </span>
                 )}
                 {metodoProcessamento === 'IA_PDF' && (
-                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded font-medium">
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded font-medium">
                     IA
                   </span>
                 )}
@@ -485,7 +485,7 @@ export default function UploadPage() {
               <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr>
                   <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Data</th>
-                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descricao</th>
+                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descrição</th>
                   <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Categoria</th>
                   <th className="p-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Tipo</th>
                   <th className="p-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Valor</th>
@@ -504,7 +504,7 @@ export default function UploadPage() {
                     </td>
                     <td className="p-3 text-center">
                       <select value={t.tipo} onChange={(e) => updateTransaction(t.id, 'tipo', e.target.value)}
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
                         <option value="PJ">PJ</option>
                         <option value="PF">PF</option>
                       </select>

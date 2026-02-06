@@ -37,7 +37,7 @@ export async function GET(request) {
     }
 
     // Gera CSV
-    const headers = ['Data', 'Descricao', 'Valor', 'Categoria', 'Tipo']
+    const headers = ['Data', 'Descrição', 'Valor', 'Categoria', 'Tipo']
     const rows = transacoes.map(t => [
       t.data ? new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR') : '',
       `"${(t.descricao || '').replace(/"/g, '""')}"`,

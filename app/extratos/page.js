@@ -220,7 +220,7 @@ export default function ExtratosPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900">
-            Importar extrato bancario
+            Importar extrato bancário
           </h1>
           {step === 2 && <p className="text-neutral-500 mt-1">Passo 2 de 2 - Revisar movimentacoes</p>}
         </div>
@@ -231,13 +231,13 @@ export default function ExtratosPage() {
         )}
       </div>
 
-      {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>}
-      {success && <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">{success}</div>}
+      {error && <div className="p-4 bg-red-50 border border-neutral-200 rounded-lg text-red-700">{error}</div>}
+      {success && <div className="p-4 bg-green-50 border border-neutral-200 rounded-lg text-green-700">{success}</div>}
 
       {step === 1 && (
         <div className="bg-white rounded-xl border p-6 space-y-6">
           {/* Info OFX */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 border border-neutral-200 rounded-lg p-4">
             <h3 className="font-semibold text-blue-800 mb-2">Recomendado: Arquivo OFX</h3>
             <p className="text-blue-700 text-sm">
               O formato OFX é processado de forma determinística, sem uso de IA, garantindo 100% de precisão.
@@ -332,11 +332,11 @@ export default function ExtratosPage() {
                 <thead className="bg-neutral-50">
                   <tr>
                     <th className="p-3 text-left font-medium text-neutral-600">Banco</th>
-                    <th className="p-3 text-left font-medium text-neutral-600">Mes</th>
+                    <th className="p-3 text-left font-medium text-neutral-600">Mês</th>
                     <th className="p-3 text-right font-medium text-neutral-600">Entradas</th>
-                    <th className="p-3 text-right font-medium text-neutral-600">Saidas</th>
+                    <th className="p-3 text-right font-medium text-neutral-600">Saídas</th>
                     <th className="p-3 text-right font-medium text-neutral-600">Saldo</th>
-                    <th className="p-3 text-center font-medium text-neutral-600">Acoes</th>
+                    <th className="p-3 text-center font-medium text-neutral-600">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -404,19 +404,19 @@ export default function ExtratosPage() {
               <p className="text-sm text-neutral-500">Movimentações</p>
               <p className="text-xl font-bold text-neutral-900">{movimentacoes.length}</p>
             </div>
-            <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-4">
+            <div className="bg-emerald-50 rounded-xl border border-neutral-200 p-4">
               <p className="text-sm text-emerald-600">Total Entradas</p>
               <p className="text-xl font-bold text-emerald-700">
                 R$ {totalEntradas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
             </div>
-            <div className="bg-red-50 rounded-xl border border-red-200 p-4">
+            <div className="bg-red-50 rounded-xl border border-neutral-200 p-4">
               <p className="text-sm text-red-600">Total Saídas</p>
               <p className="text-xl font-bold text-red-700">
                 R$ {totalSaidas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
             </div>
-            <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
+            <div className="bg-blue-50 rounded-xl border border-neutral-200 p-4">
               <p className="text-sm text-blue-600">Reembolsos ao Socio</p>
               <p className="text-xl font-bold text-blue-700">
                 R$ {totalReembolsos.toLocaleString('pt-BR', {minimumFractionDigits: 2})}

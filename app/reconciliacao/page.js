@@ -124,7 +124,7 @@ export default function ReconciliacaoPage() {
       if (result.error) throw new Error(result.error)
       setMovimentacoes(prev => prev.filter(m => !ids.includes(m.id)))
       setDuplicatesModal({ open: false, duplicatas: [] })
-      setSuccess(`${ids.length} movimentacoes duplicadas removidas`)
+      setSuccess(`${ids.length} movimentações duplicadas removidas`)
       setTimeout(() => setSuccess(''), 3000)
       carregarDados()
     } catch (err) {
@@ -170,30 +170,30 @@ export default function ReconciliacaoPage() {
         </Link>
       </div>
 
-      {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>}
-      {success && <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">{success}</div>}
+      {error && <div className="p-4 bg-red-50 border border-neutral-200 rounded-lg text-red-700">{error}</div>}
+      {success && <div className="p-4 bg-green-50 border border-neutral-200 rounded-lg text-green-700">{success}</div>}
 
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
+        <div className="bg-amber-50 rounded-xl border border-neutral-200 p-4">
           <p className="text-sm text-amber-600">Pendente de Reembolso</p>
           <p className="text-2xl font-bold text-amber-700">R$ {formatCurrency(resumo.total_pendente)}</p>
           <p className="text-xs text-amber-500">{resumo.faturas_pendentes} faturas</p>
         </div>
-        <div className="bg-green-50 rounded-xl border border-green-200 p-4">
+        <div className="bg-green-50 rounded-xl border border-neutral-200 p-4">
           <p className="text-sm text-green-600">Total Reembolsado</p>
           <p className="text-2xl font-bold text-green-700">R$ {formatCurrency(resumo.total_reembolsado)}</p>
           <p className="text-xs text-green-500">{resumo.faturas_reembolsadas} faturas</p>
         </div>
-        <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
+        <div className="bg-blue-50 rounded-xl border border-neutral-200 p-4">
           <p className="text-sm text-blue-600">PIX ao Sócio (Extrato)</p>
           <p className="text-2xl font-bold text-blue-700">R$ {formatCurrency(resumo.total_movimentacoes)}</p>
           <p className="text-xs text-blue-500">{movimentacoes.length} transferências</p>
         </div>
         <div className={`rounded-xl border p-4 ${
           Math.abs((resumo.total_reembolsado || 0) - (resumo.total_movimentacoes || 0)) < 1
-            ? 'bg-green-50 border-green-200'
-            : 'bg-yellow-50 border-yellow-200'
+            ? 'bg-green-50 border-neutral-200'
+            : 'bg-yellow-50 border-neutral-200'
         }`}>
           <p className="text-sm text-neutral-600">Diferença</p>
           <p className={`text-2xl font-bold ${
@@ -209,9 +209,9 @@ export default function ReconciliacaoPage() {
 
       {/* Sugestões de Vinculação */}
       {sugestoes.length > 0 && (
-        <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
+        <div className="bg-blue-50 rounded-xl border border-neutral-200 p-6">
           <h2 className="text-lg font-semibold text-blue-800 mb-4">
-            Sugestoes de Vinculacao ({sugestoes.length})
+            Sugestões de Vinculação ({sugestoes.length})
           </h2>
           <div className="space-y-3">
             {sugestoes.filter(s => s.confianca === 'alta').map((sug, i) => (

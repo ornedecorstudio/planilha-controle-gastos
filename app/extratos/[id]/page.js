@@ -7,17 +7,17 @@ import { Trash2, Download, Search, X, FileText, CheckSquare, Square, ArrowLeft, 
 import ConfirmModal from '@/components/ConfirmModal'
 
 const CATEGORY_COLORS = {
-  'Receitas': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  'Vendas Online': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  'Reembolso Sócio': 'bg-blue-50 text-blue-700 border border-blue-200',
-  'Funcionários': 'bg-violet-50 text-violet-700 border border-violet-200',
-  'Impostos': 'bg-rose-50 text-rose-700 border border-rose-200',
-  'Logística': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
-  'Marketing Digital': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
-  'Fornecedores': 'bg-purple-50 text-purple-700 border border-purple-200',
-  'Aluguel': 'bg-orange-50 text-orange-700 border border-orange-200',
-  'Tarifas Bancárias': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
-  'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
+  'Receitas': 'bg-emerald-50 text-emerald-700',
+  'Vendas Online': 'bg-emerald-50 text-emerald-700',
+  'Reembolso Sócio': 'bg-blue-50 text-blue-700',
+  'Funcionários': 'bg-violet-50 text-violet-700',
+  'Impostos': 'bg-rose-50 text-rose-700',
+  'Logística': 'bg-cyan-50 text-cyan-700',
+  'Marketing Digital': 'bg-indigo-50 text-indigo-700',
+  'Fornecedores': 'bg-purple-50 text-purple-700',
+  'Aluguel': 'bg-orange-50 text-orange-700',
+  'Tarifas Bancárias': 'bg-neutral-100 text-neutral-600',
+  'Outros': 'bg-neutral-100 text-neutral-600',
 }
 
 export default function ExtratoDetalhesPage() {
@@ -71,6 +71,21 @@ export default function ExtratoDetalhesPage() {
       carregarDados()
     }
   }, [params.id])
+
+  const handleUpdateCategoria = async (movimentacaoId, novaCategoria) => {
+    try {
+      const res = await fetch('/api/movimentacoes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: movimentacaoId, categoria: novaCategoria })
+      })
+      const result = await res.json()
+      if (result.error) throw new Error(result.error)
+      setMovimentacoes(prev => prev.map(m => m.id === movimentacaoId ? { ...m, categoria: novaCategoria } : m))
+    } catch (err) {
+      alert('Erro ao atualizar categoria: ' + err.message)
+    }
+  }
 
   const formatCurrency = (value) => {
     return (parseFloat(value) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -155,7 +170,7 @@ export default function ExtratoDetalhesPage() {
 
   if (error || !extrato) {
     return (
-      <div className="bg-rose-50 border border-rose-200 rounded-lg p-6 text-center">
+      <div className="bg-rose-50 border border-neutral-200 rounded-lg p-6 text-center">
         <h2 className="text-lg font-bold text-rose-800">Erro ao carregar extrato</h2>
         <p className="text-rose-600 mt-1">{error || 'Extrato não encontrado'}</p>
         <Link href="/extratos" className="inline-block mt-4 text-rose-600 hover:underline">
@@ -219,7 +234,7 @@ export default function ExtratoDetalhesPage() {
 
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-emerald-50 rounded-lg border border-emerald-200 p-4">
+        <div className="bg-emerald-50 rounded-lg border border-neutral-200 p-4">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp size={18} className="text-emerald-600" />
             <p className="text-sm text-emerald-600 font-medium">Total Entradas</p>
@@ -228,7 +243,7 @@ export default function ExtratoDetalhesPage() {
             R$ {formatCurrency(totalEntradas)}
           </p>
         </div>
-        <div className="bg-rose-50 rounded-lg border border-rose-200 p-4">
+        <div className="bg-rose-50 rounded-lg border border-neutral-200 p-4">
           <div className="flex items-center gap-2 mb-1">
             <TrendingDown size={18} className="text-rose-600" />
             <p className="text-sm text-rose-600 font-medium">Total Saídas</p>
@@ -237,7 +252,7 @@ export default function ExtratoDetalhesPage() {
             R$ {formatCurrency(totalSaidas)}
           </p>
         </div>
-        <div className={`rounded-lg border p-4 ${totalEntradas - totalSaidas >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-neutral-100 border-amber-200'}`}>
+        <div className={`rounded-lg border p-4 ${totalEntradas - totalSaidas >= 0 ? 'bg-blue-50 border-neutral-200' : 'bg-neutral-100 border-neutral-200'}`}>
           <p className={`text-sm font-medium ${totalEntradas - totalSaidas >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>Saldo</p>
           <p className={`text-xl font-bold ${totalEntradas - totalSaidas >= 0 ? 'text-blue-700' : 'text-amber-700'}`}>
             R$ {formatCurrency(totalEntradas - totalSaidas)}
@@ -315,9 +330,18 @@ export default function ExtratoDetalhesPage() {
                     </span>
                   </td>
                   <td className="p-3 text-center">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${CATEGORY_COLORS[m.categoria] || 'bg-neutral-100 text-neutral-600 border border-neutral-200'}`}>
-                      {m.categoria || 'Outros'}
-                    </span>
+                    <select
+                      value={m.categoria || 'Outros'}
+                      onChange={(e) => handleUpdateCategoria(m.id, e.target.value)}
+                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer appearance-none bg-transparent ${CATEGORY_COLORS[m.categoria] || 'bg-neutral-100 text-neutral-600'}`}
+                    >
+                      {Object.keys(CATEGORY_COLORS).map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                      {!CATEGORY_COLORS[m.categoria] && m.categoria && (
+                        <option value={m.categoria}>{m.categoria}</option>
+                      )}
+                    </select>
                   </td>
                   <td className="p-3 text-center">
                     <button
