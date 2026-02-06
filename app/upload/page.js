@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import MonthPicker from '@/components/MonthPicker'
+import DropZone from '@/components/DropZone'
+import UploadButton from '@/components/UploadButton'
 
 const CATEGORY_COLORS = {
   'Marketing Digital': 'bg-blue-50 text-blue-700',
@@ -72,11 +74,25 @@ export default function UploadPage() {
   }
 
   const handleFileChange = (e) => {
-    const file = e.target.files?.[0]
+    const file = e?.target?.files?.[0] || e
+    if (file && file instanceof File) {
+      setPdfFile(file)
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      setTipoArquivo(ext)
+    } else {
+      setPdfFile(null)
+      setTipoArquivo('')
+    }
+  }
+
+  const handleDropZoneFile = (file) => {
     if (file) {
       setPdfFile(file)
       const ext = file.name.split('.').pop()?.toLowerCase()
       setTipoArquivo(ext)
+    } else {
+      setPdfFile(null)
+      setTipoArquivo('')
     }
   }
 
@@ -380,73 +396,46 @@ export default function UploadPage() {
       )}
 
       {step === 1 && (
-        <div className="bg-white rounded-xl border p-6 space-y-4">
+        <div className="bg-white rounded-xl border p-6 md:p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-neutral-700">Cartão *</label>
+              <label className="block text-sm font-medium mb-2 text-neutral-700">Cartao *</label>
               <select value={selectedCartao} onChange={(e) => setSelectedCartao(e.target.value)}
-                className="w-full p-3 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200">
-                <option value="">Selecione o cartão...</option>
+                className="w-full p-3 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 focus:outline-none">
+                <option value="">Selecione o cartao...</option>
                 {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.tipo})</option>)}
               </select>
             </div>
-            <MonthPicker 
-              value={mesReferencia} 
+            <MonthPicker
+              value={mesReferencia}
               onChange={setMesReferencia}
-              label="Mês de referência"
+              label="Mes de referencia"
               required
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2 text-neutral-700">Upload da fatura</label>
-            <div className="flex gap-2 mb-2">
-              <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded font-medium">
-                .OFX (Recomendado - sem IA)
-              </span>
-              <span className="px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded font-medium">
-                .PDF (usa IA se necessário)
-              </span>
-            </div>
-            <p className="text-xs text-neutral-500 mb-2">
-              Suporta faturas de Nubank, Itau, Santander, C6 Bank, Mercado Pago, PicPay, Renner, XP e outros bancos brasileiros.
-            </p>
-            <input
-              type="file"
-              accept=".pdf,.ofx,.qfx"
-              onChange={handleFileChange}
-              className="w-full p-2 border border-neutral-300 rounded-lg bg-white text-neutral-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-neutral-100 file:text-neutral-700 hover:file:bg-neutral-200"
-            />
-            {pdfFile && (
-              <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <span className="text-emerald-600 text-sm">Arquivo selecionado: {pdfFile.name}</span>
-                {tipoArquivo === 'ofx' || tipoArquivo === 'qfx' ? (
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded font-medium">
-                    Parser determinístico
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded font-medium">
-                    Parser + IA fallback
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          <DropZone
+            onFileSelect={handleDropZoneFile}
+            accept=".pdf,.ofx,.qfx"
+            file={pdfFile}
+            formats={[
+              { ext: '.OFX', label: 'Recomendado', color: 'bg-emerald-50 text-emerald-700' },
+              { ext: '.PDF', label: 'usa IA', color: 'bg-amber-50 text-amber-700' },
+            ]}
+          />
 
-          <button
-            onClick={handleProcessar}
-            disabled={loading || !selectedCartao || !mesReferencia || !pdfFile}
-            className="px-6 py-3 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 font-medium transition-colors"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                {tipoArquivo === 'ofx' || tipoArquivo === 'qfx' ? 'Processando OFX...' : 'Processando PDF...'}
-              </span>
-            ) : (
-              'Processar e categorizar'
-            )}
-          </button>
+          <p className="text-xs text-neutral-400 text-center">
+            Suporta faturas de Nubank, Itau, Santander, C6 Bank, Mercado Pago, PicPay, Renner, XP e outros.
+          </p>
+
+          <div className="flex justify-center">
+            <UploadButton
+              onClick={handleProcessar}
+              loading={loading}
+              disabled={!selectedCartao || !mesReferencia || !pdfFile}
+              label="Processar fatura"
+            />
+          </div>
         </div>
       )}
 

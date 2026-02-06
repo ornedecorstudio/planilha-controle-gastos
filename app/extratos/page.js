@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { Trash2, CheckSquare, Square } from 'lucide-react'
 import MonthPicker from '@/components/MonthPicker'
 import ConfirmModal from '@/components/ConfirmModal'
+import DropZone from '@/components/DropZone'
+import UploadButton from '@/components/UploadButton'
 
 const CATEGORIA_EXTRATO_COLORS = {
   'Reembolso Sócio': 'bg-blue-100 text-blue-800',
@@ -148,9 +150,22 @@ export default function ExtratosPage() {
     const file = e.target.files?.[0]
     if (file) {
       setArquivo(file)
-      setArquivoFile(file) // Salva o arquivo original para upload posterior
+      setArquivoFile(file)
       const ext = file.name.split('.').pop()?.toLowerCase()
       setTipoArquivo(ext)
+    }
+  }
+
+  const handleDropZoneFile = (file) => {
+    if (file) {
+      setArquivo(file)
+      setArquivoFile(file)
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      setTipoArquivo(ext)
+    } else {
+      setArquivo(null)
+      setArquivoFile(null)
+      setTipoArquivo('')
     }
   }
 
@@ -297,26 +312,27 @@ export default function ExtratosPage() {
       {success && <div className="p-4 bg-green-50 border border-neutral-200 rounded-lg text-green-700">{success}</div>}
 
       {step === 1 && (
-        <div className="bg-white rounded-xl border p-6 space-y-6">
-          {/* Info OFX */}
-          <div className="bg-blue-50 border border-neutral-200 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-800 mb-2">Recomendado: Arquivo OFX</h3>
-            <p className="text-blue-700 text-sm">
-              O formato OFX é processado de forma determinística, sem uso de IA, garantindo 100% de precisão.
-              Você pode baixar o extrato em OFX diretamente no internet banking do seu banco.
-            </p>
+        <div className="bg-white rounded-xl border p-6 md:p-8 space-y-6">
+          <div className="bg-blue-50/60 rounded-lg p-4 flex items-start gap-3">
+            <span className="text-blue-500 text-lg mt-0.5">i</span>
+            <div>
+              <p className="text-sm text-blue-800 font-medium">Recomendado: Arquivo OFX</p>
+              <p className="text-xs text-blue-600 mt-0.5">
+                Processamento deterministico, sem IA, com 100% de precisao.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Banco (opcional)</label>
+              <label className="block text-sm font-medium mb-2 text-neutral-700">Banco (opcional)</label>
               <select value={banco} onChange={(e) => setBanco(e.target.value)}
-                className="w-full p-3 border rounded-lg">
+                className="w-full p-3 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 focus:outline-none">
                 <option value="">Detectar automaticamente</option>
                 {bancos.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
               </select>
-              <p className="text-xs text-neutral-500 mt-1">
-                Se usar OFX, o banco será detectado automaticamente
+              <p className="text-xs text-neutral-400 mt-1">
+                Com OFX, o banco e detectado automaticamente
               </p>
             </div>
             <MonthPicker
@@ -327,49 +343,24 @@ export default function ExtratosPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Upload do Extrato</label>
-            <div className="flex gap-2 mb-2">
-              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded font-medium">
-                .OFX (Recomendado)
-              </span>
-              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                .PDF (usa IA)
-              </span>
-            </div>
-            <input
-              type="file"
-              accept=".ofx,.qfx,.pdf"
-              onChange={handleArquivoChange}
-              className="w-full p-2 border rounded-lg"
-            />
-            {arquivo && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-green-600 text-sm">{arquivo.name}</span>
-                {tipoArquivo === 'ofx' || tipoArquivo === 'qfx' ? (
-                  <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">
-                    Parser Determinístico
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 bg-neutral-100 text-neutral-700 text-xs rounded">
-                    Processamento com IA
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          <DropZone
+            onFileSelect={handleDropZoneFile}
+            accept=".ofx,.qfx,.pdf"
+            file={arquivo}
+            formats={[
+              { ext: '.OFX', label: 'Recomendado', color: 'bg-emerald-50 text-emerald-700' },
+              { ext: '.PDF', label: 'usa IA', color: 'bg-neutral-100 text-neutral-600' },
+            ]}
+          />
 
-          <button
-            onClick={handleProcessar}
-            disabled={loading || !mesReferencia || !arquivo}
-            className="px-6 py-3 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 font-medium"
-          >
-            {loading ? (
-              tipoArquivo === 'pdf' ? 'Processando PDF com IA...' : 'Processando OFX...'
-            ) : (
-              'Processar Extrato →'
-            )}
-          </button>
+          <div className="flex justify-center">
+            <UploadButton
+              onClick={handleProcessar}
+              loading={loading}
+              disabled={!mesReferencia || !arquivo}
+              label="Processar extrato"
+            />
+          </div>
         </div>
       )}
 
