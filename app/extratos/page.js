@@ -47,7 +47,7 @@ export default function ExtratosPage() {
   const [banco, setBanco] = useState('')
   const [mesReferencia, setMesReferencia] = useState('')
   const [arquivo, setArquivo] = useState(null)
-  const [arquivoFile, setArquivoFile] = useState(null) // Arquivo original para upload
+  const [arquivoFile, setArquivoFile] = useState(null)
   const [tipoArquivo, setTipoArquivo] = useState('')
   const [movimentacoes, setMovimentacoes] = useState([])
   const [extratoInfo, setExtratoInfo] = useState(null)
@@ -195,7 +195,6 @@ export default function ExtratosPage() {
         throw new Error('Nenhuma movimentação encontrada no arquivo')
       }
 
-      // Armazenar informações do extrato
       setExtratoInfo({
         metodo: result.metodo,
         banco: result.banco,
@@ -208,7 +207,6 @@ export default function ExtratosPage() {
         total_reembolsos: result.total_reembolsos
       })
 
-      // Adicionar IDs únicos se não existirem
       const movsComId = result.movimentacoes.map((m, i) => ({
         ...m,
         id: m.id || `mov_${Date.now()}_${i}`
@@ -247,13 +245,11 @@ export default function ExtratosPage() {
       const result = await response.json()
       if (result.error) throw new Error(result.error)
 
-      // Mensagem personalizada baseada no resultado
       if (result.warning) {
         setError(result.warning)
         return
       }
 
-      // Fazer upload do arquivo original se existir
       if (arquivoFile && result.extrato?.id) {
         try {
           const uploadForm = new FormData()
@@ -266,7 +262,6 @@ export default function ExtratosPage() {
           })
         } catch (uploadErr) {
           console.error('Erro ao fazer upload do arquivo:', uploadErr)
-          // Não falha se o upload falhar - o extrato já foi salvo
         }
       }
 
@@ -293,52 +288,52 @@ export default function ExtratosPage() {
   const totalReembolsos = movimentacoes.filter(m => m.isReembolso).reduce((a, m) => a + m.valor, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">
+          <h1 className="text-page-title text-neutral-900">
             Importar extrato bancário
           </h1>
-          {step === 2 && <p className="text-neutral-500 mt-1">Passo 2 de 2 - Revisar movimentacoes</p>}
+          {step === 2 && <p className="text-body text-neutral-500">Passo 2 de 2 - Revisar movimentações</p>}
         </div>
         {step === 1 && (
-          <Link href="/reconciliacao" className="text-neutral-500 hover:text-neutral-900 text-sm">
-            Ver Reconciliacao
+          <Link href="/reconciliacao" className="text-neutral-500 hover:text-neutral-900 text-[13px]">
+            Ver Reconciliação
           </Link>
         )}
       </div>
 
-      {error && <div className="p-4 bg-red-50 border border-neutral-200 rounded-lg text-red-700">{error}</div>}
-      {success && <div className="p-4 bg-green-50 border border-neutral-200 rounded-lg text-green-700">{success}</div>}
+      {error && <div className="p-3 bg-red-50 border border-neutral-200 rounded-lg text-red-700 text-[13px]">{error}</div>}
+      {success && <div className="p-3 bg-green-50 border border-neutral-200 rounded-lg text-green-700 text-[13px]">{success}</div>}
 
       {step === 1 && (
-        <div className="bg-white rounded-xl border p-6 md:p-8 space-y-6">
-          <div className="bg-blue-50/60 rounded-lg p-4 flex items-start gap-3">
-            <span className="text-blue-500 text-lg mt-0.5">i</span>
+        <div className="bg-white rounded-lg border border-neutral-200 p-5 md:p-6 space-y-5">
+          <div className="bg-neutral-50 rounded-lg p-3 flex items-start gap-2.5">
+            <span className="text-neutral-400 text-[13px] mt-0.5">i</span>
             <div>
-              <p className="text-sm text-blue-800 font-medium">Recomendado: Arquivo OFX</p>
-              <p className="text-xs text-blue-600 mt-0.5">
-                Processamento deterministico, sem IA, com 100% de precisao.
+              <p className="text-[13px] text-neutral-700 font-medium">Recomendado: Arquivo OFX</p>
+              <p className="text-label text-neutral-500 mt-0.5">
+                Processamento determinístico, sem IA, com 100% de precisão.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-neutral-700">Banco (opcional)</label>
+              <label className="block text-label font-medium mb-1.5 text-neutral-500">Banco (opcional)</label>
               <select value={banco} onChange={(e) => setBanco(e.target.value)}
-                className="w-full p-3 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 focus:outline-none">
+                className="w-full p-2.5 border border-neutral-200 rounded-lg bg-white text-neutral-900 text-[13px] focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 focus:outline-none">
                 <option value="">Detectar automaticamente</option>
                 {bancos.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
               </select>
-              <p className="text-xs text-neutral-400 mt-1">
-                Com OFX, o banco e detectado automaticamente
+              <p className="text-label text-neutral-400 mt-1">
+                Com OFX, o banco é detectado automaticamente
               </p>
             </div>
             <MonthPicker
               value={mesReferencia}
               onChange={setMesReferencia}
-              label="Mes de referencia"
+              label="Mês de referência"
               required
             />
           </div>
@@ -366,19 +361,19 @@ export default function ExtratosPage() {
 
       {/* Lista de extratos importados */}
       {step === 1 && (
-        <div className="bg-white rounded-xl border overflow-hidden">
-          <div className="p-4 border-b flex items-center justify-between">
+        <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+          <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-neutral-900">Extratos importados</h2>
-              <p className="text-sm text-neutral-500">{extratosImportados.length} extratos</p>
+              <h2 className="text-section-title text-neutral-900">Extratos importados</h2>
+              <p className="text-label text-neutral-500">{extratosImportados.length} extratos</p>
             </div>
             {selectedIds.size > 0 && (
               <button
                 onClick={handleDeleteMultiple}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium flex items-center gap-2 text-sm"
+                className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-[13px] font-medium flex items-center gap-1.5"
               >
-                <Trash2 size={16} />
-                Remover {selectedIds.size} {selectedIds.size === 1 ? 'extrato' : 'extratos'}
+                <Trash2 size={14} strokeWidth={1.5} />
+                Remover {selectedIds.size}
               </button>
             )}
           </div>
@@ -387,59 +382,59 @@ export default function ExtratosPage() {
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-neutral-300 border-t-neutral-900"></div>
             </div>
           ) : extratosImportados.length === 0 ? (
-            <div className="p-8 text-center text-neutral-500">
+            <div className="p-8 text-center text-neutral-500 text-[13px]">
               Nenhum extrato importado ainda.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full">
                 <thead className="bg-neutral-50">
                   <tr>
-                    <th className="p-3 text-center w-12">
+                    <th className="py-2 px-3 text-center w-10">
                       <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
-                        {selectedIds.size === extratosImportados.length && extratosImportados.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                        {selectedIds.size === extratosImportados.length && extratosImportados.length > 0 ? <CheckSquare size={16} strokeWidth={1.5} /> : <Square size={16} strokeWidth={1.5} />}
                       </button>
                     </th>
-                    <th className="p-3 text-left font-medium text-neutral-600">Banco</th>
-                    <th className="p-3 text-left font-medium text-neutral-600">Mês</th>
-                    <th className="p-3 text-right font-medium text-neutral-600">Entradas</th>
-                    <th className="p-3 text-right font-medium text-neutral-600">Saídas</th>
-                    <th className="p-3 text-right font-medium text-neutral-600">Saldo</th>
-                    <th className="p-3 text-center font-medium text-neutral-600">Ações</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Banco</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Entradas</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Saídas</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Saldo</th>
+                    <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Ações</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-neutral-100">
                   {extratosImportados.map(ext => (
-                    <tr key={ext.id} className={`border-t hover:bg-neutral-50 ${selectedIds.has(ext.id) ? 'bg-neutral-100' : ''}`}>
-                      <td className="p-3 text-center">
+                    <tr key={ext.id} className={`hover:bg-neutral-50 ${selectedIds.has(ext.id) ? 'bg-neutral-100' : ''}`}>
+                      <td className="py-2 px-3 text-center">
                         <button onClick={() => toggleSelection(ext.id)} className="text-neutral-400 hover:text-neutral-600">
-                          {selectedIds.has(ext.id) ? <CheckSquare size={18} className="text-neutral-900" /> : <Square size={18} />}
+                          {selectedIds.has(ext.id) ? <CheckSquare size={16} strokeWidth={1.5} className="text-neutral-900" /> : <Square size={16} strokeWidth={1.5} />}
                         </button>
                       </td>
-                      <td className="p-3 font-medium text-neutral-900">{ext.banco}</td>
-                      <td className="p-3 text-neutral-600">
+                      <td className="py-2 px-3 text-[13px] font-medium text-neutral-900">{ext.banco}</td>
+                      <td className="py-2 px-3 text-[13px] text-neutral-500">
                         {ext.mes_referencia ? new Date(ext.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : '-'}
                       </td>
-                      <td className="p-3 text-right font-mono text-emerald-600">
+                      <td className="py-2 px-3 text-right text-[13px] font-mono text-neutral-600">
                         R$ {(parseFloat(ext.total_entradas) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-3 text-right font-mono text-rose-600">
+                      <td className="py-2 px-3 text-right text-[13px] font-mono text-neutral-600">
                         R$ {(parseFloat(ext.total_saidas) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-3 text-right font-mono font-medium text-neutral-900">
+                      <td className="py-2 px-3 text-right text-[13px] font-mono font-medium text-neutral-900">
                         R$ {(parseFloat(ext.saldo) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Link href={`/extratos/${ext.id}`} className="text-neutral-500 hover:text-neutral-900 text-xs">
-                            Ver detalhes
+                      <td className="py-2 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Link href={`/extratos/${ext.id}`} className="text-neutral-500 hover:text-neutral-900 text-[11px]">
+                            Detalhes
                           </Link>
                           <button
                             onClick={() => handleDeleteSingle(ext)}
-                            className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            className="p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                             title="Remover extrato"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} strokeWidth={1.5} />
                           </button>
                         </div>
                       </td>
@@ -467,24 +462,24 @@ export default function ExtratosPage() {
         <div className="space-y-4">
           {/* Info do Extrato */}
           {extratoInfo && (
-            <div className="bg-white rounded-xl border p-4">
+            <div className="bg-white rounded-lg border border-neutral-200 p-4">
               <div className="flex flex-wrap gap-4 items-center justify-between">
                 <div>
-                  <p className="text-sm text-neutral-500">
+                  <p className="text-[13px] text-neutral-500">
                     {extratoInfo.banco} {extratoInfo.conta && `• Conta ${extratoInfo.conta}`}
                   </p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-label text-neutral-400">
                     Período: {extratoInfo.periodo_inicio} a {extratoInfo.periodo_fim}
                     {extratoInfo.metodo === 'OFX_PARSER' && (
-                      <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 rounded">
+                      <span className="ml-2 px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded text-[11px] font-medium">
                         OFX Preciso
                       </span>
                     )}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-neutral-500">Saldo Final</p>
-                  <p className="font-bold text-neutral-900">
+                  <p className="text-label text-neutral-500">Saldo Final</p>
+                  <p className="text-kpi text-neutral-900">
                     R$ {(extratoInfo.saldo_final || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                   </p>
                 </div>
@@ -494,40 +489,49 @@ export default function ExtratosPage() {
 
           {/* Resumo */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border p-4">
-              <p className="text-sm text-neutral-500">Movimentações</p>
-              <p className="text-xl font-bold text-neutral-900">{movimentacoes.length}</p>
+            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+              <p className="text-label text-neutral-500">Movimentações</p>
+              <p className="text-kpi text-neutral-900">{movimentacoes.length}</p>
             </div>
-            <div className="bg-emerald-50 rounded-xl border border-neutral-200 p-4">
-              <p className="text-sm text-emerald-600">Total Entradas</p>
-              <p className="text-xl font-bold text-emerald-700">
+            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <p className="text-label text-neutral-500">Total Entradas</p>
+              </div>
+              <p className="text-kpi text-neutral-900 mt-1">
                 R$ {totalEntradas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
             </div>
-            <div className="bg-red-50 rounded-xl border border-neutral-200 p-4">
-              <p className="text-sm text-red-600">Total Saídas</p>
-              <p className="text-xl font-bold text-red-700">
+            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                <p className="text-label text-neutral-500">Total Saídas</p>
+              </div>
+              <p className="text-kpi text-neutral-900 mt-1">
                 R$ {totalSaidas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
             </div>
-            <div className="bg-blue-50 rounded-xl border border-neutral-200 p-4">
-              <p className="text-sm text-blue-600">Reembolsos ao Socio</p>
-              <p className="text-xl font-bold text-blue-700">
+            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <p className="text-label text-neutral-500">Reembolsos ao Sócio</p>
+              </div>
+              <p className="text-kpi text-neutral-900 mt-1">
                 R$ {totalReembolsos.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
-              <p className="text-xs text-blue-500">{reembolsos.length} transferencias</p>
+              <p className="text-label text-neutral-400">{reembolsos.length} transferências</p>
             </div>
           </div>
 
           {/* Resumo por Categoria */}
           {resumoCategorias.length > 0 && (
-            <div className="bg-white rounded-xl border p-4">
-              <h3 className="font-semibold text-neutral-700 mb-3">Resumo por Categoria</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+              <h3 className="text-[13px] font-medium text-neutral-700 mb-3">Resumo por Categoria</h3>
+              <div className="flex flex-wrap gap-1.5">
                 {resumoCategorias.slice(0, 8).map((cat, i) => (
-                  <div key={i} className={`px-3 py-1 rounded-lg text-sm ${CATEGORIA_EXTRATO_COLORS[cat.categoria] || 'bg-gray-100'}`}>
+                  <div key={i} className={`px-2 py-0.5 rounded text-[11px] font-medium ${CATEGORIA_EXTRATO_COLORS[cat.categoria] || 'bg-gray-100'}`}>
                     {cat.categoria}: R$ {cat.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                    <span className="text-xs opacity-70 ml-1">({cat.quantidade})</span>
+                    <span className="opacity-70 ml-1">({cat.quantidade})</span>
                   </div>
                 ))}
               </div>
@@ -535,73 +539,72 @@ export default function ExtratosPage() {
           )}
 
           {/* Ações */}
-          <div className="bg-white rounded-xl border p-4 flex justify-between items-center">
-            <button onClick={() => setStep(1)} className="text-neutral-600 hover:underline">
+          <div className="bg-white rounded-lg border border-neutral-200 p-4 flex justify-between items-center">
+            <button onClick={() => setStep(1)} className="text-neutral-500 hover:text-neutral-900 text-[13px]">
               ← Voltar
             </button>
             <button onClick={handleSalvar} disabled={saving}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium">
+              className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 text-[13px] font-medium">
               {saving ? 'Salvando...' : 'Salvar e Reconciliar'}
             </button>
           </div>
 
           {/* Tabela de Movimentações */}
-          <div className="bg-white rounded-xl border overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-3 text-left">Data</th>
-                  <th className="p-3 text-left">Descrição</th>
-                  <th className="p-3 text-left">Categoria</th>
-                  <th className="p-3 text-center">Tipo</th>
-                  <th className="p-3 text-right">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movimentacoes.map(m => (
-                  <tr key={m.id} className={`border-t ${
-                    m.isReembolso ? 'bg-blue-50' :
-                    m.tipo === 'entrada' ? 'bg-emerald-50/50' : ''
-                  }`}>
-                    <td className="p-3 font-mono text-xs">
-                      {m.data ? new Date(m.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
-                    </td>
-                    <td className="p-3 max-w-xs">
-                      <div className="truncate" title={m.descricao}>{m.descricao}</div>
-                      {m.subcategoria && (
-                        <span className="text-xs text-neutral-400">{m.subcategoria}</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <select
-                        value={m.categoria}
-                        onChange={(e) => updateMovimentacao(m.id, 'categoria', e.target.value)}
-                        className={`px-2 py-1 rounded text-xs font-medium ${CATEGORIA_EXTRATO_COLORS[m.categoria] || 'bg-gray-100'}`}
-                      >
-                        {CATEGORIAS_EXTRATO.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-3 text-center">
-                      <select
-                        value={m.tipo}
-                        onChange={(e) => updateMovimentacao(m.id, 'tipo', e.target.value)}
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          m.tipo === 'entrada' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        <option value="entrada">Entrada</option>
-                        <option value="saida">Saída</option>
-                      </select>
-                    </td>
-                    <td className={`p-3 text-right font-mono font-medium ${
-                      m.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-600'
-                    }`}>
-                      {m.tipo === 'entrada' ? '+' : '-'}R$ {m.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                    </td>
+          <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Data</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Descrição</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Categoria</th>
+                    <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Tipo</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {movimentacoes.map(m => (
+                    <tr key={m.id} className="hover:bg-neutral-50">
+                      <td className="py-2 px-3 font-mono text-[11px] text-neutral-500">
+                        {m.data ? new Date(m.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
+                      </td>
+                      <td className="py-2 px-3 max-w-xs">
+                        <div className="truncate text-[13px] text-neutral-900" title={m.descricao}>{m.descricao}</div>
+                        {m.subcategoria && (
+                          <span className="text-label text-neutral-400">{m.subcategoria}</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3">
+                        <select
+                          value={m.categoria}
+                          onChange={(e) => updateMovimentacao(m.id, 'categoria', e.target.value)}
+                          className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${CATEGORIA_EXTRATO_COLORS[m.categoria] || 'bg-gray-100'}`}
+                        >
+                          {CATEGORIAS_EXTRATO.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <select
+                          value={m.tipo}
+                          onChange={(e) => updateMovimentacao(m.id, 'tipo', e.target.value)}
+                          className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                            m.tipo === 'entrada' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          <option value="entrada">Entrada</option>
+                          <option value="saida">Saída</option>
+                        </select>
+                      </td>
+                      <td className={`py-2 px-3 text-right font-mono text-[13px] font-medium ${
+                        m.tipo === 'entrada' ? 'text-neutral-900' : 'text-neutral-900'
+                      }`}>
+                        {m.tipo === 'entrada' ? '+' : '-'}R$ {m.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

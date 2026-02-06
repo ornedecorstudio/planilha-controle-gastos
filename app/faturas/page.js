@@ -100,16 +100,16 @@ export default function FaturasPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-2 border-neutral-300 border-t-neutral-900"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-2 border-neutral-300 border-t-neutral-900"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-neutral-200 rounded-xl p-6 text-center">
-        <h2 className="text-lg font-bold text-red-800">Erro ao carregar faturas</h2>
-        <p className="text-red-600">{error}</p>
+      <div className="bg-white border border-neutral-200 rounded-lg p-4 text-center">
+        <h2 className="text-section-title text-red-700">Erro ao carregar faturas</h2>
+        <p className="text-body text-red-600 mt-1">{error}</p>
       </div>
     )
   }
@@ -122,20 +122,20 @@ export default function FaturasPage() {
     : `Tem certeza que deseja remover a fatura "${deleteModal.fatura?.cartoes?.nome || 'N/A'} - ${deleteModal.fatura?.mes_referencia ? new Date(deleteModal.fatura.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : ''}"? Todas as transações dessa fatura também serão removidas. Esta ação não pode ser desfeita.`
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Faturas</h1>
-          <p className="text-neutral-500">{faturas.length} faturas cadastradas</p>
+          <h1 className="text-page-title text-neutral-900">Faturas</h1>
+          <p className="text-body text-neutral-500">{faturas.length} faturas cadastradas</p>
         </div>
         <div className="flex gap-2">
           {selectedIds.size > 0 && (
             <button
               onClick={handleDeleteMultiple}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium flex items-center gap-2"
+              className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-[13px] font-medium flex items-center gap-1.5"
             >
-              <Trash2 size={18} />
-              Remover {selectedIds.size} selecionadas
+              <Trash2 size={14} strokeWidth={1.5} />
+              Remover {selectedIds.size}
             </button>
           )}
         </div>
@@ -143,21 +143,27 @@ export default function FaturasPage() {
 
       {/* Totais */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border p-4">
-          <p className="text-sm text-neutral-500">Total geral</p>
-          <p className="text-xl font-bold text-neutral-900">
+        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <p className="text-label text-neutral-500">Total geral</p>
+          <p className="text-kpi text-neutral-900 mt-1">
             R$ {(totalPJ + totalPF).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="bg-green-50 rounded-xl border border-neutral-200 p-4">
-          <p className="text-sm text-green-600">Total PJ (reembolsável)</p>
-          <p className="text-xl font-bold text-green-700">
+        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <p className="text-label text-neutral-500">Total PJ (reembolsável)</p>
+          </div>
+          <p className="text-kpi text-neutral-900 mt-1">
             R$ {totalPJ.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="bg-red-50 rounded-xl border border-neutral-200 p-4">
-          <p className="text-sm text-red-600">Total PF (pessoal)</p>
-          <p className="text-xl font-bold text-red-700">
+        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            <p className="text-label text-neutral-500">Total PF (pessoal)</p>
+          </div>
+          <p className="text-kpi text-neutral-900 mt-1">
             R$ {totalPF.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
@@ -165,58 +171,58 @@ export default function FaturasPage() {
 
       {/* Tabela */}
       {faturas.length > 0 ? (
-        <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+            <table className="w-full">
+              <thead className="bg-neutral-50">
                 <tr>
-                  <th className="p-3 text-center w-12">
+                  <th className="py-2 px-3 text-center w-10">
                     <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
-                      {selectedIds.size === faturas.length ? <CheckSquare size={18} /> : <Square size={18} />}
+                      {selectedIds.size === faturas.length ? <CheckSquare size={16} strokeWidth={1.5} /> : <Square size={16} strokeWidth={1.5} />}
                     </button>
                   </th>
-                  <th className="p-3 text-left font-medium">Cartão</th>
-                  <th className="p-3 text-left font-medium">Mês</th>
-                  <th className="p-3 text-left font-medium">Vencimento</th>
-                  <th className="p-3 text-right font-medium">Total</th>
-                  <th className="p-3 text-right font-medium">PJ</th>
-                  <th className="p-3 text-right font-medium">PF</th>
-                  <th className="p-3 text-center font-medium">Status</th>
-                  <th className="p-3 text-center font-medium">Ações</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Vencimento</th>
+                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Total</th>
+                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">PJ</th>
+                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">PF</th>
+                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Status</th>
+                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Ações</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-neutral-100">
                 {faturas.map(f => (
-                  <tr key={f.id} className={`border-t hover:bg-gray-50 ${selectedIds.has(f.id) ? 'bg-neutral-100' : ''}`}>
-                    <td className="p-3 text-center">
+                  <tr key={f.id} className={`hover:bg-neutral-50 ${selectedIds.has(f.id) ? 'bg-neutral-100' : ''}`}>
+                    <td className="py-2 px-3 text-center">
                       <button onClick={() => toggleSelection(f.id)} className="text-neutral-400 hover:text-neutral-600">
-                        {selectedIds.has(f.id) ? <CheckSquare size={18} className="text-neutral-900" /> : <Square size={18} />}
+                        {selectedIds.has(f.id) ? <CheckSquare size={16} strokeWidth={1.5} className="text-neutral-900" /> : <Square size={16} strokeWidth={1.5} />}
                       </button>
                     </td>
-                    <td className="p-3 font-medium text-neutral-700">
+                    <td className="py-2 px-3 text-[13px] font-medium text-neutral-900">
                       {f.cartoes?.nome || 'N/A'}
-                      <span className="text-xs text-neutral-400 ml-1">({f.cartoes?.tipo})</span>
+                      <span className="text-[11px] text-neutral-400 ml-1">({f.cartoes?.tipo})</span>
                     </td>
-                    <td className="p-3 text-neutral-600">
+                    <td className="py-2 px-3 text-[13px] text-neutral-500">
                       {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="p-3 text-neutral-600">
+                    <td className="py-2 px-3 text-[13px] text-neutral-500">
                       {f.data_vencimento ? new Date(f.data_vencimento).toLocaleDateString('pt-BR') : '-'}
                     </td>
-                    <td className="p-3 text-right font-medium">
+                    <td className="py-2 px-3 text-right text-[13px] font-mono font-medium text-neutral-900">
                       R$ {parseFloat(f.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="p-3 text-right text-green-600 font-medium">
+                    <td className="py-2 px-3 text-right text-[13px] font-mono text-neutral-600">
                       R$ {parseFloat(f.valor_pj || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="p-3 text-right text-red-600">
+                    <td className="py-2 px-3 text-right text-[13px] font-mono text-neutral-600">
                       R$ {parseFloat(f.valor_pf || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="py-2 px-3 text-center">
                       <select
                         value={f.status}
                         onChange={(e) => atualizarStatus(f.id, e.target.value)}
-                        className={`px-2 py-1 rounded text-xs font-medium cursor-pointer
+                        className={`px-1.5 py-0.5 rounded text-[11px] font-medium cursor-pointer
                           ${f.status === 'pendente' ? 'bg-amber-100 text-amber-800' : ''}
                           ${f.status === 'pago' ? 'bg-blue-100 text-blue-800' : ''}
                           ${f.status === 'reembolsado' ? 'bg-green-100 text-green-800' : ''}
@@ -227,26 +233,26 @@ export default function FaturasPage() {
                         <option value="reembolsado">Reembolsado</option>
                       </select>
                     </td>
-                    <td className="p-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="py-2 px-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         {f.pdf_url && (
                           <button
                             onClick={() => window.open(f.pdf_url, '_blank')}
-                            className="p-1.5 text-neutral-900 hover:text-neutral-900 hover:bg-neutral-100 rounded transition-colors"
+                            className="p-1 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded transition-colors"
                             title="Ver PDF"
                           >
-                            <FileText size={16} />
+                            <FileText size={14} strokeWidth={1.5} />
                           </button>
                         )}
-                        <Link href={`/faturas/${f.id}`} className="text-neutral-600 hover:underline text-xs">
-                          Ver detalhes
+                        <Link href={`/faturas/${f.id}`} className="text-neutral-500 hover:text-neutral-900 text-[11px]">
+                          Detalhes
                         </Link>
                         <button
                           onClick={() => handleDeleteSingle(f)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          className="p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                           title="Remover fatura"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} strokeWidth={1.5} />
                         </button>
                       </div>
                     </td>
@@ -257,17 +263,16 @@ export default function FaturasPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border p-8 text-center">
-          <FileText className="mx-auto mb-4 text-neutral-300" size={48} />
-          <h3 className="text-lg font-semibold text-neutral-700">Nenhuma fatura</h3>
-          <p className="text-neutral-500">Importe sua primeira fatura para começar</p>
-          <Link href="/upload" className="inline-block mt-4 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800">
+        <div className="bg-white rounded-lg border border-neutral-200 p-8 text-center">
+          <FileText className="mx-auto mb-3 text-neutral-300" size={24} strokeWidth={1.5} />
+          <h3 className="text-section-title text-neutral-700">Nenhuma fatura</h3>
+          <p className="text-body text-neutral-500 mt-0.5">Importe sua primeira fatura para começar</p>
+          <Link href="/upload" className="inline-block mt-3 px-3 py-1.5 bg-neutral-900 text-white text-[13px] font-medium rounded-lg hover:bg-neutral-800">
             Importar fatura
           </Link>
         </div>
       )}
 
-      {/* Modal de confirmação */}
       <ConfirmModal
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, fatura: null, multiple: false })}

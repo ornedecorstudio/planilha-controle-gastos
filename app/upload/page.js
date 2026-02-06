@@ -109,11 +109,9 @@ export default function UploadPage() {
       let parsed = []
       let metodo = ''
 
-      // Detectar tipo de arquivo e usar rota adequada
       const isOFX = tipoArquivo === 'ofx' || tipoArquivo === 'qfx'
 
       if (isOFX) {
-        // Parser deterministico para OFX
         const formData = new FormData()
         formData.append('file', pdfFile)
 
@@ -128,7 +126,7 @@ export default function UploadPage() {
         }
 
         if (!ofxResult.transacoes || ofxResult.transacoes.length === 0) {
-          throw new Error('Nenhuma transacao encontrada no arquivo OFX')
+          throw new Error('Nenhuma transação encontrada no arquivo OFX')
         }
 
         parsed = ofxResult.transacoes.map(t => ({
@@ -143,7 +141,6 @@ export default function UploadPage() {
 
         metodo = 'OFX_PARSER'
       } else {
-        // IA para PDF
         const formData = new FormData()
         formData.append('pdf', pdfFile)
         formData.append('cartao_nome', getCartaoNome())
@@ -160,7 +157,7 @@ export default function UploadPage() {
         }
 
         if (!pdfResult.transacoes || pdfResult.transacoes.length === 0) {
-          throw new Error('Nenhuma transacao encontrada no PDF')
+          throw new Error('Nenhuma transação encontrada no PDF')
         }
 
         parsed = pdfResult.transacoes.map(t => ({
@@ -177,10 +174,9 @@ export default function UploadPage() {
       }
 
       if (parsed.length === 0) {
-        throw new Error('Nenhuma transacao valida encontrada')
+        throw new Error('Nenhuma transação válida encontrada')
       }
 
-      // Verifica se a fatura ja existe
       const checkFormData = new FormData()
       checkFormData.append('cartao_id', selectedCartao)
       checkFormData.append('mes_referencia', mesReferencia)
@@ -199,14 +195,12 @@ export default function UploadPage() {
           similaridade: checkResult.similaridade,
           valor_existente: checkResult.valor_existente
         })
-        // Guardar parsed para uso posterior
         setTransactions(parsed)
         setMetodoProcessamento(metodo)
         setLoading(false)
-        return // Para aqui e mostra o aviso
+        return
       }
 
-      // Continua com a categorizacao
       await categorizarEAvancar(parsed, metodo)
     } catch (err) {
       setError(`Erro: ${err.message}`)
@@ -240,16 +234,13 @@ export default function UploadPage() {
   }
 
   const handleContinuarMesmoAssim = async () => {
-    // Usuario decidiu continuar mesmo com fatura duplicada
     setDuplicateWarning(null)
     setLoading(true)
 
     try {
-      // Se ja temos parsed do primeiro processamento, categorizar direto
       if (transactions.length > 0) {
         await categorizarEAvancar(transactions, metodoProcessamento)
       } else {
-        // Reprocessar
         await handleProcessar()
       }
     } catch (err) {
@@ -298,7 +289,6 @@ export default function UploadPage() {
       const faturaResult = await faturaRes.json()
       if (faturaResult.error) throw new Error(faturaResult.error)
 
-      // Salva o arquivo original no storage (PDF, OFX, QFX) antes das transações
       if (pdfFile) {
         const arquivoFormData = new FormData()
         arquivoFormData.append('fatura_id', faturaResult.fatura.id)
@@ -354,40 +344,40 @@ export default function UploadPage() {
   const totalPF = transactions.filter(t => t.tipo === 'PF').reduce((a, t) => a + t.valor, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold text-neutral-900">Importar fatura</h1>
-        <p className="text-neutral-500 mt-1">Passo {step} de 2</p>
+        <h1 className="text-page-title text-neutral-900">Importar fatura</h1>
+        <p className="text-body text-neutral-500">Passo {step} de 2</p>
       </div>
 
-      {error && <div className="p-4 bg-rose-50 rounded-lg text-rose-700">{error}</div>}
-      {success && <div className="p-4 bg-emerald-50 rounded-lg text-emerald-700">{success}</div>}
+      {error && <div className="p-3 bg-rose-50 border border-neutral-200 rounded-lg text-rose-700 text-[13px]">{error}</div>}
+      {success && <div className="p-3 bg-emerald-50 border border-neutral-200 rounded-lg text-emerald-700 text-[13px]">{success}</div>}
 
       {duplicateWarning && (
-        <div className="p-4 bg-amber-50 rounded-lg">
-          <h3 className="font-semibold text-amber-800 mb-2">Fatura possivelmente duplicada</h3>
-          <p className="text-amber-700 mb-3">{duplicateWarning.message}</p>
+        <div className="p-4 bg-amber-50 border border-neutral-200 rounded-lg">
+          <h3 className="text-[13px] font-medium text-amber-800 mb-2">Fatura possivelmente duplicada</h3>
+          <p className="text-[13px] text-amber-700 mb-3">{duplicateWarning.message}</p>
           {duplicateWarning.valor_existente && (
-            <p className="text-sm text-amber-600 mb-3">
+            <p className="text-label text-amber-600 mb-3">
               Valor da fatura existente: R$ {parseFloat(duplicateWarning.valor_existente).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
             </p>
           )}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setDuplicateWarning(null)}
-              className="px-4 py-2 bg-white border border-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-50"
+              className="px-3 py-1.5 bg-white border border-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-50 text-[13px]"
             >
               Cancelar
             </button>
             <button
               onClick={handleContinuarMesmoAssim}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+              className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-[13px] font-medium"
             >
               Continuar mesmo assim
             </button>
             <a
               href={`/faturas/${duplicateWarning.fatura_id}`}
-              className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+              className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-[13px] font-medium"
             >
               Ver fatura existente
             </a>
@@ -396,20 +386,20 @@ export default function UploadPage() {
       )}
 
       {step === 1 && (
-        <div className="bg-white rounded-xl border p-6 md:p-8 space-y-6">
+        <div className="bg-white rounded-lg border border-neutral-200 p-5 md:p-6 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-neutral-700">Cartao *</label>
+              <label className="block text-label font-medium mb-1.5 text-neutral-500">Cartão *</label>
               <select value={selectedCartao} onChange={(e) => setSelectedCartao(e.target.value)}
-                className="w-full p-3 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 focus:outline-none">
-                <option value="">Selecione o cartao...</option>
+                className="w-full p-2.5 border border-neutral-200 rounded-lg bg-white text-neutral-900 text-[13px] focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 focus:outline-none">
+                <option value="">Selecione o cartão...</option>
                 {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.tipo})</option>)}
               </select>
             </div>
             <MonthPicker
               value={mesReferencia}
               onChange={setMesReferencia}
-              label="Mes de referencia"
+              label="Mês de referência"
               required
             />
           </div>
@@ -424,8 +414,8 @@ export default function UploadPage() {
             ]}
           />
 
-          <p className="text-xs text-neutral-400 text-center">
-            Suporta faturas de Nubank, Itau, Santander, C6 Bank, Mercado Pago, PicPay, Renner, XP e outros.
+          <p className="text-label text-neutral-400 text-center">
+            Suporta faturas de Nubank, Itaú, Santander, C6 Bank, Mercado Pago, PicPay, Renner, XP e outros.
           </p>
 
           <div className="flex justify-center">
@@ -444,70 +434,78 @@ export default function UploadPage() {
           <div className="bg-white rounded-lg border border-neutral-200 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm text-neutral-500">{transactions.length} transações encontradas</p>
+                <p className="text-[13px] text-neutral-500">{transactions.length} transações encontradas</p>
                 {metodoProcessamento === 'OFX_PARSER' && (
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded font-medium">
+                  <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 text-[11px] rounded font-medium">
                     OFX
                   </span>
                 )}
                 {metodoProcessamento === 'PARSER_DETERMINISTICO' && (
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded font-medium">
+                  <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 text-[11px] rounded font-medium">
                     Parser
                   </span>
                 )}
                 {metodoProcessamento === 'IA_PDF' && (
-                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded font-medium">
+                  <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[11px] rounded font-medium">
                     IA
                   </span>
                 )}
               </div>
-              <p className="font-semibold text-neutral-900">
-                <span className="text-emerald-600">PJ: R$ {totalPJ.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                <span className="text-neutral-300 mx-2">|</span>
-                <span className="text-rose-600">PF: R$ {totalPF.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-              </p>
+              <div className="flex items-center gap-3 text-[13px] font-medium">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-neutral-900">PJ: R$ {totalPJ.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                </div>
+                <span className="text-neutral-300">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  <span className="text-neutral-900">PF: R$ {totalPF.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                </div>
+              </div>
             </div>
-            <button onClick={() => setStep(1)} className="text-neutral-500 hover:text-neutral-900 text-sm">← Voltar</button>
+            <button onClick={() => setStep(1)} className="text-neutral-500 hover:text-neutral-900 text-[13px]">← Voltar</button>
           </div>
 
-          <div className="bg-white rounded-lg border border-neutral-200 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-50 border-b border-neutral-200">
-                <tr>
-                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Data</th>
-                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descrição</th>
-                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Categoria</th>
-                  <th className="p-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Tipo</th>
-                  <th className="p-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Valor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {transactions.map(t => (
-                  <tr key={t.id} className={`hover:bg-neutral-50 ${t.tipo === 'PF' ? 'bg-rose-50/30' : ''}`}>
-                    <td className="p-3 font-mono text-xs text-neutral-600">{t.data ? new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
-                    <td className="p-3 max-w-xs truncate text-neutral-900" title={t.descricao}>{t.descricao}</td>
-                    <td className="p-3">
-                      <select value={t.categoria} onChange={(e) => updateTransaction(t.id, 'categoria', e.target.value)}
-                        className={`px-2 py-1 rounded text-xs font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}>
-                        {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-3 text-center">
-                      <select value={t.tipo} onChange={(e) => updateTransaction(t.id, 'tipo', e.target.value)}
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
-                        <option value="PJ">PJ</option>
-                        <option value="PF">PF</option>
-                      </select>
-                    </td>
-                    <td className="p-3 text-right font-mono font-medium text-neutral-900">R$ {t.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+          <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Data</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Descrição</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Categoria</th>
+                    <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Tipo</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {transactions.map(t => (
+                    <tr key={t.id} className="hover:bg-neutral-50">
+                      <td className="py-2 px-3 font-mono text-[11px] text-neutral-500">{t.data ? new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                      <td className="py-2 px-3 max-w-xs truncate text-[13px] text-neutral-900" title={t.descricao}>{t.descricao}</td>
+                      <td className="py-2 px-3">
+                        <select value={t.categoria} onChange={(e) => updateTransaction(t.id, 'categoria', e.target.value)}
+                          className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}>
+                          {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                        </select>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <select value={t.tipo} onChange={(e) => updateTransaction(t.id, 'tipo', e.target.value)}
+                          className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
+                          <option value="PJ">PJ</option>
+                          <option value="PF">PF</option>
+                        </select>
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono text-[13px] font-medium text-neutral-900">R$ {t.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <button onClick={handleSalvar} disabled={saving}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium transition-colors">
+            className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 text-[13px] font-medium transition-colors">
             {saving ? (
               <span className="flex items-center gap-2">
                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>

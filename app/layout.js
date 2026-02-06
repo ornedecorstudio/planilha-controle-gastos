@@ -14,7 +14,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="bg-neutral-50 min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
           {children}
         </main>
         <footer className="border-t border-neutral-200 bg-white">

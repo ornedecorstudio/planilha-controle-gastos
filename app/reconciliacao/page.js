@@ -25,18 +25,13 @@ export default function ReconciliacaoPage() {
   const carregarDados = async () => {
     try {
       setLoading(true)
-
-      // Carregar faturas e movimentações
       const response = await fetch('/api/reembolsos?tipo=todos')
       const data = await response.json()
-
       if (data.error) throw new Error(data.error)
-
       setFaturas(data.faturas || [])
       setMovimentacoes(data.movimentacoes_reembolso || [])
       setResumo(data.resumo || {})
 
-      // Carregar sugestões de vinculação
       const sugResponse = await fetch('/api/reembolsos', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -44,7 +39,6 @@ export default function ReconciliacaoPage() {
       })
       const sugData = await sugResponse.json()
       setSugestoes(sugData.sugestoes || [])
-
     } catch (err) {
       setError(err.message)
     } finally {
@@ -57,19 +51,13 @@ export default function ReconciliacaoPage() {
       const response = await fetch('/api/reembolsos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fatura_id: faturaId,
-          movimentacao_id: movimentacaoId
-        })
+        body: JSON.stringify({ fatura_id: faturaId, movimentacao_id: movimentacaoId })
       })
       const data = await response.json()
-
       if (data.error) throw new Error(data.error)
-
       setSuccess('Fatura marcada como reembolsada!')
       setTimeout(() => setSuccess(''), 3000)
       carregarDados()
-
     } catch (err) {
       setError(err.message)
       setTimeout(() => setError(''), 3000)
@@ -136,10 +124,7 @@ export default function ReconciliacaoPage() {
   }
 
   const formatCurrency = (value) => {
-    return (parseFloat(value) || 0).toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })
+    return (parseFloat(value) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   const formatDate = (date) => {
@@ -150,7 +135,7 @@ export default function ReconciliacaoPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-2 border-neutral-300 border-t-neutral-900"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-2 border-neutral-300 border-t-neutral-900"></div>
       </div>
     )
   }
@@ -159,84 +144,85 @@ export default function ReconciliacaoPage() {
   const faturasReembolsadas = faturas.filter(f => f.status === 'reembolsado')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Reconciliação de Reembolsos</h1>
-          <p className="text-neutral-500">Vincule faturas PF com reembolsos do extrato PJ</p>
+          <h1 className="text-page-title text-neutral-900">Reconciliação de Reembolsos</h1>
+          <p className="text-body text-neutral-500">Vincule faturas PF com reembolsos do extrato PJ</p>
         </div>
-        <Link href="/extratos" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+        <Link href="/extratos" className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-[13px] font-medium">
           Novo extrato
         </Link>
       </div>
 
-      {error && <div className="p-4 bg-red-50 border border-neutral-200 rounded-lg text-red-700">{error}</div>}
-      {success && <div className="p-4 bg-green-50 border border-neutral-200 rounded-lg text-green-700">{success}</div>}
+      {error && <div className="p-3 bg-red-50 border border-neutral-200 rounded-lg text-[13px] text-red-700">{error}</div>}
+      {success && <div className="p-3 bg-green-50 border border-neutral-200 rounded-lg text-[13px] text-green-700">{success}</div>}
 
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-amber-50 rounded-xl border border-neutral-200 p-4">
-          <p className="text-sm text-amber-600">Pendente de Reembolso</p>
-          <p className="text-2xl font-bold text-amber-700">R$ {formatCurrency(resumo.total_pendente)}</p>
-          <p className="text-xs text-amber-500">{resumo.faturas_pendentes} faturas</p>
+        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <p className="text-label text-neutral-500">Pendente de Reembolso</p>
+          </div>
+          <p className="text-kpi text-neutral-900 mt-1">R$ {formatCurrency(resumo.total_pendente)}</p>
+          <p className="text-label text-neutral-400 mt-0.5">{resumo.faturas_pendentes} faturas</p>
         </div>
-        <div className="bg-green-50 rounded-xl border border-neutral-200 p-4">
-          <p className="text-sm text-green-600">Total Reembolsado</p>
-          <p className="text-2xl font-bold text-green-700">R$ {formatCurrency(resumo.total_reembolsado)}</p>
-          <p className="text-xs text-green-500">{resumo.faturas_reembolsadas} faturas</p>
+        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <p className="text-label text-neutral-500">Total Reembolsado</p>
+          </div>
+          <p className="text-kpi text-neutral-900 mt-1">R$ {formatCurrency(resumo.total_reembolsado)}</p>
+          <p className="text-label text-neutral-400 mt-0.5">{resumo.faturas_reembolsadas} faturas</p>
         </div>
-        <div className="bg-blue-50 rounded-xl border border-neutral-200 p-4">
-          <p className="text-sm text-blue-600">PIX ao Sócio (Extrato)</p>
-          <p className="text-2xl font-bold text-blue-700">R$ {formatCurrency(resumo.total_movimentacoes)}</p>
-          <p className="text-xs text-blue-500">{movimentacoes.length} transferências</p>
+        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <p className="text-label text-neutral-500">PIX ao Sócio (Extrato)</p>
+          </div>
+          <p className="text-kpi text-neutral-900 mt-1">R$ {formatCurrency(resumo.total_movimentacoes)}</p>
+          <p className="text-label text-neutral-400 mt-0.5">{movimentacoes.length} transferências</p>
         </div>
-        <div className={`rounded-xl border p-4 ${
-          Math.abs((resumo.total_reembolsado || 0) - (resumo.total_movimentacoes || 0)) < 1
-            ? 'bg-green-50 border-neutral-200'
-            : 'bg-yellow-50 border-neutral-200'
-        }`}>
-          <p className="text-sm text-neutral-600">Diferença</p>
-          <p className={`text-2xl font-bold ${
-            Math.abs((resumo.total_reembolsado || 0) - (resumo.total_movimentacoes || 0)) < 1
-              ? 'text-green-700'
-              : 'text-yellow-700'
-          }`}>
+        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <p className="text-label text-neutral-500">Diferença</p>
+          <p className="text-kpi text-neutral-900 mt-1">
             R$ {formatCurrency(Math.abs((resumo.total_movimentacoes || 0) - (resumo.total_reembolsado || 0)))}
           </p>
-          <p className="text-xs text-neutral-500">Extrato vs Faturas</p>
+          <p className="text-label text-neutral-400 mt-0.5">Extrato vs Faturas</p>
         </div>
       </div>
 
       {/* Sugestões de Vinculação */}
       {sugestoes.length > 0 && (
-        <div className="bg-blue-50 rounded-xl border border-neutral-200 p-6">
-          <h2 className="text-lg font-semibold text-blue-800 mb-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <h2 className="text-section-title text-neutral-900 mb-3">
             Sugestões de Vinculação ({sugestoes.length})
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {sugestoes.filter(s => s.confianca === 'alta').map((sug, i) => (
-              <div key={i} className="bg-white rounded-lg p-4 flex items-center justify-between">
+              <div key={i} className="bg-neutral-50 rounded-lg p-3 flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                  <div className="flex items-center gap-2">
+                    <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[11px] rounded font-medium">
                       Match Exato
                     </span>
-                    <span className="font-medium text-neutral-700">
+                    <span className="text-[13px] font-medium text-neutral-900">
                       {sug.fatura.cartoes?.nome || 'Cartão'}
                     </span>
-                    <span className="text-neutral-400">→</span>
-                    <span className="text-neutral-600">
+                    <span className="text-neutral-300">→</span>
+                    <span className="text-[13px] text-neutral-500">
                       PIX {formatDate(sug.movimentacao?.data)}
                     </span>
                   </div>
-                  <p className="text-sm text-neutral-500 mt-1">
+                  <p className="text-label text-neutral-400 mt-1">
                     Fatura: R$ {formatCurrency(sug.fatura.valor_pj)} PJ •
                     Reembolso: R$ {formatCurrency(sug.movimentacao?.valor)}
                   </p>
                 </div>
                 <button
                   onClick={() => marcarReembolsado(sug.fatura.id, sug.movimentacao?.id)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                  className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-[13px] font-medium"
                 >
                   Vincular
                 </button>
@@ -247,56 +233,56 @@ export default function ReconciliacaoPage() {
       )}
 
       {/* Faturas Pendentes */}
-      <div className="bg-white rounded-xl border">
-        <div className="p-4 border-b bg-neutral-50">
-          <h2 className="text-lg font-semibold text-neutral-900">
+      <div className="bg-white rounded-lg border border-neutral-200">
+        <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50">
+          <h2 className="text-section-title text-neutral-900">
             Faturas Pendentes de Reembolso ({faturasPendentes.length})
           </h2>
         </div>
         {faturasPendentes.length === 0 ? (
-          <div className="p-8 text-center text-neutral-500">
-            <p>Todas as faturas foram reembolsadas!</p>
+          <div className="p-6 text-center text-[13px] text-neutral-500">
+            Todas as faturas foram reembolsadas!
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+            <table className="w-full">
+              <thead className="bg-neutral-50">
                 <tr>
-                  <th className="p-3 text-left">Cartão</th>
-                  <th className="p-3 text-left">Mês</th>
-                  <th className="p-3 text-right">Valor PJ</th>
-                  <th className="p-3 text-right">Valor PF</th>
-                  <th className="p-3 text-center">Status</th>
-                  <th className="p-3 text-center">Ações</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
+                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PJ</th>
+                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PF</th>
+                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Status</th>
+                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Ações</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-neutral-100">
                 {faturasPendentes.map(f => (
-                  <tr key={f.id} className="border-t hover:bg-gray-50">
-                    <td className="p-3">
-                      <span className="font-medium">{f.cartoes?.nome || 'N/A'}</span>
-                      <span className="text-xs text-neutral-400 ml-1">({f.cartoes?.banco})</span>
+                  <tr key={f.id} className="hover:bg-neutral-50">
+                    <td className="py-2 px-3">
+                      <span className="text-[13px] font-medium text-neutral-900">{f.cartoes?.nome || 'N/A'}</span>
+                      <span className="text-[11px] text-neutral-400 ml-1">({f.cartoes?.banco})</span>
                     </td>
-                    <td className="p-3 text-neutral-600">
+                    <td className="py-2 px-3 text-[13px] text-neutral-500">
                       {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="p-3 text-right font-mono text-green-600 font-medium">
+                    <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
                       R$ {formatCurrency(f.valor_pj)}
                     </td>
-                    <td className="p-3 text-right font-mono text-red-600">
+                    <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
                       R$ {formatCurrency(f.valor_pf)}
                     </td>
-                    <td className="p-3 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    <td className="py-2 px-3 text-center">
+                      <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
                         f.status === 'pago' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-700'
                       }`}>
                         {f.status === 'pago' ? 'Pago' : 'Pendente'}
                       </span>
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="py-2 px-3 text-center">
                       <button
                         onClick={() => marcarReembolsado(f.id)}
-                        className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-xs font-medium"
+                        className="px-2 py-1 bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200 text-[11px] font-medium"
                       >
                         Marcar Reembolsado
                       </button>
@@ -310,27 +296,27 @@ export default function ReconciliacaoPage() {
       </div>
 
       {/* Movimentações de Reembolso */}
-      <div className="bg-white rounded-xl border">
-        <div className="p-4 border-b bg-blue-50 flex justify-between items-start">
+      <div className="bg-white rounded-lg border border-neutral-200">
+        <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50 flex justify-between items-center">
           <div>
-            <h2 className="text-lg font-semibold text-blue-800">
+            <h2 className="text-section-title text-neutral-900">
               PIX Enviados ao Sócio ({movimentacoes.length})
             </h2>
-            <p className="text-sm text-blue-600">Transferências identificadas como reembolso no extrato PJ</p>
+            <p className="text-label text-neutral-400">Transferências identificadas como reembolso no extrato PJ</p>
           </div>
           {movimentacoes.length > 0 && (
             <button
               onClick={handleCheckDuplicates}
               disabled={loadingAction}
-              className="px-3 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 text-sm flex items-center gap-2 disabled:opacity-50"
+              className="px-3 py-1.5 text-[13px] text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 flex items-center gap-1.5 disabled:opacity-50"
             >
-              <Copy size={16} />
+              <Copy size={14} strokeWidth={1.5} />
               Verificar duplicadas
             </button>
           )}
         </div>
         {movimentacoes.length === 0 ? (
-          <div className="p-8 text-center text-neutral-500">
+          <div className="p-6 text-center text-[13px] text-neutral-500">
             <p>Nenhum reembolso identificado nos extratos.</p>
             <Link href="/extratos" className="text-neutral-600 hover:underline">
               Importar extrato →
@@ -338,38 +324,38 @@ export default function ReconciliacaoPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+            <table className="w-full">
+              <thead className="bg-neutral-50">
                 <tr>
-                  <th className="p-3 text-left">Data</th>
-                  <th className="p-3 text-left">Descrição</th>
-                  <th className="p-3 text-right">Valor</th>
-                  <th className="p-3 text-center">Vinculado</th>
-                  <th className="p-3 text-center w-12"></th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Data</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Descrição</th>
+                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor</th>
+                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Vinculado</th>
+                  <th className="py-2 px-3 text-center w-10"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-neutral-100">
                 {movimentacoes.slice(0, 20).map(m => (
-                  <tr key={m.id} className={`border-t ${m.fatura_vinculada_id ? 'bg-green-50' : ''}`}>
-                    <td className="p-3 font-mono text-xs">{formatDate(m.data)}</td>
-                    <td className="p-3 max-w-xs truncate" title={m.descricao}>{m.descricao}</td>
-                    <td className="p-3 text-right font-mono font-medium text-neutral-600">
+                  <tr key={m.id} className={`hover:bg-neutral-50 ${m.fatura_vinculada_id ? 'bg-emerald-50/30' : ''}`}>
+                    <td className="py-2 px-3 font-mono text-[11px] text-neutral-500">{formatDate(m.data)}</td>
+                    <td className="py-2 px-3 text-[13px] max-w-xs truncate text-neutral-900" title={m.descricao}>{m.descricao}</td>
+                    <td className="py-2 px-3 text-right font-mono text-[13px] font-medium text-neutral-900">
                       R$ {formatCurrency(m.valor)}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="py-2 px-3 text-center text-[13px]">
                       {m.fatura_vinculada_id ? (
-                        <span className="text-green-600">Sim</span>
+                        <span className="text-emerald-600">Sim</span>
                       ) : (
                         <span className="text-neutral-400">-</span>
                       )}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="py-2 px-3 text-center">
                       <button
                         onClick={() => setDeleteModal({ open: true, movimentacao: m })}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        className="p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                         title="Remover movimentação"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} strokeWidth={1.5} />
                       </button>
                     </td>
                   </tr>
@@ -382,33 +368,33 @@ export default function ReconciliacaoPage() {
 
       {/* Faturas Reembolsadas */}
       {faturasReembolsadas.length > 0 && (
-        <div className="bg-white rounded-xl border">
-          <div className="p-4 border-b bg-green-50">
-            <h2 className="text-lg font-semibold text-green-800">
+        <div className="bg-white rounded-lg border border-neutral-200">
+          <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50">
+            <h2 className="text-section-title text-neutral-900">
               Faturas Reembolsadas ({faturasReembolsadas.length})
             </h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+            <table className="w-full">
+              <thead className="bg-neutral-50">
                 <tr>
-                  <th className="p-3 text-left">Cartão</th>
-                  <th className="p-3 text-left">Mês</th>
-                  <th className="p-3 text-right">Valor PJ</th>
-                  <th className="p-3 text-center">Data Reembolso</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
+                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PJ</th>
+                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Data Reembolso</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-neutral-100">
                 {faturasReembolsadas.slice(0, 10).map(f => (
-                  <tr key={f.id} className="border-t">
-                    <td className="p-3 font-medium">{f.cartoes?.nome || 'N/A'}</td>
-                    <td className="p-3 text-neutral-600">
+                  <tr key={f.id} className="hover:bg-neutral-50">
+                    <td className="py-2 px-3 text-[13px] font-medium text-neutral-900">{f.cartoes?.nome || 'N/A'}</td>
+                    <td className="py-2 px-3 text-[13px] text-neutral-500">
                       {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="p-3 text-right font-mono text-green-600">
+                    <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
                       R$ {formatCurrency(f.valor_pj)}
                     </td>
-                    <td className="p-3 text-center text-neutral-500">
+                    <td className="py-2 px-3 text-center text-[13px] text-neutral-500">
                       {f.data_pagamento ? formatDate(f.data_pagamento) : '-'}
                     </td>
                   </tr>
@@ -419,7 +405,6 @@ export default function ReconciliacaoPage() {
         </div>
       )}
 
-      {/* Delete Modal */}
       <ConfirmModal
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, movimentacao: null })}
@@ -431,7 +416,6 @@ export default function ReconciliacaoPage() {
         loading={loadingAction}
       />
 
-      {/* Duplicates Modal */}
       <DuplicatesModal
         isOpen={duplicatesModal.open}
         onClose={() => setDuplicatesModal({ open: false, duplicatas: [] })}
