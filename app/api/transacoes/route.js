@@ -124,8 +124,12 @@ export async function POST(request) {
       .filter(t => t.tipo_lancamento === 'pagamento_antecipado')
       .reduce((acc, t) => acc + t.valor, 0)
 
+    const tarifaCartao = transacoesParaInserir
+      .filter(t => t.tipo_lancamento === 'tarifa_cartao')
+      .reduce((acc, t) => acc + t.valor, 0)
+
     // Usa auditoria do parser se disponivel, senao calcula
-    const totalFatura = auditoria?.total_fatura_pdf ?? parseFloat((totalCompras + iof - estornos - pagamentoAntecipado).toFixed(2))
+    const totalFatura = auditoria?.total_fatura_pdf ?? parseFloat((totalCompras + iof + tarifaCartao - estornos - pagamentoAntecipado).toFixed(2))
     const reconciliado = auditoria?.reconciliado ?? null
     const diferencaCentavos = auditoria?.diferenca_centavos ?? null
 
@@ -238,7 +242,11 @@ async function recalcularTotaisFatura(supabase, fatura_id) {
     .filter(t => t.tipo_lancamento === 'pagamento_antecipado')
     .reduce((acc, t) => acc + parseFloat(t.valor), 0)
 
-  const totalFaturaCalculado = parseFloat((totalCompras + iof - estornos - pagamentoAntecipado).toFixed(2))
+  const tarifaCartao = todas
+    .filter(t => t.tipo_lancamento === 'tarifa_cartao')
+    .reduce((acc, t) => acc + parseFloat(t.valor), 0)
+
+  const totalFaturaCalculado = parseFloat((totalCompras + iof + tarifaCartao - estornos - pagamentoAntecipado).toFixed(2))
 
   await supabase
     .from('faturas')

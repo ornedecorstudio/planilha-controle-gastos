@@ -139,13 +139,16 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Outros', incluir: false, confianca: 'alta' };
   }
   if (desc.includes('FATURA SEGURA') || desc.includes('SEGURO FATURA')) {
-    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+    return { categoria: 'Tarifas Cartão', incluir: false, confianca: 'alta' };
   }
   if (desc.includes('ANUIDADE')) {
-    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+    return { categoria: 'Tarifas Cartão', incluir: false, confianca: 'alta' };
   }
   if (desc.includes('AVAL EMERG') || desc.includes('AVALIACAO EMERG') || desc.includes('CREDITO EMERG')) {
-    return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
+    return { categoria: 'Tarifas Cartão', incluir: false, confianca: 'alta' };
+  }
+  if (desc.includes('TARIFA') && (desc.includes('CARTAO') || desc.includes('MENSAL'))) {
+    return { categoria: 'Tarifas Cartão', incluir: false, confianca: 'alta' };
   }
   if (desc.includes('TARIFA') || desc.includes('ENCARGO') || desc.includes('MULTA') || desc.includes('JUROS MORA')) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };

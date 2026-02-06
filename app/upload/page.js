@@ -461,6 +461,11 @@ export default function UploadPage() {
                     IA
                   </span>
                 )}
+                {metodoProcessamento === 'IA_PDF_HIBRIDO' && (
+                  <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] rounded font-medium">
+                    IA Híbrido
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3 text-[13px] font-medium">
                 <div className="flex items-center gap-1.5">
@@ -500,6 +505,12 @@ export default function UploadPage() {
                   <div className="flex justify-between text-neutral-500">
                     <span>+ IOF</span>
                     <span>R$ {auditoria.iof?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                  </div>
+                )}
+                {auditoria.tarifa_cartao > 0 && (
+                  <div className="flex justify-between text-neutral-500">
+                    <span>+ Tarifas cartão</span>
+                    <span>R$ {auditoria.tarifa_cartao?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                   </div>
                 )}
                 {auditoria.estornos > 0 && (
