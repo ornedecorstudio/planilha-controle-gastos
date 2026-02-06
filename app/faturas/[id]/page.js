@@ -19,6 +19,7 @@ const CATEGORY_COLORS = {
   'ERP': 'bg-orange-50 text-orange-700',
   'Gestão': 'bg-teal-50 text-teal-700',
   'Viagem Trabalho': 'bg-sky-50 text-sky-700',
+  'IOF': 'bg-red-50 text-red-700',
   'Outros PJ': 'bg-neutral-100 text-neutral-600',
   'Outros': 'bg-neutral-100 text-neutral-600',
   'Pessoal': 'bg-rose-50 text-rose-600',

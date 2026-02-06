@@ -151,9 +151,9 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
 
-  // ===== IOF - incluir como gasto empresarial =====
+  // ===== IOF - sempre incluir como gasto, categoria IOF =====
   if (desc.includes('IOF') || desc.includes('IMPOSTO OPERACOES FINANCEIRAS')) {
-    return { categoria: 'Outros', incluir: true, confianca: 'alta' };
+    return { categoria: 'IOF', incluir: true, confianca: 'alta' };
   }
 
   // ===== ALIMENTACAO (PF) =====
