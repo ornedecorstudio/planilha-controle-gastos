@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --background: #fafafa;
-  --foreground: #0a0a0a;
-  --muted: #737373;
-  --border: #e5e5e5;
+  --background: #f8f9fc;
+  --foreground: #1e2132;
+  --muted: #6e7590;
+  --border: #e2e5ee;
   --card: #ffffff;
-  --accent: #0a0a0a;
+  --accent: #1e2132;
 }
 
 body {
@@ -30,24 +30,24 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d4;
+  background: #cdd1de;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a3a3a3;
+  background: #9ba2b5;
 }
 
 /* Focus states */
 *:focus-visible {
-  outline: 2px solid #0a0a0a;
+  outline: 2px solid #1e2132;
   outline-offset: 2px;
 }
 
 /* Selection */
 ::selection {
-  background-color: #e5e5e5;
-  color: #0a0a0a;
+  background-color: #e2e5ee;
+  color: #1e2132;
 }
 
 /* Links */
@@ -68,7 +68,7 @@ input, select, textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: #a3a3a3;
+  color: #9ba2b5;
 }
 
 /* Utilitários customizados */

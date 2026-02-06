@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import MonthPicker from '@/components/MonthPicker'
 
 const CATEGORIA_EXTRATO_COLORS = {
-  'Reembolso Sócio': 'bg-amber-100 text-amber-800',
+  'Reembolso Sócio': 'bg-blue-100 text-blue-800',
   'Aporte Sócio': 'bg-emerald-100 text-emerald-800',
   'Logística': 'bg-blue-100 text-blue-800',
   'Impostos': 'bg-red-100 text-red-800',
@@ -13,7 +14,7 @@ const CATEGORIA_EXTRATO_COLORS = {
   'Câmbio': 'bg-green-100 text-green-800',
   'Taxas/Checkout': 'bg-yellow-100 text-yellow-800',
   'Receitas': 'bg-teal-100 text-teal-800',
-  'Transferência Interna': 'bg-slate-100 text-slate-800',
+  'Transferência Interna': 'bg-neutral-100 text-neutral-900',
   'Funcionários': 'bg-indigo-100 text-indigo-800',
   'Rendimentos': 'bg-cyan-100 text-cyan-800',
   'Pagamentos': 'bg-orange-100 text-orange-800',
@@ -52,6 +53,23 @@ export default function ExtratosPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [extratosImportados, setExtratosImportados] = useState([])
+  const [loadingExtratos, setLoadingExtratos] = useState(true)
+
+  useEffect(() => {
+    const carregarExtratos = async () => {
+      try {
+        const res = await fetch('/api/extratos?limit=50')
+        const data = await res.json()
+        setExtratosImportados(data.extratos || [])
+      } catch (err) {
+        console.error('Erro ao carregar extratos:', err)
+      } finally {
+        setLoadingExtratos(false)
+      }
+    }
+    carregarExtratos()
+  }, [])
 
   const bancos = [
     { id: 'itau', nome: 'Itaú' },
@@ -200,12 +218,15 @@ export default function ExtratosPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">
-          Importar Extrato Bancário - Passo {step}/2
-        </h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900">
+            Importar extrato bancario
+          </h1>
+          {step === 2 && <p className="text-neutral-500 mt-1">Passo 2 de 2 - Revisar movimentacoes</p>}
+        </div>
         {step === 1 && (
-          <Link href="/reconciliacao" className="text-amber-600 hover:underline text-sm">
-            Ver Reconciliação →
+          <Link href="/reconciliacao" className="text-neutral-500 hover:text-neutral-900 text-sm">
+            Ver Reconciliacao
           </Link>
         )}
       </div>
@@ -216,9 +237,9 @@ export default function ExtratosPage() {
       {step === 1 && (
         <div className="bg-white rounded-xl border p-6 space-y-6">
           {/* Info OFX */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <h3 className="font-semibold text-amber-800 mb-2">🏆 Recomendado: Arquivo OFX</h3>
-            <p className="text-amber-700 text-sm">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="font-semibold text-blue-800 mb-2">Recomendado: Arquivo OFX</h3>
+            <p className="text-blue-700 text-sm">
               O formato OFX é processado de forma determinística, sem uso de IA, garantindo 100% de precisão.
               Você pode baixar o extrato em OFX diretamente no internet banking do seu banco.
             </p>
@@ -232,15 +253,16 @@ export default function ExtratosPage() {
                 <option value="">Detectar automaticamente</option>
                 {bancos.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
               </select>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-neutral-500 mt-1">
                 Se usar OFX, o banco será detectado automaticamente
               </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Mês Referência *</label>
-              <input type="month" value={mesReferencia} onChange={(e) => setMesReferencia(e.target.value)}
-                className="w-full p-3 border rounded-lg" />
-            </div>
+            <MonthPicker
+              value={mesReferencia}
+              onChange={setMesReferencia}
+              label="Mes de referencia"
+              required
+            />
           </div>
 
           <div>
@@ -261,13 +283,13 @@ export default function ExtratosPage() {
             />
             {arquivo && (
               <div className="mt-2 flex items-center gap-2">
-                <span className="text-green-600 text-sm">✓ {arquivo.name}</span>
+                <span className="text-green-600 text-sm">{arquivo.name}</span>
                 {tipoArquivo === 'ofx' || tipoArquivo === 'qfx' ? (
                   <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">
                     Parser Determinístico
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">
+                  <span className="px-2 py-0.5 bg-neutral-100 text-neutral-700 text-xs rounded">
                     Processamento com IA
                   </span>
                 )}
@@ -278,7 +300,7 @@ export default function ExtratosPage() {
           <button
             onClick={handleProcessar}
             disabled={loading || !mesReferencia || !arquivo}
-            className="px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
+            className="px-6 py-3 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 font-medium"
           >
             {loading ? (
               tipoArquivo === 'pdf' ? 'Processando PDF com IA...' : 'Processando OFX...'
@@ -289,6 +311,64 @@ export default function ExtratosPage() {
         </div>
       )}
 
+      {/* Lista de extratos importados */}
+      {step === 1 && (
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="p-4 border-b">
+            <h2 className="text-lg font-semibold text-neutral-900">Extratos importados</h2>
+            <p className="text-sm text-neutral-500">{extratosImportados.length} extratos</p>
+          </div>
+          {loadingExtratos ? (
+            <div className="flex items-center justify-center h-24">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-neutral-300 border-t-neutral-900"></div>
+            </div>
+          ) : extratosImportados.length === 0 ? (
+            <div className="p-8 text-center text-neutral-500">
+              Nenhum extrato importado ainda.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="p-3 text-left font-medium text-neutral-600">Banco</th>
+                    <th className="p-3 text-left font-medium text-neutral-600">Mes</th>
+                    <th className="p-3 text-right font-medium text-neutral-600">Entradas</th>
+                    <th className="p-3 text-right font-medium text-neutral-600">Saidas</th>
+                    <th className="p-3 text-right font-medium text-neutral-600">Saldo</th>
+                    <th className="p-3 text-center font-medium text-neutral-600">Acoes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {extratosImportados.map(ext => (
+                    <tr key={ext.id} className="border-t hover:bg-neutral-50">
+                      <td className="p-3 font-medium text-neutral-900">{ext.banco}</td>
+                      <td className="p-3 text-neutral-600">
+                        {ext.mes_referencia ? new Date(ext.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : '-'}
+                      </td>
+                      <td className="p-3 text-right font-mono text-emerald-600">
+                        R$ {(parseFloat(ext.total_entradas) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-3 text-right font-mono text-rose-600">
+                        R$ {(parseFloat(ext.total_saidas) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-3 text-right font-mono font-medium text-neutral-900">
+                        R$ {(parseFloat(ext.saldo) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-3 text-center">
+                        <Link href={`/extratos/${ext.id}`} className="text-neutral-500 hover:text-neutral-900 text-xs">
+                          Ver detalhes
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {step === 2 && (
         <div className="space-y-4">
           {/* Info do Extrato */}
@@ -296,21 +376,21 @@ export default function ExtratosPage() {
             <div className="bg-white rounded-xl border p-4">
               <div className="flex flex-wrap gap-4 items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-neutral-500">
                     {extratoInfo.banco} {extratoInfo.conta && `• Conta ${extratoInfo.conta}`}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-neutral-400">
                     Período: {extratoInfo.periodo_inicio} a {extratoInfo.periodo_fim}
                     {extratoInfo.metodo === 'OFX_PARSER' && (
                       <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 rounded">
-                        ✓ OFX Preciso
+                        OFX Preciso
                       </span>
                     )}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-slate-500">Saldo Final</p>
-                  <p className="font-bold text-slate-800">
+                  <p className="text-sm text-neutral-500">Saldo Final</p>
+                  <p className="font-bold text-neutral-900">
                     R$ {(extratoInfo.saldo_final || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                   </p>
                 </div>
@@ -321,8 +401,8 @@ export default function ExtratosPage() {
           {/* Resumo */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl border p-4">
-              <p className="text-sm text-slate-500">Movimentações</p>
-              <p className="text-xl font-bold text-slate-800">{movimentacoes.length}</p>
+              <p className="text-sm text-neutral-500">Movimentações</p>
+              <p className="text-xl font-bold text-neutral-900">{movimentacoes.length}</p>
             </div>
             <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-4">
               <p className="text-sm text-emerald-600">Total Entradas</p>
@@ -336,19 +416,19 @@ export default function ExtratosPage() {
                 R$ {totalSaidas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
             </div>
-            <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
-              <p className="text-sm text-amber-600">Reembolsos ao Sócio</p>
-              <p className="text-xl font-bold text-amber-700">
+            <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
+              <p className="text-sm text-blue-600">Reembolsos ao Socio</p>
+              <p className="text-xl font-bold text-blue-700">
                 R$ {totalReembolsos.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
-              <p className="text-xs text-amber-500">{reembolsos.length} transferências</p>
+              <p className="text-xs text-blue-500">{reembolsos.length} transferencias</p>
             </div>
           </div>
 
           {/* Resumo por Categoria */}
           {resumoCategorias.length > 0 && (
             <div className="bg-white rounded-xl border p-4">
-              <h3 className="font-semibold text-slate-700 mb-3">Resumo por Categoria</h3>
+              <h3 className="font-semibold text-neutral-700 mb-3">Resumo por Categoria</h3>
               <div className="flex flex-wrap gap-2">
                 {resumoCategorias.slice(0, 8).map((cat, i) => (
                   <div key={i} className={`px-3 py-1 rounded-lg text-sm ${CATEGORIA_EXTRATO_COLORS[cat.categoria] || 'bg-gray-100'}`}>
@@ -362,12 +442,12 @@ export default function ExtratosPage() {
 
           {/* Ações */}
           <div className="bg-white rounded-xl border p-4 flex justify-between items-center">
-            <button onClick={() => setStep(1)} className="text-amber-600 hover:underline">
+            <button onClick={() => setStep(1)} className="text-neutral-600 hover:underline">
               ← Voltar
             </button>
             <button onClick={handleSalvar} disabled={saving}
               className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium">
-              {saving ? 'Salvando...' : '💾 Salvar e Reconciliar'}
+              {saving ? 'Salvando...' : 'Salvar e Reconciliar'}
             </button>
           </div>
 
@@ -386,7 +466,7 @@ export default function ExtratosPage() {
               <tbody>
                 {movimentacoes.map(m => (
                   <tr key={m.id} className={`border-t ${
-                    m.isReembolso ? 'bg-amber-50' :
+                    m.isReembolso ? 'bg-blue-50' :
                     m.tipo === 'entrada' ? 'bg-emerald-50/50' : ''
                   }`}>
                     <td className="p-3 font-mono text-xs">
@@ -395,7 +475,7 @@ export default function ExtratosPage() {
                     <td className="p-3 max-w-xs">
                       <div className="truncate" title={m.descricao}>{m.descricao}</div>
                       {m.subcategoria && (
-                        <span className="text-xs text-slate-400">{m.subcategoria}</span>
+                        <span className="text-xs text-neutral-400">{m.subcategoria}</span>
                       )}
                     </td>
                     <td className="p-3">

@@ -51,11 +51,11 @@ export default function DuplicatesModal({
         <div className="p-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className="text-amber-500" size={20} />
-            <h3 className="text-lg font-semibold text-slate-800">
+            <h3 className="text-lg font-semibold text-neutral-800">
               {duplicatas.length} transações duplicadas encontradas
             </h3>
           </div>
-          <button onClick={handleClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={handleClose} className="text-neutral-400 hover:text-neutral-600">
             <X size={20} />
           </button>
         </div>
@@ -64,8 +64,8 @@ export default function DuplicatesModal({
           {confirmStep ? (
             <div className="text-center py-8">
               <AlertTriangle className="text-red-500 mx-auto mb-4" size={48} />
-              <h4 className="text-lg font-semibold text-slate-800 mb-2">Confirmar remoção</h4>
-              <p className="text-slate-600 mb-4">
+              <h4 className="text-lg font-semibold text-neutral-800 mb-2">Confirmar remoção</h4>
+              <p className="text-neutral-600 mb-4">
                 Você está prestes a remover <strong>{selectedIds.size}</strong> transações
                 totalizando <strong>R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>.
               </p>
@@ -74,15 +74,15 @@ export default function DuplicatesModal({
           ) : (
             <>
               <div className="flex gap-2 mb-4">
-                <button onClick={selectAll} className="text-xs text-slate-600 hover:text-slate-800 underline">
+                <button onClick={selectAll} className="text-xs text-neutral-600 hover:text-neutral-800 underline">
                   selecionar todas
                 </button>
-                <span className="text-slate-300">|</span>
-                <button onClick={deselectAll} className="text-xs text-slate-600 hover:text-slate-800 underline">
+                <span className="text-neutral-300">|</span>
+                <button onClick={deselectAll} className="text-xs text-neutral-600 hover:text-neutral-800 underline">
                   desmarcar todas
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mb-3">
+              <p className="text-xs text-neutral-500 mb-3">
                 Transações com mesma data, descrição e valor que já existem na fatura.
                 A versão original será mantida, apenas as cópias serão removidas.
               </p>
@@ -91,18 +91,18 @@ export default function DuplicatesModal({
                   <label
                     key={d.id}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedIds.has(d.id) ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'
+                      selectedIds.has(d.id) ? 'bg-red-50 border-red-200' : 'bg-neutral-50 border-neutral-200'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={selectedIds.has(d.id)}
                       onChange={() => toggleSelection(d.id)}
-                      className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500"
+                      className="w-4 h-4 text-red-600 rounded border-neutral-300 focus:ring-red-500"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-700 truncate">{d.descricao}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-neutral-700 truncate">{d.descricao}</p>
+                      <p className="text-xs text-neutral-500">
                         {d.data ? new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'} - {d.categoria}
                       </p>
                       {d.motivo && (
@@ -110,7 +110,7 @@ export default function DuplicatesModal({
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-slate-700">
+                      <p className="text-sm font-medium text-neutral-700">
                         R$ {parseFloat(d.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
@@ -126,15 +126,15 @@ export default function DuplicatesModal({
           )}
         </div>
 
-        <div className="p-4 border-t bg-slate-50 flex items-center justify-between">
-          <div className="text-sm text-slate-600">
+        <div className="p-4 border-t bg-neutral-50 flex items-center justify-between">
+          <div className="text-sm text-neutral-600">
             {selectedIds.size} selecionadas - R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </div>
           <div className="flex gap-3">
             <button
               onClick={handleClose}
               disabled={loading}
-              className="px-4 py-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 font-medium disabled:opacity-50"
+              className="px-4 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-100 font-medium disabled:opacity-50"
             >
               Cancelar
             </button>
@@ -142,7 +142,7 @@ export default function DuplicatesModal({
               <button
                 onClick={() => setConfirmStep(false)}
                 disabled={loading}
-                className="px-4 py-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 font-medium disabled:opacity-50"
+                className="px-4 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-100 font-medium disabled:opacity-50"
               >
                 Voltar
               </button>

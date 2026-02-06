@@ -7,104 +7,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Cores base - Estilo Vercel/Shopify
-        background: '#fafafa',
-        foreground: '#0a0a0a',
-        
-        // Tons de cinza customizados
+        background: '#f8f9fc',
+        foreground: '#1e2132',
+
         neutral: {
-          50: '#fafafa',
-          100: '#f5f5f5',
-          200: '#e5e5e5',
-          300: '#d4d4d4',
-          400: '#a3a3a3',
-          500: '#737373',
-          600: '#525252',
-          700: '#404040',
-          800: '#262626',
-          900: '#171717',
-          950: '#0a0a0a',
-        },
-        
-        // Cores pastéis para categorias
-        pastel: {
-          // Verdes pastéis (PJ/Empresarial)
-          green: {
-            light: '#dcfce7',
-            DEFAULT: '#bbf7d0',
-            dark: '#86efac',
-            text: '#166534',
-          },
-          // Vermelhos pastéis (PF/Pessoal)
-          red: {
-            light: '#fee2e2',
-            DEFAULT: '#fecaca',
-            dark: '#fca5a5',
-            text: '#991b1b',
-          },
-          // Azuis pastéis (Marketing)
-          blue: {
-            light: '#dbeafe',
-            DEFAULT: '#bfdbfe',
-            dark: '#93c5fd',
-            text: '#1e40af',
-          },
-          // Roxos pastéis (Fornecedores)
-          purple: {
-            light: '#ede9fe',
-            DEFAULT: '#ddd6fe',
-            dark: '#c4b5fd',
-            text: '#5b21b6',
-          },
-          // Amarelos pastéis (Checkout)
-          yellow: {
-            light: '#fef9c3',
-            DEFAULT: '#fef08a',
-            dark: '#fde047',
-            text: '#854d0e',
-          },
-          // Cyans pastéis (Logística)
-          cyan: {
-            light: '#cffafe',
-            DEFAULT: '#a5f3fc',
-            dark: '#67e8f9',
-            text: '#155e75',
-          },
-          // Rosas pastéis (Telefonia)
-          pink: {
-            light: '#fce7f3',
-            DEFAULT: '#fbcfe8',
-            dark: '#f9a8d4',
-            text: '#9d174d',
-          },
-          // Laranjas pastéis (ERP)
-          orange: {
-            light: '#ffedd5',
-            DEFAULT: '#fed7aa',
-            dark: '#fdba74',
-            text: '#9a3412',
-          },
-          // Teals pastéis (Gestão)
-          teal: {
-            light: '#ccfbf1',
-            DEFAULT: '#99f6e4',
-            dark: '#5eead4',
-            text: '#115e59',
-          },
-          // Índigos pastéis (IA/Automação)
-          indigo: {
-            light: '#e0e7ff',
-            DEFAULT: '#c7d2fe',
-            dark: '#a5b4fc',
-            text: '#3730a3',
-          },
-          // Violetas pastéis (Design)
-          violet: {
-            light: '#ede9fe',
-            DEFAULT: '#ddd6fe',
-            dark: '#c4b5fd',
-            text: '#5b21b6',
-          },
+          50: '#f8f9fc',
+          100: '#f1f3f8',
+          200: '#e2e5ee',
+          300: '#cdd1de',
+          400: '#9ba2b5',
+          500: '#6e7590',
+          600: '#515873',
+          700: '#3f4560',
+          800: '#2d3148',
+          900: '#1e2132',
+          950: '#12141f',
         },
       },
       fontFamily: {

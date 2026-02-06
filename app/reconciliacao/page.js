@@ -150,7 +150,7 @@ export default function ReconciliacaoPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-neutral-300 border-t-neutral-900"></div>
       </div>
     )
   }
@@ -162,11 +162,11 @@ export default function ReconciliacaoPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Reconciliação de Reembolsos</h1>
-          <p className="text-slate-500">Vincule faturas PF com reembolsos do extrato PJ</p>
+          <h1 className="text-2xl font-bold text-neutral-900">Reconciliação de Reembolsos</h1>
+          <p className="text-neutral-500">Vincule faturas PF com reembolsos do extrato PJ</p>
         </div>
-        <Link href="/extratos" className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium">
-          + Importar Extrato
+        <Link href="/extratos" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+          Novo extrato
         </Link>
       </div>
 
@@ -195,7 +195,7 @@ export default function ReconciliacaoPage() {
             ? 'bg-green-50 border-green-200'
             : 'bg-yellow-50 border-yellow-200'
         }`}>
-          <p className="text-sm text-slate-600">Diferença</p>
+          <p className="text-sm text-neutral-600">Diferença</p>
           <p className={`text-2xl font-bold ${
             Math.abs((resumo.total_reembolsado || 0) - (resumo.total_movimentacoes || 0)) < 1
               ? 'text-green-700'
@@ -203,15 +203,15 @@ export default function ReconciliacaoPage() {
           }`}>
             R$ {formatCurrency(Math.abs((resumo.total_movimentacoes || 0) - (resumo.total_reembolsado || 0)))}
           </p>
-          <p className="text-xs text-slate-500">Extrato vs Faturas</p>
+          <p className="text-xs text-neutral-500">Extrato vs Faturas</p>
         </div>
       </div>
 
       {/* Sugestões de Vinculação */}
       {sugestoes.length > 0 && (
-        <div className="bg-amber-50 rounded-xl border border-amber-200 p-6">
-          <h2 className="text-lg font-semibold text-amber-800 mb-4">
-            💡 Sugestões de Vinculação ({sugestoes.length})
+        <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
+          <h2 className="text-lg font-semibold text-blue-800 mb-4">
+            Sugestoes de Vinculacao ({sugestoes.length})
           </h2>
           <div className="space-y-3">
             {sugestoes.filter(s => s.confianca === 'alta').map((sug, i) => (
@@ -221,15 +221,15 @@ export default function ReconciliacaoPage() {
                     <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
                       Match Exato
                     </span>
-                    <span className="font-medium text-slate-700">
+                    <span className="font-medium text-neutral-700">
                       {sug.fatura.cartoes?.nome || 'Cartão'}
                     </span>
-                    <span className="text-slate-400">→</span>
-                    <span className="text-slate-600">
+                    <span className="text-neutral-400">→</span>
+                    <span className="text-neutral-600">
                       PIX {formatDate(sug.movimentacao?.data)}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 mt-1">
+                  <p className="text-sm text-neutral-500 mt-1">
                     Fatura: R$ {formatCurrency(sug.fatura.valor_pj)} PJ •
                     Reembolso: R$ {formatCurrency(sug.movimentacao?.valor)}
                   </p>
@@ -238,7 +238,7 @@ export default function ReconciliacaoPage() {
                   onClick={() => marcarReembolsado(sug.fatura.id, sug.movimentacao?.id)}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
                 >
-                  ✓ Vincular
+                  Vincular
                 </button>
               </div>
             ))}
@@ -248,14 +248,14 @@ export default function ReconciliacaoPage() {
 
       {/* Faturas Pendentes */}
       <div className="bg-white rounded-xl border">
-        <div className="p-4 border-b bg-amber-50">
-          <h2 className="text-lg font-semibold text-amber-800">
+        <div className="p-4 border-b bg-neutral-50">
+          <h2 className="text-lg font-semibold text-neutral-900">
             Faturas Pendentes de Reembolso ({faturasPendentes.length})
           </h2>
         </div>
         {faturasPendentes.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">
-            <p>🎉 Todas as faturas foram reembolsadas!</p>
+          <div className="p-8 text-center text-neutral-500">
+            <p>Todas as faturas foram reembolsadas!</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -275,9 +275,9 @@ export default function ReconciliacaoPage() {
                   <tr key={f.id} className="border-t hover:bg-gray-50">
                     <td className="p-3">
                       <span className="font-medium">{f.cartoes?.nome || 'N/A'}</span>
-                      <span className="text-xs text-slate-400 ml-1">({f.cartoes?.banco})</span>
+                      <span className="text-xs text-neutral-400 ml-1">({f.cartoes?.banco})</span>
                     </td>
-                    <td className="p-3 text-slate-600">
+                    <td className="p-3 text-neutral-600">
                       {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
                     </td>
                     <td className="p-3 text-right font-mono text-green-600 font-medium">
@@ -288,7 +288,7 @@ export default function ReconciliacaoPage() {
                     </td>
                     <td className="p-3 text-center">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        f.status === 'pago' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                        f.status === 'pago' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-700'
                       }`}>
                         {f.status === 'pago' ? 'Pago' : 'Pendente'}
                       </span>
@@ -322,7 +322,7 @@ export default function ReconciliacaoPage() {
             <button
               onClick={handleCheckDuplicates}
               disabled={loadingAction}
-              className="px-3 py-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-sm flex items-center gap-2 disabled:opacity-50"
+              className="px-3 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 text-sm flex items-center gap-2 disabled:opacity-50"
             >
               <Copy size={16} />
               Verificar duplicadas
@@ -330,9 +330,9 @@ export default function ReconciliacaoPage() {
           )}
         </div>
         {movimentacoes.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">
+          <div className="p-8 text-center text-neutral-500">
             <p>Nenhum reembolso identificado nos extratos.</p>
-            <Link href="/extratos" className="text-amber-600 hover:underline">
+            <Link href="/extratos" className="text-neutral-600 hover:underline">
               Importar extrato →
             </Link>
           </div>
@@ -353,14 +353,14 @@ export default function ReconciliacaoPage() {
                   <tr key={m.id} className={`border-t ${m.fatura_vinculada_id ? 'bg-green-50' : ''}`}>
                     <td className="p-3 font-mono text-xs">{formatDate(m.data)}</td>
                     <td className="p-3 max-w-xs truncate" title={m.descricao}>{m.descricao}</td>
-                    <td className="p-3 text-right font-mono font-medium text-amber-600">
+                    <td className="p-3 text-right font-mono font-medium text-neutral-600">
                       R$ {formatCurrency(m.valor)}
                     </td>
                     <td className="p-3 text-center">
                       {m.fatura_vinculada_id ? (
-                        <span className="text-green-600">✓</span>
+                        <span className="text-green-600">Sim</span>
                       ) : (
-                        <span className="text-slate-400">-</span>
+                        <span className="text-neutral-400">-</span>
                       )}
                     </td>
                     <td className="p-3 text-center">
@@ -402,13 +402,13 @@ export default function ReconciliacaoPage() {
                 {faturasReembolsadas.slice(0, 10).map(f => (
                   <tr key={f.id} className="border-t">
                     <td className="p-3 font-medium">{f.cartoes?.nome || 'N/A'}</td>
-                    <td className="p-3 text-slate-600">
+                    <td className="p-3 text-neutral-600">
                       {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
                     </td>
                     <td className="p-3 text-right font-mono text-green-600">
                       R$ {formatCurrency(f.valor_pj)}
                     </td>
-                    <td className="p-3 text-center text-slate-500">
+                    <td className="p-3 text-center text-neutral-500">
                       {f.data_pagamento ? formatDate(f.data_pagamento) : '-'}
                     </td>
                   </tr>

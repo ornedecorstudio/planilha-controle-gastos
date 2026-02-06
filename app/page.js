@@ -299,7 +299,7 @@ export default function DashboardPage() {
                   ? 'text-amber-700'
                   : 'text-neutral-600'
             }`}>
-              {pendente === 0 && resumo.totalPJ > 0 ? '✓ Conciliado' : pendente > 0 ? 'Pendente' : 'Sem dados'}
+              {pendente === 0 && resumo.totalPJ > 0 ? 'Conciliado' : pendente > 0 ? 'Pendente' : 'Sem dados'}
             </p>
           </div>
         </div>

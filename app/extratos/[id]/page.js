@@ -237,7 +237,7 @@ export default function ExtratoDetalhesPage() {
             R$ {formatCurrency(totalSaidas)}
           </p>
         </div>
-        <div className={`rounded-lg border p-4 ${totalEntradas - totalSaidas >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
+        <div className={`rounded-lg border p-4 ${totalEntradas - totalSaidas >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-neutral-100 border-amber-200'}`}>
           <p className={`text-sm font-medium ${totalEntradas - totalSaidas >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>Saldo</p>
           <p className={`text-xl font-bold ${totalEntradas - totalSaidas >= 0 ? 'text-blue-700' : 'text-amber-700'}`}>
             R$ {formatCurrency(totalEntradas - totalSaidas)}
@@ -296,10 +296,10 @@ export default function ExtratoDetalhesPage() {
             </thead>
             <tbody>
               {movimentacoesFiltradas.map(m => (
-                <tr key={m.id} className={`border-t border-neutral-100 hover:bg-neutral-50 ${selectedIds.has(m.id) ? 'bg-amber-50' : ''}`}>
+                <tr key={m.id} className={`border-t border-neutral-100 hover:bg-neutral-50 ${selectedIds.has(m.id) ? 'bg-neutral-100' : ''}`}>
                   <td className="p-3 text-center">
                     <button onClick={() => toggleSelection(m.id)} className="text-neutral-400 hover:text-neutral-600">
-                      {selectedIds.has(m.id) ? <CheckSquare size={18} className="text-amber-500" /> : <Square size={18} />}
+                      {selectedIds.has(m.id) ? <CheckSquare size={18} className="text-neutral-900" /> : <Square size={18} />}
                     </button>
                   </td>
                   <td className="p-3 text-neutral-600">{formatDate(m.data)}</td>

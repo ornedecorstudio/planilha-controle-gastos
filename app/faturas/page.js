@@ -100,7 +100,7 @@ export default function FaturasPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-neutral-300 border-t-neutral-900"></div>
       </div>
     )
   }
@@ -125,8 +125,8 @@ export default function FaturasPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Faturas</h1>
-          <p className="text-slate-500">{faturas.length} faturas cadastradas</p>
+          <h1 className="text-2xl font-bold text-neutral-900">Faturas</h1>
+          <p className="text-neutral-500">{faturas.length} faturas cadastradas</p>
         </div>
         <div className="flex gap-2">
           {selectedIds.size > 0 && (
@@ -138,17 +138,14 @@ export default function FaturasPage() {
               Remover {selectedIds.size} selecionadas
             </button>
           )}
-          <Link href="/upload" className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium">
-            + Nova fatura
-          </Link>
         </div>
       </div>
 
       {/* Totais */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border p-4">
-          <p className="text-sm text-slate-500">Total geral</p>
-          <p className="text-xl font-bold text-slate-800">
+          <p className="text-sm text-neutral-500">Total geral</p>
+          <p className="text-xl font-bold text-neutral-900">
             R$ {(totalPJ + totalPF).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
@@ -174,7 +171,7 @@ export default function FaturasPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="p-3 text-center w-12">
-                    <button onClick={selectAll} className="text-slate-400 hover:text-slate-600">
+                    <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
                       {selectedIds.size === faturas.length ? <CheckSquare size={18} /> : <Square size={18} />}
                     </button>
                   </th>
@@ -190,20 +187,20 @@ export default function FaturasPage() {
               </thead>
               <tbody>
                 {faturas.map(f => (
-                  <tr key={f.id} className={`border-t hover:bg-gray-50 ${selectedIds.has(f.id) ? 'bg-amber-50' : ''}`}>
+                  <tr key={f.id} className={`border-t hover:bg-gray-50 ${selectedIds.has(f.id) ? 'bg-neutral-100' : ''}`}>
                     <td className="p-3 text-center">
-                      <button onClick={() => toggleSelection(f.id)} className="text-slate-400 hover:text-slate-600">
-                        {selectedIds.has(f.id) ? <CheckSquare size={18} className="text-amber-500" /> : <Square size={18} />}
+                      <button onClick={() => toggleSelection(f.id)} className="text-neutral-400 hover:text-neutral-600">
+                        {selectedIds.has(f.id) ? <CheckSquare size={18} className="text-neutral-900" /> : <Square size={18} />}
                       </button>
                     </td>
-                    <td className="p-3 font-medium text-slate-700">
+                    <td className="p-3 font-medium text-neutral-700">
                       {f.cartoes?.nome || 'N/A'}
-                      <span className="text-xs text-slate-400 ml-1">({f.cartoes?.tipo})</span>
+                      <span className="text-xs text-neutral-400 ml-1">({f.cartoes?.tipo})</span>
                     </td>
-                    <td className="p-3 text-slate-600">
+                    <td className="p-3 text-neutral-600">
                       {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="p-3 text-slate-600">
+                    <td className="p-3 text-neutral-600">
                       {f.data_vencimento ? new Date(f.data_vencimento).toLocaleDateString('pt-BR') : '-'}
                     </td>
                     <td className="p-3 text-right font-medium">
@@ -235,13 +232,13 @@ export default function FaturasPage() {
                         {f.pdf_url && (
                           <button
                             onClick={() => window.open(f.pdf_url, '_blank')}
-                            className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
+                            className="p-1.5 text-neutral-900 hover:text-neutral-900 hover:bg-neutral-100 rounded transition-colors"
                             title="Ver PDF"
                           >
                             <FileText size={16} />
                           </button>
                         )}
-                        <Link href={`/faturas/${f.id}`} className="text-amber-600 hover:underline text-xs">
+                        <Link href={`/faturas/${f.id}`} className="text-neutral-600 hover:underline text-xs">
                           Ver detalhes
                         </Link>
                         <button
@@ -261,11 +258,11 @@ export default function FaturasPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border p-8 text-center">
-          <FileText className="mx-auto mb-4 text-slate-300" size={48} />
-          <h3 className="text-lg font-semibold text-slate-700">Nenhuma fatura</h3>
-          <p className="text-slate-500">Importe sua primeira fatura para começar</p>
-          <Link href="/upload" className="inline-block mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600">
-            + Importar fatura
+          <FileText className="mx-auto mb-4 text-neutral-300" size={48} />
+          <h3 className="text-lg font-semibold text-neutral-700">Nenhuma fatura</h3>
+          <p className="text-neutral-500">Importe sua primeira fatura para começar</p>
+          <Link href="/upload" className="inline-block mt-4 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800">
+            Importar fatura
           </Link>
         </div>
       )}
