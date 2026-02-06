@@ -19,6 +19,8 @@ const CATEGORY_COLORS = {
   'Gestão': 'bg-teal-50 text-teal-700',
   'Viagem Trabalho': 'bg-sky-50 text-sky-700',
   'IOF': 'bg-red-50 text-red-700',
+  'Estorno': 'bg-emerald-50 text-emerald-700',
+  'Pagamento Antecipado': 'bg-sky-50 text-sky-700',
   'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Pessoal': 'bg-rose-50 text-rose-600',
@@ -44,6 +46,7 @@ export default function UploadPage() {
   const [success, setSuccess] = useState('')
   const [duplicateWarning, setDuplicateWarning] = useState(null)
   const [metodoProcessamento, setMetodoProcessamento] = useState('')
+  const [auditoria, setAuditoria] = useState(null)
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -166,9 +169,14 @@ export default function UploadPage() {
           descricao: t.descricao,
           valor: parseFloat(t.valor) || 0,
           parcela: t.parcela || null,
+          tipo_lancamento: t.tipo_lancamento || 'compra',
           categoria: 'Outros PJ',
           tipo: 'PJ'
         })).filter(t => t.data && t.valor > 0)
+
+        if (pdfResult.auditoria) {
+          setAuditoria(pdfResult.auditoria)
+        }
 
         metodo = pdfResult.metodo || 'IA_PDF'
       }
@@ -311,8 +319,10 @@ export default function UploadPage() {
           fatura_id: faturaResult.fatura.id,
           transacoes: transactions.map(t => ({
             data: t.data, descricao: t.descricao, valor: t.valor,
-            categoria: t.categoria, tipo: t.tipo, metodo: 'automatico'
-          }))
+            categoria: t.categoria, tipo: t.tipo, metodo: 'automatico',
+            tipo_lancamento: t.tipo_lancamento || 'compra'
+          })),
+          auditoria: auditoria || null
         })
       })
       const transacoesResult = await transacoesRes.json()
@@ -340,8 +350,9 @@ export default function UploadPage() {
     }))
   }
 
-  const totalPJ = transactions.filter(t => t.tipo === 'PJ').reduce((a, t) => a + t.valor, 0)
-  const totalPF = transactions.filter(t => t.tipo === 'PF').reduce((a, t) => a + t.valor, 0)
+  const compras = transactions.filter(t => (t.tipo_lancamento || 'compra') === 'compra')
+  const totalPJ = compras.filter(t => t.tipo === 'PJ').reduce((a, t) => a + t.valor, 0)
+  const totalPF = compras.filter(t => t.tipo === 'PF').reduce((a, t) => a + t.valor, 0)
 
   return (
     <div className="space-y-5">
@@ -465,6 +476,57 @@ export default function UploadPage() {
             </div>
             <button onClick={() => setStep(1)} className="text-neutral-500 hover:text-neutral-900 text-[13px]">← Voltar</button>
           </div>
+
+          {auditoria && (
+            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[13px] font-medium text-neutral-900">Reconciliação da fatura</h3>
+                {auditoria.reconciliado === true && (
+                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] rounded font-medium">Reconciliado</span>
+                )}
+                {auditoria.reconciliado === false && (
+                  <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[11px] rounded font-medium">Divergência: {auditoria.diferenca_centavos} centavos</span>
+                )}
+                {auditoria.reconciliado === null && (
+                  <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-500 text-[11px] rounded font-medium">Não verificável</span>
+                )}
+              </div>
+              <div className="space-y-1.5 text-[13px] font-mono">
+                <div className="flex justify-between text-neutral-700">
+                  <span>Total compras (gross)</span>
+                  <span>R$ {auditoria.total_compras?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                </div>
+                {auditoria.iof > 0 && (
+                  <div className="flex justify-between text-neutral-500">
+                    <span>+ IOF</span>
+                    <span>R$ {auditoria.iof?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                  </div>
+                )}
+                {auditoria.estornos > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>- Estornos</span>
+                    <span>- R$ {auditoria.estornos?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                  </div>
+                )}
+                {auditoria.pagamento_antecipado > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>- Pgto antecipado</span>
+                    <span>- R$ {auditoria.pagamento_antecipado?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                  </div>
+                )}
+                <div className="border-t border-neutral-200 pt-1.5 flex justify-between font-medium text-neutral-900">
+                  <span>= Total calculado</span>
+                  <span>R$ {auditoria.total_fatura_calculado?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                </div>
+                {auditoria.total_fatura_pdf !== null && (
+                  <div className="flex justify-between text-neutral-500">
+                    <span>Total no PDF</span>
+                    <span>R$ {auditoria.total_fatura_pdf?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
             <div className="overflow-x-auto">

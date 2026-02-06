@@ -151,9 +151,20 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
 
-  // ===== IOF - sempre incluir como gasto, categoria IOF =====
+  // ===== ESTORNOS E CRÉDITOS (EXCLUIR do split PJ/PF) =====
+  if (desc.includes('ESTORNO') || desc.includes('CREDITO NA FATURA') || desc.includes('CREDITO FATURA') ||
+      desc.includes('DEVOLUCAO') || desc.includes('REEMBOLSO') || desc.includes('CASHBACK') || desc.includes('BONIFICACAO')) {
+    return { categoria: 'Estorno', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== PAGAMENTO ANTECIPADO (EXCLUIR do split PJ/PF) =====
+  if (desc.includes('PAGAMENTO ANTECIPADO') || desc.includes('PGTO ANTECIPADO') || desc.includes('PAG ANTECIPADO')) {
+    return { categoria: 'Pagamento Antecipado', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== IOF - campo separado na fatura, não infla split PJ/PF =====
   if (desc.includes('IOF') || desc.includes('IMPOSTO OPERACOES FINANCEIRAS')) {
-    return { categoria: 'IOF', incluir: true, confianca: 'alta' };
+    return { categoria: 'IOF', incluir: false, confianca: 'alta' };
   }
 
   // ===== ALIMENTACAO (PF) =====

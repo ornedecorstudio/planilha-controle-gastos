@@ -69,12 +69,12 @@ export async function POST(request) {
     const supabase = createServerClient()
     const body = await request.json()
     
-    const { fatura_id, transacoes } = body
-    
+    const { fatura_id, transacoes, auditoria } = body
+
     if (!fatura_id || !transacoes || !Array.isArray(transacoes)) {
       return NextResponse.json({ error: 'fatura_id e array de transacoes sao obrigatorios' }, { status: 400 })
     }
-    
+
     // Prepara transacoes com fatura_id
     const transacoesParaInserir = transacoes.map(t => ({
       fatura_id,
@@ -83,44 +83,72 @@ export async function POST(request) {
       valor: parseFloat(t.valor) || 0,
       categoria: t.categoria || 'Outros',
       tipo: t.tipo || 'PJ',
-      metodo: t.metodo || 'automatico'
+      metodo: t.metodo || 'automatico',
+      tipo_lancamento: t.tipo_lancamento || 'compra'
     }))
-    
+
     // Insere transacoes
     const { data, error } = await supabase
       .from('transacoes')
       .insert(transacoesParaInserir)
       .select()
-    
+
     if (error) {
       console.error('Erro ao inserir transacoes:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
-    
-    // Atualiza totais da fatura
-    const totalPJ = transacoesParaInserir
+
+    // Calcula PJ/PF somente de compras (tipo_lancamento='compra')
+    const compras = transacoesParaInserir.filter(t => t.tipo_lancamento === 'compra')
+
+    const totalPJ = compras
       .filter(t => t.tipo === 'PJ')
       .reduce((acc, t) => acc + t.valor, 0)
-    
-    const totalPF = transacoesParaInserir
+
+    const totalPF = compras
       .filter(t => t.tipo === 'PF')
       .reduce((acc, t) => acc + t.valor, 0)
-    
-    const valorTotal = totalPJ + totalPF
-    
+
+    const totalCompras = totalPJ + totalPF
+
+    // Calcula campos de reconciliacao a partir das transacoes
+    const iof = transacoesParaInserir
+      .filter(t => t.tipo_lancamento === 'iof')
+      .reduce((acc, t) => acc + t.valor, 0)
+
+    const estornos = transacoesParaInserir
+      .filter(t => t.tipo_lancamento === 'estorno')
+      .reduce((acc, t) => acc + t.valor, 0)
+
+    const pagamentoAntecipado = transacoesParaInserir
+      .filter(t => t.tipo_lancamento === 'pagamento_antecipado')
+      .reduce((acc, t) => acc + t.valor, 0)
+
+    // Usa auditoria do parser se disponivel, senao calcula
+    const totalFatura = auditoria?.total_fatura_pdf ?? parseFloat((totalCompras + iof - estornos - pagamentoAntecipado).toFixed(2))
+    const reconciliado = auditoria?.reconciliado ?? null
+    const diferencaCentavos = auditoria?.diferenca_centavos ?? null
+
     await supabase
       .from('faturas')
       .update({
-        valor_total: valorTotal,
+        valor_total: totalCompras,
         valor_pj: totalPJ,
-        valor_pf: totalPF
+        valor_pf: totalPF,
+        total_compras: totalCompras,
+        total_fatura: totalFatura,
+        iof: iof,
+        estornos: estornos,
+        pagamento_antecipado: pagamentoAntecipado,
+        reconciliado: reconciliado,
+        diferenca_centavos: diferencaCentavos
       })
       .eq('id', fatura_id)
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       transacoes: data,
       quantidade: data.length,
-      totais: { pj: totalPJ, pf: totalPF, total: valorTotal }
+      totais: { pj: totalPJ, pf: totalPF, total: totalCompras, total_fatura: totalFatura }
     }, { status: 201 })
     
   } catch (error) {
@@ -165,29 +193,7 @@ export async function PATCH(request) {
       .single()
     
     if (fatura) {
-      const { data: todasTransacoes } = await supabase
-        .from('transacoes')
-        .select('valor, tipo')
-        .eq('fatura_id', fatura.fatura_id)
-      
-      if (todasTransacoes) {
-        const totalPJ = todasTransacoes
-          .filter(t => t.tipo === 'PJ')
-          .reduce((acc, t) => acc + parseFloat(t.valor), 0)
-        
-        const totalPF = todasTransacoes
-          .filter(t => t.tipo === 'PF')
-          .reduce((acc, t) => acc + parseFloat(t.valor), 0)
-        
-        await supabase
-          .from('faturas')
-          .update({
-            valor_total: totalPJ + totalPF,
-            valor_pj: totalPJ,
-            valor_pf: totalPF
-          })
-          .eq('id', fatura.fatura_id)
-      }
+      await recalcularTotaisFatura(supabase, fatura.fatura_id)
     }
     
     return NextResponse.json({ transacao: data })
@@ -202,27 +208,52 @@ export async function PATCH(request) {
 async function recalcularTotaisFatura(supabase, fatura_id) {
   const { data: todasTransacoes } = await supabase
     .from('transacoes')
-    .select('valor, tipo')
+    .select('valor, tipo, tipo_lancamento')
     .eq('fatura_id', fatura_id)
 
-  const totalPJ = (todasTransacoes || [])
+  const todas = todasTransacoes || []
+
+  // PJ/PF somente de compras
+  const compras = todas.filter(t => (t.tipo_lancamento || 'compra') === 'compra')
+
+  const totalPJ = compras
     .filter(t => t.tipo === 'PJ')
     .reduce((acc, t) => acc + parseFloat(t.valor), 0)
 
-  const totalPF = (todasTransacoes || [])
+  const totalPF = compras
     .filter(t => t.tipo === 'PF')
     .reduce((acc, t) => acc + parseFloat(t.valor), 0)
+
+  const totalCompras = totalPJ + totalPF
+
+  const iof = todas
+    .filter(t => t.tipo_lancamento === 'iof')
+    .reduce((acc, t) => acc + parseFloat(t.valor), 0)
+
+  const estornos = todas
+    .filter(t => t.tipo_lancamento === 'estorno')
+    .reduce((acc, t) => acc + parseFloat(t.valor), 0)
+
+  const pagamentoAntecipado = todas
+    .filter(t => t.tipo_lancamento === 'pagamento_antecipado')
+    .reduce((acc, t) => acc + parseFloat(t.valor), 0)
+
+  const totalFaturaCalculado = parseFloat((totalCompras + iof - estornos - pagamentoAntecipado).toFixed(2))
 
   await supabase
     .from('faturas')
     .update({
-      valor_total: totalPJ + totalPF,
+      valor_total: totalCompras,
       valor_pj: totalPJ,
-      valor_pf: totalPF
+      valor_pf: totalPF,
+      total_compras: totalCompras,
+      iof: iof,
+      estornos: estornos,
+      pagamento_antecipado: pagamentoAntecipado
     })
     .eq('id', fatura_id)
 
-  return { totalPJ, totalPF, total: totalPJ + totalPF }
+  return { totalPJ, totalPF, total: totalCompras, total_fatura: totalFaturaCalculado }
 }
 
 // DELETE - Remove transacoes (individual ou duplicadas em lote)

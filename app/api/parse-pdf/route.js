@@ -59,7 +59,8 @@ export async function POST(request) {
             total_encontrado: resultadoDeterministico.total_encontrado,
             valor_total: resultadoDeterministico.valor_total,
             banco_detectado: resultadoDeterministico.banco_detectado,
-            metodo: 'PARSER_DETERMINISTICO'
+            metodo: 'PARSER_DETERMINISTICO',
+            ...(resultadoDeterministico.resumo_fatura ? { auditoria: resultadoDeterministico.resumo_fatura } : {})
           });
         }
         
@@ -84,7 +85,8 @@ export async function POST(request) {
           total_encontrado: resultadoDeterministico.total_encontrado,
           valor_total: resultadoDeterministico.valor_total,
           banco_detectado: resultadoDeterministico.banco_detectado || 'desconhecido',
-          metodo: 'PARSER_DETERMINISTICO_PARCIAL'
+          metodo: 'PARSER_DETERMINISTICO_PARCIAL',
+          ...(resultadoDeterministico.resumo_fatura ? { auditoria: resultadoDeterministico.resumo_fatura } : {})
         });
       }
       
@@ -169,7 +171,8 @@ Retorne APENAS um JSON válido, SEM markdown:
           valor_total: resultadoDeterministico.valor_total,
           banco_detectado: resultadoDeterministico.banco_detectado || 'desconhecido',
           metodo: 'PARSER_DETERMINISTICO_FALLBACK',
-          aviso: 'IA indisponível, usando parser determinístico'
+          aviso: 'IA indisponível, usando parser determinístico',
+          ...(resultadoDeterministico.resumo_fatura ? { auditoria: resultadoDeterministico.resumo_fatura } : {})
         });
       }
 
@@ -210,7 +213,8 @@ Retorne APENAS um JSON válido, SEM markdown:
           valor_total: resultadoDeterministico.valor_total,
           banco_detectado: resultadoDeterministico.banco_detectado || 'desconhecido',
           metodo: 'PARSER_DETERMINISTICO_FALLBACK',
-          aviso: 'IA retornou resposta inválida, usando parser determinístico'
+          aviso: 'IA retornou resposta inválida, usando parser determinístico',
+          ...(resultadoDeterministico.resumo_fatura ? { auditoria: resultadoDeterministico.resumo_fatura } : {})
         });
       }
       
