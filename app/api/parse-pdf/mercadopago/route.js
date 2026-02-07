@@ -150,6 +150,121 @@ Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
 }
 
 /**
+ * Filtra transações com datas muito anteriores ao ciclo de faturamento.
+ * No MercadoPago, a "Movimentações na fatura" (primeira página) lista pagamentos
+ * de meses anteriores. A IA às vezes inclui esses itens apesar das instruções.
+ *
+ * Lógica: se a transação tem data > 60 dias antes do vencimento e NÃO tem parcela,
+ * é quase certamente um item de "Movimentações na fatura" e deve ser removida.
+ * Transações parceladas com datas antigas são mantidas (parcela da compra original).
+ *
+ * @param {Array} transacoes
+ * @param {string} vencimentoStr - formato "DD/MM/YYYY"
+ */
+function filtrarPorDataMercadoPago(transacoes, vencimentoStr) {
+  // Parse vencimento
+  const partes = vencimentoStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!partes) return transacoes;
+
+  const vencimentoDate = new Date(parseInt(partes[3]), parseInt(partes[2]) - 1, parseInt(partes[1]));
+  // O ciclo de faturamento vai de ~45 dias antes do vencimento até o vencimento
+  // Transações legítimas: de ~60 dias antes do vencimento até o dia do vencimento
+  const limiteMinimoMs = 60 * 24 * 60 * 60 * 1000; // 60 dias em ms
+
+  return transacoes.filter(t => {
+    if (!t.data || t.parcela) return true; // Sem data ou com parcela → mantém
+
+    // Parse data da transação (DD/MM/YYYY ou YYYY-MM-DD)
+    let transDate;
+    const matchDMY = t.data.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    const matchYMD = t.data.match(/(\d{4})-(\d{2})-(\d{2})/);
+
+    if (matchDMY) {
+      transDate = new Date(parseInt(matchDMY[3]), parseInt(matchDMY[2]) - 1, parseInt(matchDMY[1]));
+    } else if (matchYMD) {
+      transDate = new Date(parseInt(matchYMD[1]), parseInt(matchYMD[2]) - 1, parseInt(matchYMD[3]));
+    } else {
+      return true; // Data incompreensível → mantém
+    }
+
+    const diffMs = vencimentoDate.getTime() - transDate.getTime();
+
+    // Se transação é mais de 60 dias antes do vencimento → "Movimentações na fatura"
+    if (diffMs > limiteMinimoMs) {
+      console.log(`[MercadoPago] Removida por data fora do ciclo: "${t.descricao}" ${t.data} R$ ${t.valor} (${Math.round(diffMs / 86400000)} dias antes do vencimento)`);
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/**
+ * Remove quasi-duplicatas causadas por misread da IA em PDFs multi-seção.
+ *
+ * Problema: quando um cartão tem seções em múltiplas páginas, a IA às vezes
+ * lê a mesma transação duas vezes com valores ligeiramente diferentes
+ * (ex: 130,15 vs 150,15 — diferença de exatamente R$ 20).
+ *
+ * Estratégia: para pares de transações com mesma descrição + mesma data
+ * onde os valores diferem por um múltiplo exato de R$ 10 ou R$ 20,
+ * mantém apenas a que está mais próxima da média (mais provável ser correta).
+ * Somente aplica para transações do mesmo dia com a mesma descrição.
+ */
+function removerQuasiDuplicatas(transacoes) {
+  // Agrupar por (descrição normalizada + data)
+  const grupos = {};
+  for (let i = 0; i < transacoes.length; i++) {
+    const t = transacoes[i];
+    const descNorm = (t.descricao || '').trim().toUpperCase();
+    const chave = `${descNorm}|${t.data || ''}`;
+    if (!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push({ ...t, _idx: i });
+  }
+
+  const indicesRemover = new Set();
+
+  for (const [chave, grupo] of Object.entries(grupos)) {
+    if (grupo.length < 2) continue;
+
+    // Para cada par no grupo, verificar se há quasi-duplicatas
+    for (let i = 0; i < grupo.length; i++) {
+      if (indicesRemover.has(grupo[i]._idx)) continue;
+
+      for (let j = i + 1; j < grupo.length; j++) {
+        if (indicesRemover.has(grupo[j]._idx)) continue;
+
+        const diff = Math.abs(grupo[i].valor - grupo[j].valor);
+
+        // Quasi-duplicata: diferença é múltiplo exato de 10 ou 20 (misread de dígito)
+        // e ambos valores estão no mesmo order of magnitude
+        const ehMultiplo10 = diff > 0 && diff <= 50 && (Math.abs(diff % 10) < 0.02 || Math.abs(diff % 10 - 10) < 0.02);
+        const menorValor = Math.min(grupo[i].valor, grupo[j].valor);
+        const maiorValor = Math.max(grupo[i].valor, grupo[j].valor);
+
+        // A diferença deve ser significativa relativa ao valor (>5% sugere dígito diferente)
+        // mas não muito grande (max 30% do menor valor)
+        const percentDiff = (diff / menorValor) * 100;
+
+        if (ehMultiplo10 && percentDiff >= 5 && percentDiff <= 30) {
+          // Remove o de menor valor (mais provável ser o misread — dígito faltando)
+          const idxRemover = grupo[i].valor < grupo[j].valor ? grupo[i]._idx : grupo[j]._idx;
+          const removida = grupo[i].valor < grupo[j].valor ? grupo[i] : grupo[j];
+          const mantida = grupo[i].valor < grupo[j].valor ? grupo[j] : grupo[i];
+
+          indicesRemover.add(idxRemover);
+          console.log(`[MercadoPago] Quasi-duplicata removida: "${removida.descricao}" ${removida.data} R$ ${removida.valor} (mantido R$ ${mantida.valor}, diff=${diff.toFixed(2)})`);
+        }
+      }
+    }
+  }
+
+  if (indicesRemover.size === 0) return transacoes;
+
+  return transacoes.filter((_, i) => !indicesRemover.has(i));
+}
+
+/**
  * Handler POST para processamento de faturas Mercado Pago.
  * Chamado diretamente via /api/parse-pdf/mercadopago
  */
@@ -265,10 +380,31 @@ export async function processarMercadoPago(buffer, cartaoNome, tipoCartao) {
     const antesDedup = transacoes.length;
     transacoes = removerDuplicatasExatas(transacoes);
     if (transacoes.length < antesDedup) {
-      console.log(`[MercadoPago] Dedup removeu ${antesDedup - transacoes.length} duplicata(s): ${antesDedup} → ${transacoes.length}`);
+      console.log(`[MercadoPago] Dedup exata removeu ${antesDedup - transacoes.length} duplicata(s): ${antesDedup} → ${transacoes.length}`);
     }
 
-    // 4d. Capturar total_a_pagar da IA
+    // 4d. Filtrar transações de "Movimentações na fatura" por data
+    // Transações com datas muito anteriores ao ciclo de faturamento e sem parcela
+    // são quase certamente itens do resumo de pagamentos (primeira página)
+    const vencimento = metadadosParser?.vencimento || null;
+    if (vencimento) {
+      const antesDataFilter = transacoes.length;
+      transacoes = filtrarPorDataMercadoPago(transacoes, vencimento);
+      if (transacoes.length < antesDataFilter) {
+        console.log(`[MercadoPago] Filtro de data removeu ${antesDataFilter - transacoes.length} transação(ões) fora do ciclo`);
+      }
+    }
+
+    // 4e. Remover quasi-duplicatas (AI misread cross-page)
+    // MercadoPago: a IA às vezes lê o mesmo valor com dígitos trocados
+    // (ex: 130,15 e 150,15 para a mesma transação vista em seções diferentes)
+    const antesQuasiDedup = transacoes.length;
+    transacoes = removerQuasiDuplicatas(transacoes);
+    if (transacoes.length < antesQuasiDedup) {
+      console.log(`[MercadoPago] Quasi-dedup removeu ${antesQuasiDedup - transacoes.length} provável(is) misread(s)`);
+    }
+
+    // 4f. Capturar total_a_pagar da IA
     const totalAPagarIA = result.total_a_pagar ? parseFloat(result.total_a_pagar) : null;
     if (totalAPagarIA) {
       console.log(`[MercadoPago] IA retornou total_a_pagar: R$ ${totalAPagarIA.toFixed(2)}`);
