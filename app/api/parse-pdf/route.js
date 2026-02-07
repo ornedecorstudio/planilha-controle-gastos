@@ -79,17 +79,21 @@ Retorne APENAS um JSON válido, SEM markdown:
  * PDFs do MercadoPago têm múltiplas páginas com seções por cartão.
  */
 function construirPromptMercadoPago(cartaoNome, tipoCartao, metadados) {
-  const totalFatura = metadados?.valor_total
-    ? `R$ ${metadados.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+  const totalFaturaPDF = metadados?.total_fatura_pdf
+    ? `R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
     : null;
 
-  const numTransacoes = metadados?.total_encontrado || null;
+  const vencimento = metadados?.vencimento || null;
+  const cartoes = metadados?.cartoes || [];
+  const numSecoes = metadados?.num_secoes || null;
 
   let metadadosBloco = '';
-  if (totalFatura || numTransacoes) {
-    metadadosBloco = '\nMETADADOS DO PARSER (referência — podem estar incompletos):';
-    if (totalFatura) metadadosBloco += `\n- Valor total parser: ${totalFatura}`;
-    if (numTransacoes) metadadosBloco += `\n- Transações encontradas pelo parser: ${numTransacoes}`;
+  if (totalFaturaPDF || vencimento || cartoes.length > 0 || numSecoes) {
+    metadadosBloco = '\nMETADADOS EXTRAÍDOS DO PDF (use para verificação cruzada):';
+    if (totalFaturaPDF) metadadosBloco += `\n- Total da fatura no PDF: ${totalFaturaPDF}`;
+    if (vencimento) metadadosBloco += `\n- Vencimento: ${vencimento}`;
+    if (cartoes.length > 0) metadadosBloco += `\n- Cartões detectados (finais): ${cartoes.join(', ')}`;
+    if (numSecoes) metadadosBloco += `\n- Seções de cartão no PDF: ${numSecoes}`;
   }
 
   return `Você é um especialista em extrair transações de faturas de cartão de crédito Mercado Pago.
@@ -112,7 +116,7 @@ REGRAS DE EXTRAÇÃO:
 1. EXTRAIA todas as transações de TODAS as seções "Cartão Visa" de TODAS as páginas
 2. Cada transação tem: data, descrição, valor, e opcionalmente parcela
 3. Se houver "Parcela X de Y", capture no campo parcela como "X/Y"
-4. Use o ano do vencimento da fatura para completar datas (ex: 22/12 → 22/12/2025)
+4. Use o ano do vencimento da fatura para completar datas${vencimento ? ` (vencimento: ${vencimento})` : ''}
 5. NÃO duplique transações — cada transação aparece UMA vez no PDF
 
 CLASSIFICAÇÃO tipo_lancamento — OBRIGATÓRIO:
