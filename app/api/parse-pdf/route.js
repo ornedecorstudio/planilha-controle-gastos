@@ -341,6 +341,98 @@ Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
 }
 
 /**
+ * Constrói prompt específico para XP Investimentos.
+ * XP tem múltiplos cartões (titular + adicionais), transações internacionais
+ * com conversão EUR/USD→BRL via PAYPAL, IOF em linhas separadas,
+ * e estornos com valores negativos (-R$ xxx,xx).
+ *
+ * Problema principal: estornos (valores negativos) podem ser capturados
+ * como compras pela IA, causando divergência 2× o valor do estorno.
+ */
+function construirPromptXP(cartaoNome, tipoCartao, metadados) {
+  const totalFatura = metadados?.total_fatura_pdf
+    ? `R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
+
+  const cartoesInfo = metadados?.cartoes?.length > 0
+    ? metadados.cartoes.map(c => `final ${c}`).join(', ')
+    : null;
+
+  const subtotaisInfo = metadados?.subtotais?.length > 0
+    ? metadados.subtotais.map(s => `${s.descricao}: R$ ${s.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`).join(', ')
+    : null;
+
+  let metadadosBloco = '';
+  if (totalFatura || cartoesInfo || subtotaisInfo) {
+    metadadosBloco = '\nMETADADOS EXTRAÍDOS DO PDF (use para verificação cruzada):';
+    if (totalFatura) metadadosBloco += `\n- Total da fatura: ${totalFatura}`;
+    if (cartoesInfo) metadadosBloco += `\n- Cartões na fatura: ${cartoesInfo}`;
+    if (subtotaisInfo) metadadosBloco += `\n- Subtotais: ${subtotaisInfo}`;
+  }
+
+  return `Você é um especialista em extrair transações de faturas de cartão de crédito XP Investimentos (Visa Infinite).
+Analise este PDF de fatura do cartão "${cartaoNome}"${tipoCartao ? ` (cartão ${tipoCartao})` : ''} e extraia TODAS as transações.
+${metadadosBloco}
+
+ESTRUTURA DO PDF XP:
+- Pode ter múltiplos cartões (titular + adicionais), cada um com seção própria
+- Transações organizadas por cartão, com subtotal por cartão
+- Transações internacionais mostram: descrição | moeda original (EUR/USD) | câmbio | valor BRL
+- IOF aparece como linha separada logo abaixo da transação internacional
+- Estornos/reembolsos aparecem com prefixo "-" no valor (ex: "-110,95")
+
+REGRAS DE EXTRAÇÃO:
+
+1. EXTRAIA transações de TODOS os cartões (${cartoesInfo || 'verifique todos os cartões no PDF'})
+2. Para transações internacionais, use SEMPRE o valor em BRL (último valor da linha)
+3. NÃO duplique transações
+4. Data no formato DD/MM/YYYY
+
+CLASSIFICAÇÃO tipo_lancamento — OBRIGATÓRIO e CRÍTICO para cada transação:
+- "compra": compras nacionais e internacionais (PAYPAL*, FACEBK*, lojas, restaurantes, assinaturas, parcelamentos)
+- "iof": QUALQUER linha que contenha "IOF" (Imposto sobre Operações Financeiras) — estas linhas costumam aparecer logo após transações internacionais
+- "estorno": estornos, créditos, devoluções, reembolsos — QUALQUER valor com sinal NEGATIVO ("-") no PDF é um estorno. Capture com valor POSITIVO e tipo_lancamento "estorno"
+- "pagamento_antecipado": pagamento antecipado de parcelas
+- "tarifa_cartao": anuidade, tarifa do cartão, seguro
+
+VALORES NEGATIVOS — ATENÇÃO ESPECIAL:
+- Valores precedidos por "-" (sinal de menos) no PDF são ESTORNOS/REEMBOLSOS
+- Exemplo: "SHOTGUN* MAMBA NEGRA -110,95" → tipo_lancamento: "estorno", valor: 110.95
+- NUNCA classifique um valor negativo como "compra" — é SEMPRE "estorno"
+- Capture o valor como número POSITIVO no JSON, a classificação "estorno" indica que é dedução
+
+IGNORE completamente (NÃO inclua no JSON):
+- "Pagamento de fatura" — é pagamento do cliente, NÃO é transação de compra
+- Cartões que têm APENAS pagamento (sem compras) — ignore toda a seção
+- Linhas de subtotal ("Subtotal", "Total") — são somas de seção, NÃO transações individuais
+- Informações de resumo, saldo anterior, limite de crédito
+- Informações financeiras (juros, CET, parcelamento de fatura)
+
+VERIFICAÇÃO CRUZADA:
+A soma de todas as transações tipo "compra" + "iof" + "tarifa_cartao" - "estorno" - "pagamento_antecipado" deve ser próxima de ${totalFatura || 'o total da fatura no PDF'}.
+Se a soma ficar muito diferente (mais de R$ 5,00 de diferença), revise:
+- Valores negativos devem ser tipo "estorno", NÃO "compra"
+- IOF deve ser tipo "iof", NÃO "compra"
+- Não inclua subtotais ou pagamentos de fatura
+
+Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
+{
+  "transacoes": [
+    {
+      "data": "DD/MM/YYYY",
+      "descricao": "descrição da transação",
+      "valor": 123.45,
+      "parcela": "1/3" ou null,
+      "tipo_lancamento": "compra"
+    }
+  ],
+  "total_encontrado": número_total_de_transações,
+  "valor_total": soma_apenas_das_compras,
+  "banco_detectado": "XP Investimentos"
+}`;
+}
+
+/**
  * Constrói prompt genérico para outros bancos (com tipo_lancamento).
  */
 function construirPromptGenerico(cartaoNome, tipoCartao) {
@@ -380,6 +472,35 @@ Retorne APENAS um JSON válido, SEM markdown:
   "valor_total": soma_apenas_das_compras,
   "banco_detectado": "nome do banco"
 }`;
+}
+
+/**
+ * Filtra transações da IA removendo entradas que não são transações reais.
+ * Defesa contra erros da IA que incluem subtotais, pagamentos ou limites.
+ * Aplicado a TODAS as faturas processadas por IA.
+ */
+function filtrarTransacoesIA(transacoes) {
+  const DESCRICOES_IGNORAR = [
+    'SUBTOTAL', 'SUB TOTAL', 'SUB-TOTAL',
+    'TOTAL GERAL', 'TOTAL DOS LANCAMENTOS', 'TOTAL DOS LANÇAMENTOS',
+    'VALOR TOTAL', 'TOTAL DESPESAS',
+    'TOTAL DE PAGAMENTOS', 'TOTAL DE CREDITOS', 'TOTAL DE CRÉDITOS',
+    'SALDO ANTERIOR', 'SALDO DESTA FATURA',
+    'PAGAMENTO DE FATURA', 'PAGAMENTO RECEBIDO',
+    'PAGAMENTO EFETUADO', 'PAGAMENTO FATURA',
+    'SEU LIMITE', 'LIMITE DISPONIVEL', 'LIMITE DISPONÍVEL',
+    'LIMITE TOTAL', 'LIMITE DE SAQUE',
+    'PAGAMENTO TOTAL', 'PAGAMENTO MINIMO', 'PAGAMENTO MÍNIMO',
+  ];
+
+  return transacoes.filter(t => {
+    const desc = (t.descricao || '').toUpperCase();
+    const ehIgnorada = DESCRICOES_IGNORAR.some(termo => desc.includes(termo));
+    if (ehIgnorada) {
+      console.log(`[parse-pdf] Transação filtrada pós-IA: "${t.descricao}" R$ ${t.valor} (tipo: ${t.tipo_lancamento})`);
+    }
+    return !ehIgnorada;
+  });
 }
 
 /**
@@ -563,6 +684,9 @@ export async function POST(request) {
     } else if (bancoDetectado === 'santander') {
       prompt = construirPromptSantander(cartaoNome, tipoCartao, metadadosParser);
       console.log('[parse-pdf] Usando prompt específico Santander com metadados de verificação');
+    } else if (bancoDetectado === 'xp') {
+      prompt = construirPromptXP(cartaoNome, tipoCartao, metadadosParser);
+      console.log('[parse-pdf] Usando prompt específico XP com metadados de verificação');
     } else {
       prompt = construirPromptGenerico(cartaoNome, tipoCartao);
     }
@@ -684,21 +808,28 @@ export async function POST(request) {
       tipo_lancamento: t.tipo_lancamento || 'compra'
     }));
 
+    // Filtrar transações pós-IA (remove subtotais, pagamentos, limites que a IA incluiu por engano)
+    const transacoesFiltradas = filtrarTransacoesIA(transacoesNormalizadas);
+
+    if (transacoesFiltradas.length < transacoesNormalizadas.length) {
+      console.log(`[parse-pdf] Filtro pós-IA removeu ${transacoesNormalizadas.length - transacoesFiltradas.length} transação(ões) não-reais`);
+    }
+
     // Construir auditoria combinando IA + metadados do parser
-    const auditoriaIA = construirAuditoriaIA(transacoesNormalizadas, metadadosParser);
+    const auditoriaIA = construirAuditoriaIA(transacoesFiltradas, metadadosParser);
 
     const metodoIA = forcarIA ? 'IA_PDF_HIBRIDO' : 'IA_PDF';
 
-    console.log(`[parse-pdf] IA retornou ${transacoesNormalizadas.length} transações (método: ${metodoIA})`);
+    console.log(`[parse-pdf] IA retornou ${transacoesFiltradas.length} transações (método: ${metodoIA})`);
     if (auditoriaIA.reconciliado !== null) {
       console.log(`[parse-pdf] Reconciliação IA: ${auditoriaIA.reconciliado ? 'OK' : 'DIVERGENTE'} (diferença: ${auditoriaIA.diferenca_centavos} centavos)`);
     }
 
     return NextResponse.json({
       success: true,
-      transacoes: transacoesNormalizadas,
-      total_encontrado: result.total_encontrado || transacoesNormalizadas.length,
-      valor_total: result.valor_total || transacoesNormalizadas
+      transacoes: transacoesFiltradas,
+      total_encontrado: result.total_encontrado || transacoesFiltradas.length,
+      valor_total: result.valor_total || transacoesFiltradas
         .filter(t => t.tipo_lancamento === 'compra')
         .reduce((sum, t) => sum + (t.valor || 0), 0),
       banco_detectado: result.banco_detectado || bancoDetectado || 'desconhecido',
