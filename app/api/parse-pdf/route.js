@@ -234,6 +234,113 @@ Retorne APENAS um JSON válido, SEM markdown:
 }
 
 /**
+ * Constrói prompt específico para Santander.
+ * Santander tem layout columnar — pdf-parse corrompe valores.
+ * IA visual é obrigatória para extração correta das transações.
+ *
+ * Bugs conhecidos que o prompt previne:
+ * 1. "Seu Limite é:" R$10.570 não é transação (é limite do cartão)
+ * 2. "PAGAMENTO DE FATURA-INTERNET" não é transação (é pagamento anterior)
+ * 3. Valores corrompidos pelo layout columnar (IA visual lê correto)
+ */
+function construirPromptSantander(cartaoNome, tipoCartao, metadados) {
+  const totalFatura = metadados?.total_fatura_pdf
+    ? `R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
+
+  const anuidadeInfo = metadados?.anuidade_pdf
+    ? `R$ ${metadados.anuidade_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
+
+  const cartoesInfo = metadados?.cartoes?.length > 0
+    ? metadados.cartoes.map(c => `final ${c}`).join(', ')
+    : null;
+
+  const resumoInfo = metadados?.resumo_fatura_pdf;
+
+  let metadadosBloco = '\nMETADADOS EXTRAÍDOS DO PDF (use para verificação cruzada):';
+  if (totalFatura) metadadosBloco += `\n- Total da fatura (Total a Pagar): ${totalFatura}`;
+  if (anuidadeInfo) metadadosBloco += `\n- Anuidade total: ${anuidadeInfo}`;
+  if (cartoesInfo) metadadosBloco += `\n- Cartões na fatura: ${cartoesInfo}`;
+  if (resumoInfo) {
+    metadadosBloco += '\n- Resumo da Fatura (página final):';
+    if (resumoInfo.saldo_anterior) metadadosBloco += `\n  Saldo Anterior: R$ ${resumoInfo.saldo_anterior.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    if (resumoInfo.total_despesas_brasil) metadadosBloco += `\n  Total Despesas Brasil: R$ ${resumoInfo.total_despesas_brasil.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    if (resumoInfo.total_pagamentos) metadadosBloco += `\n  Total Pagamentos: R$ ${resumoInfo.total_pagamentos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  }
+
+  return `Você é um especialista em extrair transações de faturas de cartão de crédito Santander.
+Analise VISUALMENTE este PDF de fatura do cartão "${cartaoNome}"${tipoCartao ? ` (cartão ${tipoCartao})` : ''}.
+
+ATENÇÃO — LAYOUT COLUMNAR:
+Este PDF Santander tem layout columnar onde datas/descrições ficam separados dos valores.
+NÃO confie no texto extraído — leia VISUALMENTE as tabelas do PDF.
+${metadadosBloco}
+
+ESTRUTURA DO PDF SANTANDER:
+- Página 1: RESUMO APENAS — Total a Pagar, Pagamento Mínimo, limite de crédito, histórico, anuidade. NÃO contém transações de compra.
+- Páginas 2-3: "Detalhamento da Fatura" — transações organizadas por cartão
+- Cada cartão tem um bloco com nome e últimos 4 dígitos (ex: "NOME - 4258 XXXX XXXX 8172")
+- Dentro de cada cartão há seções: "Despesas", "Parcelamentos", "Pagamento e Demais Créditos"
+- "Resumo da Fatura" no final — NÃO são transações, é para verificação
+
+REGRAS DE EXTRAÇÃO:
+
+1. Extraia transações APENAS de "Detalhamento da Fatura" (páginas 2-3)
+2. Extraia de TODOS os cartões (${cartoesInfo || 'múltiplos cartões'})
+3. Cada transação tem: Data (DD/MM) | Descrição | Valor em R$
+4. Leia os valores VISUALMENTE da coluna "R$" — o texto extraído pode estar corrompido
+
+IGNORE completamente (NÃO inclua no JSON):
+- TODA a página 1 (resumo, opções de pagamento, histórico, limites de crédito)
+- "Seu Limite é:" e QUALQUER valor de limite — é o limite do cartão, NÃO uma transação
+- "Pagamento Total" e "Pagamento Mínimo" da página 1 — são opções de pagamento
+- "PAGAMENTO DE FATURA-INTERNET" e toda seção "Pagamento e Demais Créditos" — são pagamentos da fatura anterior, NÃO são despesas
+- "Histórico de Faturas" e valores de meses anteriores (NOV, DEZ, JAN, FEV)
+- "Resumo da Fatura" — é apenas para verificação, NÃO são transações
+- Linhas de "VALOR TOTAL" — são subtotais de seção, NÃO transações individuais
+- Informações de Smiles/milhas
+- Informações financeiras (juros, CET, parcelamento de fatura, crédito rotativo)
+- Endereço do titular, código de barras, dados de correspondência
+
+CLASSIFICAÇÃO tipo_lancamento — OBRIGATÓRIO para cada transação:
+- "compra": compras normais (FACEBK, PAYPAL, MERCADOLIVRE, UBER, TIGELA ACAI, restaurantes, lojas, etc.)
+- "tarifa_cartao": "ANUIDADE DIFERENCIADA", "SEG CONTA CART" (seguro do cartão), "AJ A DEB TARIFA"
+- "iof": "IOF" (Imposto sobre Operações Financeiras)
+- "estorno": estornos, créditos, devoluções, reembolsos
+- "pagamento_antecipado": pagamento antecipado de parcelas
+
+VALORES NEGATIVOS:
+- Valores com sinal negativo (-) no PDF são estornos/créditos
+- Capture-os com tipo_lancamento "estorno" e valor POSITIVO no JSON
+
+PARCELAMENTOS:
+- Transações da seção "Parcelamentos" são compras parceladas
+- Inclua com tipo_lancamento "compra" e campo parcela "X/Y" se disponível
+- Ex: "SMILES CLUB SMIL" parcela 02/12 → parcela: "2/12", tipo_lancamento: "compra"
+
+VERIFICAÇÃO CRUZADA:
+A soma de todas as transações tipo "compra" + "iof" + "tarifa_cartao" - "estorno" - "pagamento_antecipado" deve ser próxima de ${totalFatura || 'o total da fatura no PDF'}.
+Se a soma ficar muito diferente, revise se não esqueceu transações de algum cartão ou página.
+
+Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
+{
+  "transacoes": [
+    {
+      "data": "DD/MM/YYYY",
+      "descricao": "descrição da transação",
+      "valor": 123.45,
+      "parcela": "1/3" ou null,
+      "tipo_lancamento": "compra"
+    }
+  ],
+  "total_encontrado": número_total_de_transações,
+  "valor_total": soma_apenas_das_compras,
+  "banco_detectado": "Santander"
+}`;
+}
+
+/**
  * Constrói prompt genérico para outros bancos (com tipo_lancamento).
  */
 function construirPromptGenerico(cartaoNome, tipoCartao) {
@@ -453,6 +560,9 @@ export async function POST(request) {
     } else if (bancoDetectado === 'renner') {
       prompt = construirPromptRenner(cartaoNome, tipoCartao, metadadosParser);
       console.log('[parse-pdf] Usando prompt específico Renner com metadados de verificação');
+    } else if (bancoDetectado === 'santander') {
+      prompt = construirPromptSantander(cartaoNome, tipoCartao, metadadosParser);
+      console.log('[parse-pdf] Usando prompt específico Santander com metadados de verificação');
     } else {
       prompt = construirPromptGenerico(cartaoNome, tipoCartao);
     }
