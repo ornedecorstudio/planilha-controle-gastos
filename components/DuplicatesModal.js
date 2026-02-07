@@ -45,17 +45,17 @@ export default function DuplicatesModal({
   const total = duplicatas.reduce((acc, d) => selectedIds.has(d.id) ? acc + parseFloat(d.valor) : acc, 0)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
-      <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+      <div className="relative bg-white rounded-t-2xl md:rounded-lg shadow-xl max-w-2xl w-full mx-0 md:mx-4 max-h-[90vh] md:max-h-[80vh] flex flex-col">
         <div className="p-4 border-b flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="text-amber-500" size={20} />
-            <h3 className="text-lg font-semibold text-neutral-800">
-              {duplicatas.length} transações duplicadas encontradas
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertTriangle className="text-amber-500 shrink-0" size={20} />
+            <h3 className="text-base md:text-lg font-semibold text-neutral-800 truncate">
+              {duplicatas.length} duplicadas encontradas
             </h3>
           </div>
-          <button onClick={handleClose} className="text-neutral-400 hover:text-neutral-600">
+          <button onClick={handleClose} className="p-1.5 text-neutral-400 hover:text-neutral-600 shrink-0">
             <X size={20} />
           </button>
         </div>
@@ -126,15 +126,15 @@ export default function DuplicatesModal({
           )}
         </div>
 
-        <div className="p-4 border-t bg-neutral-50 flex items-center justify-between">
-          <div className="text-sm text-neutral-600">
+        <div className="p-4 border-t bg-neutral-50" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="text-[13px] text-neutral-600 mb-3 md:mb-0 md:inline">
             {selectedIds.size} selecionadas - R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col md:flex-row gap-2 md:gap-3 md:float-right">
             <button
               onClick={handleClose}
               disabled={loading}
-              className="px-4 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-100 font-medium disabled:opacity-50"
+              className="w-full md:w-auto px-4 py-3 md:py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-100 font-medium disabled:opacity-50 order-3 md:order-1"
             >
               Cancelar
             </button>
@@ -142,7 +142,7 @@ export default function DuplicatesModal({
               <button
                 onClick={() => setConfirmStep(false)}
                 disabled={loading}
-                className="px-4 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-100 font-medium disabled:opacity-50"
+                className="w-full md:w-auto px-4 py-3 md:py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-100 font-medium disabled:opacity-50 order-2"
               >
                 Voltar
               </button>
@@ -150,7 +150,7 @@ export default function DuplicatesModal({
             <button
               onClick={handleConfirm}
               disabled={loading || selectedIds.size === 0}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 flex items-center gap-2"
+              className="w-full md:w-auto px-4 py-3 md:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2 order-1 md:order-3"
             >
               {loading ? 'Removendo...' : confirmStep ? (
                 <><Check size={16} /> Confirmar remoção</>

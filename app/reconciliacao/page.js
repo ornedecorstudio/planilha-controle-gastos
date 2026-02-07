@@ -145,7 +145,7 @@ export default function ReconciliacaoPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-page-title text-neutral-900">Reconciliação de Reembolsos</h1>
           <p className="text-body text-neutral-500">Vincule faturas PF com reembolsos do extrato PJ</p>
@@ -159,8 +159,8 @@ export default function ReconciliacaoPage() {
       {success && <div className="p-3 bg-green-50 border border-neutral-200 rounded-lg text-[13px] text-green-700">{success}</div>}
 
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             <p className="text-label text-neutral-500">Pendente de Reembolso</p>
@@ -168,7 +168,7 @@ export default function ReconciliacaoPage() {
           <p className="text-kpi text-neutral-900 mt-1">R$ {formatCurrency(resumo.total_pendente)}</p>
           <p className="text-label text-neutral-400 mt-0.5">{resumo.faturas_pendentes} faturas</p>
         </div>
-        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <p className="text-label text-neutral-500">Total Reembolsado</p>
@@ -176,7 +176,7 @@ export default function ReconciliacaoPage() {
           <p className="text-kpi text-neutral-900 mt-1">R$ {formatCurrency(resumo.total_reembolsado)}</p>
           <p className="text-label text-neutral-400 mt-0.5">{resumo.faturas_reembolsadas} faturas</p>
         </div>
-        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
             <p className="text-label text-neutral-500">PIX ao Sócio (Extrato)</p>
@@ -184,7 +184,7 @@ export default function ReconciliacaoPage() {
           <p className="text-kpi text-neutral-900 mt-1">R$ {formatCurrency(resumo.total_movimentacoes)}</p>
           <p className="text-label text-neutral-400 mt-0.5">{movimentacoes.length} transferências</p>
         </div>
-        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
           <p className="text-label text-neutral-500">Diferença</p>
           <p className="text-kpi text-neutral-900 mt-1">
             R$ {formatCurrency(Math.abs((resumo.total_movimentacoes || 0) - (resumo.total_reembolsado || 0)))}
@@ -201,7 +201,7 @@ export default function ReconciliacaoPage() {
           </h2>
           <div className="space-y-2">
             {sugestoes.filter(s => s.confianca === 'alta').map((sug, i) => (
-              <div key={i} className="bg-neutral-50 rounded-lg p-3 flex items-center justify-between">
+              <div key={i} className="bg-neutral-50 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[11px] rounded font-medium">
@@ -244,60 +244,95 @@ export default function ReconciliacaoPage() {
             Todas as faturas foram reembolsadas!
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-neutral-50">
-                <tr>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
-                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PJ</th>
-                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PF</th>
-                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Status</th>
-                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
+          <>
+            <div className="mobile-cards">
+              <div className="divide-y divide-neutral-100">
                 {faturasPendentes.map(f => (
-                  <tr key={f.id} className="hover:bg-neutral-50">
-                    <td className="py-2 px-3">
-                      <span className="text-[13px] font-medium text-neutral-900">{f.cartoes?.nome || 'N/A'}</span>
-                      <span className="text-[11px] text-neutral-400 ml-1">({f.cartoes?.banco})</span>
-                    </td>
-                    <td className="py-2 px-3 text-[13px] text-neutral-500">
-                      {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
-                    </td>
-                    <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
-                      R$ {formatCurrency(f.valor_pj)}
-                    </td>
-                    <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
-                      R$ {formatCurrency(f.valor_pf)}
-                    </td>
-                    <td className="py-2 px-3 text-center">
+                  <div key={f.id} className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[13px] font-medium text-neutral-900">{f.cartoes?.nome || 'N/A'}</span>
+                        <span className="text-[11px] text-neutral-400 ml-1">({f.cartoes?.banco})</span>
+                      </div>
+                      <span className="font-mono text-[13px] font-medium text-neutral-900">R$ {formatCurrency(f.valor_pj)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-neutral-500">
+                        {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                      </span>
                       <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
                         f.status === 'pago' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-700'
                       }`}>
                         {f.status === 'pago' ? 'Pago' : 'Pendente'}
                       </span>
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <button
-                        onClick={() => marcarReembolsado(f.id)}
-                        className="px-2 py-1 bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200 text-[11px] font-medium"
-                      >
-                        Marcar Reembolsado
-                      </button>
-                    </td>
-                  </tr>
+                    </div>
+                    <button
+                      onClick={() => marcarReembolsado(f.id)}
+                      className="w-full px-2 py-1.5 bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200 text-[11px] font-medium"
+                    >
+                      Marcar Reembolsado
+                    </button>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+            <div className="desktop-table">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-neutral-50">
+                    <tr>
+                      <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
+                      <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
+                      <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PJ</th>
+                      <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PF</th>
+                      <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Status</th>
+                      <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {faturasPendentes.map(f => (
+                      <tr key={f.id} className="hover:bg-neutral-50">
+                        <td className="py-2 px-3">
+                          <span className="text-[13px] font-medium text-neutral-900">{f.cartoes?.nome || 'N/A'}</span>
+                          <span className="text-[11px] text-neutral-400 ml-1">({f.cartoes?.banco})</span>
+                        </td>
+                        <td className="py-2 px-3 text-[13px] text-neutral-500">
+                          {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
+                          R$ {formatCurrency(f.valor_pj)}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
+                          R$ {formatCurrency(f.valor_pf)}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                            f.status === 'pago' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {f.status === 'pago' ? 'Pago' : 'Pendente'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <button
+                            onClick={() => marcarReembolsado(f.id)}
+                            className="px-2 py-1 bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200 text-[11px] font-medium"
+                          >
+                            Marcar Reembolsado
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
       {/* Movimentações de Reembolso */}
       <div className="bg-white rounded-lg border border-neutral-200">
-        <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50 flex justify-between items-center">
+        <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <div>
             <h2 className="text-section-title text-neutral-900">
               PIX Enviados ao Sócio ({movimentacoes.length})
@@ -323,46 +358,77 @@ export default function ReconciliacaoPage() {
             </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-neutral-50">
-                <tr>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Data</th>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Descrição</th>
-                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor</th>
-                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Vinculado</th>
-                  <th className="py-2 px-3 text-center w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
+          <>
+            <div className="mobile-cards">
+              <div className="divide-y divide-neutral-100">
                 {movimentacoes.slice(0, 20).map(m => (
-                  <tr key={m.id} className={`hover:bg-neutral-50 ${m.fatura_vinculada_id ? 'bg-emerald-50/30' : ''}`}>
-                    <td className="py-2 px-3 font-mono text-[11px] text-neutral-500">{formatDate(m.data)}</td>
-                    <td className="py-2 px-3 text-[13px] max-w-xs truncate text-neutral-900" title={m.descricao}>{m.descricao}</td>
-                    <td className="py-2 px-3 text-right font-mono text-[13px] font-medium text-neutral-900">
-                      R$ {formatCurrency(m.valor)}
-                    </td>
-                    <td className="py-2 px-3 text-center text-[13px]">
+                  <div key={m.id} className={`p-3 space-y-2 ${m.fatura_vinculada_id ? 'bg-emerald-50/30' : ''}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-neutral-900 truncate max-w-[60%]" title={m.descricao}>{m.descricao}</span>
+                      <span className="font-mono text-[13px] font-medium text-neutral-900">R$ {formatCurrency(m.valor)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[11px] text-neutral-500">{formatDate(m.data)}</span>
                       {m.fatura_vinculada_id ? (
-                        <span className="text-emerald-600">Sim</span>
+                        <span className="text-[13px] text-emerald-600">Vinculado</span>
                       ) : (
-                        <span className="text-neutral-400">-</span>
+                        <span className="text-[13px] text-neutral-400">Não vinculado</span>
                       )}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <button
-                        onClick={() => setDeleteModal({ open: true, movimentacao: m })}
-                        className="p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                        title="Remover movimentação"
-                      >
-                        <Trash2 size={14} strokeWidth={1.5} />
-                      </button>
-                    </td>
-                  </tr>
+                    </div>
+                    <button
+                      onClick={() => setDeleteModal({ open: true, movimentacao: m })}
+                      className="w-full px-2 py-1.5 text-red-600 bg-red-50 rounded hover:bg-red-100 text-[11px] font-medium flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 size={12} strokeWidth={1.5} />
+                      Remover
+                    </button>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+            <div className="desktop-table">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-neutral-50">
+                    <tr>
+                      <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Data</th>
+                      <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Descrição</th>
+                      <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor</th>
+                      <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Vinculado</th>
+                      <th className="py-2 px-3 text-center w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {movimentacoes.slice(0, 20).map(m => (
+                      <tr key={m.id} className={`hover:bg-neutral-50 ${m.fatura_vinculada_id ? 'bg-emerald-50/30' : ''}`}>
+                        <td className="py-2 px-3 font-mono text-[11px] text-neutral-500">{formatDate(m.data)}</td>
+                        <td className="py-2 px-3 text-[13px] max-w-xs truncate text-neutral-900" title={m.descricao}>{m.descricao}</td>
+                        <td className="py-2 px-3 text-right font-mono text-[13px] font-medium text-neutral-900">
+                          R$ {formatCurrency(m.valor)}
+                        </td>
+                        <td className="py-2 px-3 text-center text-[13px]">
+                          {m.fatura_vinculada_id ? (
+                            <span className="text-emerald-600">Sim</span>
+                          ) : (
+                            <span className="text-neutral-400">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <button
+                            onClick={() => setDeleteModal({ open: true, movimentacao: m })}
+                            className="p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="Remover movimentação"
+                          >
+                            <Trash2 size={14} strokeWidth={1.5} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -374,33 +440,55 @@ export default function ReconciliacaoPage() {
               Faturas Reembolsadas ({faturasReembolsadas.length})
             </h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-neutral-50">
-                <tr>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
-                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PJ</th>
-                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Data Reembolso</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {faturasReembolsadas.slice(0, 10).map(f => (
-                  <tr key={f.id} className="hover:bg-neutral-50">
-                    <td className="py-2 px-3 text-[13px] font-medium text-neutral-900">{f.cartoes?.nome || 'N/A'}</td>
-                    <td className="py-2 px-3 text-[13px] text-neutral-500">
+          <div className="mobile-cards">
+            <div className="divide-y divide-neutral-100">
+              {faturasReembolsadas.slice(0, 10).map(f => (
+                <div key={f.id} className="p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-medium text-neutral-900">{f.cartoes?.nome || 'N/A'}</span>
+                    <span className="font-mono text-[13px] text-neutral-600">R$ {formatCurrency(f.valor_pj)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-neutral-500">
                       {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
-                    </td>
-                    <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
-                      R$ {formatCurrency(f.valor_pj)}
-                    </td>
-                    <td className="py-2 px-3 text-center text-[13px] text-neutral-500">
+                    </span>
+                    <span className="text-[11px] text-neutral-400">
                       {f.data_pagamento ? formatDate(f.data_pagamento) : '-'}
-                    </td>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="desktop-table">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Valor PJ</th>
+                    <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Data Reembolso</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {faturasReembolsadas.slice(0, 10).map(f => (
+                    <tr key={f.id} className="hover:bg-neutral-50">
+                      <td className="py-2 px-3 text-[13px] font-medium text-neutral-900">{f.cartoes?.nome || 'N/A'}</td>
+                      <td className="py-2 px-3 text-[13px] text-neutral-500">
+                        {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono text-[13px] text-neutral-600">
+                        R$ {formatCurrency(f.valor_pj)}
+                      </td>
+                      <td className="py-2 px-3 text-center text-[13px] text-neutral-500">
+                        {f.data_pagamento ? formatDate(f.data_pagamento) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

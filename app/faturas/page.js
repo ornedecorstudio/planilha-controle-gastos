@@ -142,126 +142,185 @@ export default function FaturasPage() {
       </div>
 
       {/* Totais */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
           <p className="text-label text-neutral-500">Total geral</p>
-          <p className="text-kpi text-neutral-900 mt-1">
+          <p className="text-[14px] md:text-kpi font-semibold text-neutral-900 mt-1">
             R$ {(totalPJ + totalPF).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <p className="text-label text-neutral-500">Total PJ (reembolsável)</p>
+            <p className="text-label text-neutral-500 truncate">PJ</p>
           </div>
-          <p className="text-kpi text-neutral-900 mt-1">
+          <p className="text-[14px] md:text-kpi font-semibold text-neutral-900 mt-1">
             R$ {totalPJ.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="bg-white rounded-lg border border-neutral-200 p-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            <p className="text-label text-neutral-500">Total PF (pessoal)</p>
+            <p className="text-label text-neutral-500 truncate">PF</p>
           </div>
-          <p className="text-kpi text-neutral-900 mt-1">
+          <p className="text-[14px] md:text-kpi font-semibold text-neutral-900 mt-1">
             R$ {totalPF.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
       </div>
 
-      {/* Tabela */}
+      {/* Lista de faturas */}
       {faturas.length > 0 ? (
-        <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-neutral-50">
-                <tr>
-                  <th className="py-2 px-3 text-center w-10">
-                    <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
-                      {selectedIds.size === faturas.length ? <CheckSquare size={16} strokeWidth={1.5} /> : <Square size={16} strokeWidth={1.5} />}
-                    </button>
-                  </th>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
-                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Vencimento</th>
-                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Total</th>
-                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">PJ</th>
-                  <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">PF</th>
-                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Status</th>
-                  <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {faturas.map(f => (
-                  <tr key={f.id} className={`hover:bg-neutral-50 ${selectedIds.has(f.id) ? 'bg-neutral-100' : ''}`}>
-                    <td className="py-2 px-3 text-center">
-                      <button onClick={() => toggleSelection(f.id)} className="text-neutral-400 hover:text-neutral-600">
-                        {selectedIds.has(f.id) ? <CheckSquare size={16} strokeWidth={1.5} className="text-neutral-900" /> : <Square size={16} strokeWidth={1.5} />}
-                      </button>
-                    </td>
-                    <td className="py-2 px-3 text-[13px] font-medium text-neutral-900">
-                      {f.cartoes?.nome || 'N/A'}
-                      <span className="text-[11px] text-neutral-400 ml-1">({f.cartoes?.tipo})</span>
-                    </td>
-                    <td className="py-2 px-3 text-[13px] text-neutral-500">
-                      {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
-                    </td>
-                    <td className="py-2 px-3 text-[13px] text-neutral-500">
-                      {f.data_vencimento ? new Date(f.data_vencimento).toLocaleDateString('pt-BR') : '-'}
-                    </td>
-                    <td className="py-2 px-3 text-right text-[13px] font-mono font-medium text-neutral-900">
-                      R$ {parseFloat(f.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="py-2 px-3 text-right text-[13px] font-mono text-neutral-600">
-                      R$ {parseFloat(f.valor_pj || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="py-2 px-3 text-right text-[13px] font-mono text-neutral-600">
-                      R$ {parseFloat(f.valor_pf || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <select
-                        value={f.status}
-                        onChange={(e) => atualizarStatus(f.id, e.target.value)}
-                        className={`px-1.5 py-0.5 rounded text-[11px] font-medium cursor-pointer
-                          ${f.status === 'pendente' ? 'bg-amber-100 text-amber-800' : ''}
-                          ${f.status === 'pago' ? 'bg-blue-100 text-blue-800' : ''}
-                          ${f.status === 'reembolsado' ? 'bg-green-100 text-green-800' : ''}
-                        `}
-                      >
-                        <option value="pendente">Pendente</option>
-                        <option value="pago">Pago</option>
-                        <option value="reembolsado">Reembolsado</option>
-                      </select>
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {f.pdf_url && (
-                          <button
-                            onClick={() => window.open(f.pdf_url, '_blank')}
-                            className="p-1 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded transition-colors"
-                            title="Ver PDF"
-                          >
-                            <FileText size={14} strokeWidth={1.5} />
-                          </button>
-                        )}
-                        <Link href={`/faturas/${f.id}`} className="text-neutral-500 hover:text-neutral-900 text-[11px]">
-                          Detalhes
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteSingle(f)}
-                          className="p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                          title="Remover fatura"
-                        >
-                          <Trash2 size={14} strokeWidth={1.5} />
-                        </button>
+        <>
+          {/* Mobile card view */}
+          <div className="mobile-cards space-y-2">
+            {faturas.map(f => (
+              <div key={f.id} className={`bg-white rounded-lg border border-neutral-200 p-3 ${selectedIds.has(f.id) ? 'ring-2 ring-neutral-300 bg-neutral-50' : ''}`}>
+                <div className="flex items-start gap-3">
+                  <button onClick={() => toggleSelection(f.id)} className="mt-0.5 text-neutral-400 hover:text-neutral-600 p-1">
+                    {selectedIds.has(f.id) ? <CheckSquare size={18} strokeWidth={1.5} className="text-neutral-900" /> : <Square size={18} strokeWidth={1.5} />}
+                  </button>
+                  <Link href={`/faturas/${f.id}`} className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[13px] font-medium text-neutral-900 truncate">{f.cartoes?.nome || 'N/A'}</span>
+                      <span className="font-mono text-[14px] font-medium text-neutral-900 ml-2">
+                        R$ {parseFloat(f.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] text-neutral-500">
+                        {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-emerald-600">PJ: R$ {parseFloat(f.valor_pj || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        <span className="text-[11px] text-rose-600">PF: R$ {parseFloat(f.valor_pf || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </Link>
+                </div>
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-neutral-100 ml-9">
+                  <select
+                    value={f.status}
+                    onChange={(e) => atualizarStatus(f.id, e.target.value)}
+                    className={`px-2 py-1 rounded text-[12px] font-medium cursor-pointer
+                      ${f.status === 'pendente' ? 'bg-amber-100 text-amber-800' : ''}
+                      ${f.status === 'pago' ? 'bg-blue-100 text-blue-800' : ''}
+                      ${f.status === 'reembolsado' ? 'bg-green-100 text-green-800' : ''}
+                    `}
+                  >
+                    <option value="pendente">Pendente</option>
+                    <option value="pago">Pago</option>
+                    <option value="reembolsado">Reembolsado</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    {f.pdf_url && (
+                      <button onClick={() => window.open(f.pdf_url, '_blank')} className="p-2 text-neutral-400 hover:text-neutral-900 rounded">
+                        <FileText size={16} strokeWidth={1.5} />
+                      </button>
+                    )}
+                    <button onClick={() => handleDeleteSingle(f)} className="p-2 text-neutral-400 hover:text-red-500 rounded">
+                      <Trash2 size={16} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+
+          {/* Desktop table view */}
+          <div className="desktop-table bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="py-2 px-3 text-center w-10">
+                      <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
+                        {selectedIds.size === faturas.length ? <CheckSquare size={16} strokeWidth={1.5} /> : <Square size={16} strokeWidth={1.5} />}
+                      </button>
+                    </th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartao</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mes</th>
+                    <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Vencimento</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Total</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">PJ</th>
+                    <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">PF</th>
+                    <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Status</th>
+                    <th className="py-2 px-3 text-center text-[11px] uppercase tracking-wider font-medium text-neutral-400">Acoes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {faturas.map(f => (
+                    <tr key={f.id} className={`hover:bg-neutral-50 ${selectedIds.has(f.id) ? 'bg-neutral-100' : ''}`}>
+                      <td className="py-2 px-3 text-center">
+                        <button onClick={() => toggleSelection(f.id)} className="text-neutral-400 hover:text-neutral-600">
+                          {selectedIds.has(f.id) ? <CheckSquare size={16} strokeWidth={1.5} className="text-neutral-900" /> : <Square size={16} strokeWidth={1.5} />}
+                        </button>
+                      </td>
+                      <td className="py-2 px-3 text-[13px] font-medium text-neutral-900">
+                        {f.cartoes?.nome || 'N/A'}
+                        <span className="text-[11px] text-neutral-400 ml-1">({f.cartoes?.tipo})</span>
+                      </td>
+                      <td className="py-2 px-3 text-[13px] text-neutral-500">
+                        {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="py-2 px-3 text-[13px] text-neutral-500">
+                        {f.data_vencimento ? new Date(f.data_vencimento).toLocaleDateString('pt-BR') : '-'}
+                      </td>
+                      <td className="py-2 px-3 text-right text-[13px] font-mono font-medium text-neutral-900">
+                        R$ {parseFloat(f.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2 px-3 text-right text-[13px] font-mono text-neutral-600">
+                        R$ {parseFloat(f.valor_pj || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2 px-3 text-right text-[13px] font-mono text-neutral-600">
+                        R$ {parseFloat(f.valor_pf || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <select
+                          value={f.status}
+                          onChange={(e) => atualizarStatus(f.id, e.target.value)}
+                          className={`px-1.5 py-0.5 rounded text-[11px] font-medium cursor-pointer
+                            ${f.status === 'pendente' ? 'bg-amber-100 text-amber-800' : ''}
+                            ${f.status === 'pago' ? 'bg-blue-100 text-blue-800' : ''}
+                            ${f.status === 'reembolsado' ? 'bg-green-100 text-green-800' : ''}
+                          `}
+                        >
+                          <option value="pendente">Pendente</option>
+                          <option value="pago">Pago</option>
+                          <option value="reembolsado">Reembolsado</option>
+                        </select>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {f.pdf_url && (
+                            <button
+                              onClick={() => window.open(f.pdf_url, '_blank')}
+                              className="p-1 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded transition-colors"
+                              title="Ver PDF"
+                            >
+                              <FileText size={14} strokeWidth={1.5} />
+                            </button>
+                          )}
+                          <Link href={`/faturas/${f.id}`} className="text-neutral-500 hover:text-neutral-900 text-[11px]">
+                            Detalhes
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteSingle(f)}
+                            className="p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="Remover fatura"
+                          >
+                            <Trash2 size={14} strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+
       ) : (
         <div className="bg-white rounded-lg border border-neutral-200 p-8 text-center">
           <FileText className="mx-auto mb-3 text-neutral-300" size={24} strokeWidth={1.5} />

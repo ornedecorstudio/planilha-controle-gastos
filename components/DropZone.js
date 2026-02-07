@@ -69,7 +69,7 @@ export default function DropZone({ onFileSelect, accept = '.pdf,.ofx,.qfx', file
     <div className="space-y-3">
       <div
         className={`
-          relative border-2 border-dashed rounded-xl py-12 px-6 text-center cursor-pointer
+          relative border-2 border-dashed rounded-xl py-8 md:py-12 px-4 md:px-6 text-center cursor-pointer
           transition-all duration-200 ease-in-out
           ${isDragOver
             ? 'border-neutral-500 bg-neutral-100/80 scale-[1.01]'
@@ -114,17 +114,23 @@ export default function DropZone({ onFileSelect, accept = '.pdf,.ofx,.qfx', file
         ) : (
           <div className="flex flex-col items-center gap-3">
             <div className="p-3 bg-neutral-100 rounded-xl">
-              <Upload size={28} className="text-neutral-400" strokeWidth={1.5} />
+              <Upload size={24} className="text-neutral-400 md:w-7 md:h-7" strokeWidth={1.5} />
             </div>
             <div>
-              <p className="font-medium text-neutral-700">
+              <p className="hidden md:block font-medium text-neutral-700">
                 Arraste o arquivo aqui para importar
               </p>
-              <p className="text-sm text-neutral-400 mt-1">
+              <p className="md:hidden font-medium text-neutral-700">
+                Toque para selecionar o arquivo
+              </p>
+              <p className="hidden md:block text-sm text-neutral-400 mt-1">
                 ou{' '}
                 <span className="text-neutral-900 font-medium underline underline-offset-2 decoration-neutral-300">
                   selecione um arquivo
                 </span>
+              </p>
+              <p className="md:hidden text-[12px] text-neutral-400 mt-1">
+                PDF, OFX ou QFX
               </p>
             </div>
           </div>

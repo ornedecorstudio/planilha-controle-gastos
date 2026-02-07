@@ -318,7 +318,7 @@ export default function ExtratosPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div>
               <label className="block text-label font-medium mb-1.5 text-neutral-500">Banco (opcional)</label>
               <select value={banco} onChange={(e) => setBanco(e.target.value)}
@@ -386,7 +386,52 @@ export default function ExtratosPage() {
               Nenhum extrato importado ainda.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="mobile-cards space-y-2 p-3">
+              {extratosImportados.map(ext => (
+                <div key={ext.id} className={`p-3 rounded-lg border border-neutral-100 ${selectedIds.has(ext.id) ? 'bg-neutral-100' : ''}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[13px] font-medium text-neutral-900">{ext.banco}</span>
+                    <span className="font-mono text-[14px] font-bold text-neutral-900">
+                      R$ {(parseFloat(ext.saldo) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[12px] text-neutral-500">
+                      {ext.mes_referencia ? new Date(ext.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : '-'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-emerald-600">
+                        +R$ {(parseFloat(ext.total_entradas) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-[11px] text-rose-600">
+                        -R$ {(parseFloat(ext.total_saidas) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                    <button onClick={() => toggleSelection(ext.id)} className="text-neutral-400 hover:text-neutral-600">
+                      {selectedIds.has(ext.id) ? <CheckSquare size={16} strokeWidth={1.5} className="text-neutral-900" /> : <Square size={16} strokeWidth={1.5} />}
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <Link href={`/extratos/${ext.id}`} className="text-neutral-500 hover:text-neutral-900 text-[12px]">
+                        Detalhes
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteSingle(ext)}
+                        className="p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title="Remover extrato"
+                      >
+                        <Trash2 size={14} strokeWidth={1.5} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="desktop-table overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-neutral-50">
                   <tr>
@@ -488,12 +533,12 @@ export default function ExtratosPage() {
           )}
 
           {/* Resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+            <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
               <p className="text-label text-neutral-500">Movimentações</p>
               <p className="text-kpi text-neutral-900">{movimentacoes.length}</p>
             </div>
-            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+            <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <p className="text-label text-neutral-500">Total Entradas</p>
@@ -502,7 +547,7 @@ export default function ExtratosPage() {
                 R$ {totalEntradas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
             </div>
-            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+            <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                 <p className="text-label text-neutral-500">Total Saídas</p>
@@ -511,7 +556,7 @@ export default function ExtratosPage() {
                 R$ {totalSaidas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
             </div>
-            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+            <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-4">
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                 <p className="text-label text-neutral-500">Reembolsos ao Sócio</p>
@@ -551,7 +596,50 @@ export default function ExtratosPage() {
 
           {/* Tabela de Movimentações */}
           <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="mobile-cards space-y-2 p-3">
+              {movimentacoes.map(m => (
+                <div key={m.id} className="p-3 rounded-lg border border-neutral-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[13px] text-neutral-900 truncate mr-2" title={m.descricao}>
+                      {m.descricao && m.descricao.length > 30 ? m.descricao.substring(0, 30) + '...' : m.descricao}
+                    </span>
+                    <span className={`font-mono text-[14px] font-medium whitespace-nowrap ${
+                      m.tipo === 'entrada' ? 'text-emerald-700' : 'text-rose-700'
+                    }`}>
+                      {m.tipo === 'entrada' ? '+' : '-'}R$ {m.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[11px] text-neutral-500">
+                      {m.data ? new Date(m.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={m.categoria}
+                        onChange={(e) => updateMovimentacao(m.id, 'categoria', e.target.value)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${CATEGORIA_EXTRATO_COLORS[m.categoria] || 'bg-gray-100'}`}
+                      >
+                        {CATEGORIAS_EXTRATO.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <select
+                        value={m.tipo}
+                        onChange={(e) => updateMovimentacao(m.id, 'tipo', e.target.value)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                          m.tipo === 'entrada' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        <option value="entrada">Entrada</option>
+                        <option value="saida">Saída</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="desktop-table overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-neutral-50">
                   <tr>

@@ -69,35 +69,41 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
 
       {isOpen && (
         <>
+          {/* Backdrop */}
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0 z-10 bg-black/30 md:bg-transparent"
             onClick={() => setIsOpen(false)}
           />
 
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-card z-20 p-3">
+          {/* Bottom sheet on mobile, dropdown on desktop */}
+          <div
+            className="fixed bottom-0 left-0 right-0 md:absolute md:bottom-auto md:top-full md:left-0 md:right-0 md:mt-1 bg-white border-t md:border border-neutral-200 rounded-t-2xl md:rounded-lg shadow-card z-20 p-4 md:p-3"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          >
+            <div className="w-10 h-1 bg-neutral-300 rounded-full mx-auto mb-3 md:hidden" />
             <div className="flex items-center justify-between mb-3">
               <button
                 type="button"
                 onClick={prevYear}
-                className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
+                className="p-2 md:p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
               >
-                <ChevronLeft size={16} strokeWidth={1.5} className="text-neutral-500" />
+                <ChevronLeft size={18} strokeWidth={1.5} className="text-neutral-500 md:w-4 md:h-4" />
               </button>
 
-              <span className="text-[14px] font-semibold text-neutral-800">
+              <span className="text-[15px] md:text-[14px] font-semibold text-neutral-800">
                 {viewYear}
               </span>
 
               <button
                 type="button"
                 onClick={nextYear}
-                className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
+                className="p-2 md:p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
               >
-                <ChevronRight size={16} strokeWidth={1.5} className="text-neutral-500" />
+                <ChevronRight size={18} strokeWidth={1.5} className="text-neutral-500 md:w-4 md:h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-4 gap-2 md:gap-1.5">
               {MESES_ABREV.map((mes, index) => {
                 const mesNum = index + 1
                 const isSelected = viewYear === selectedYear && mesNum === selectedMonth
@@ -109,7 +115,7 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
                     type="button"
                     onClick={() => handleMonthSelect(mesNum)}
                     className={`
-                      py-1.5 px-2 rounded-md text-[13px] font-medium transition-all
+                      py-2.5 md:py-1.5 px-2 rounded-lg md:rounded-md text-[14px] md:text-[13px] font-medium transition-all
                       ${isSelected
                         ? 'bg-neutral-900 text-white'
                         : isCurrentMonth
@@ -132,7 +138,7 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
                   setViewYear(now.getFullYear())
                   handleMonthSelect(now.getMonth() + 1)
                 }}
-                className="flex-1 py-1.5 text-[12px] text-neutral-500 hover:bg-neutral-100 rounded-md transition-colors"
+                className="flex-1 py-2.5 md:py-1.5 text-[13px] md:text-[12px] text-neutral-500 hover:bg-neutral-100 rounded-lg md:rounded-md transition-colors"
               >
                 Mês atual
               </button>
@@ -145,7 +151,7 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
                   setViewYear(prevYr)
                   handleMonthSelect(prevMonth)
                 }}
-                className="flex-1 py-1.5 text-[12px] text-neutral-500 hover:bg-neutral-100 rounded-md transition-colors"
+                className="flex-1 py-2.5 md:py-1.5 text-[13px] md:text-[12px] text-neutral-500 hover:bg-neutral-100 rounded-lg md:rounded-md transition-colors"
               >
                 Mês anterior
               </button>

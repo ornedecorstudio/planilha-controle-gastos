@@ -376,22 +376,22 @@ export default function UploadPage() {
               Valor da fatura existente: R$ {parseFloat(duplicateWarning.valor_existente).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
             </p>
           )}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col md:flex-row gap-2">
             <button
               onClick={() => setDuplicateWarning(null)}
-              className="px-3 py-1.5 bg-white border border-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-50 text-[13px]"
+              className="px-3 py-2.5 md:py-1.5 bg-white border border-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-50 text-[13px] order-3 md:order-1"
             >
               Cancelar
             </button>
             <button
               onClick={handleContinuarMesmoAssim}
-              className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-[13px] font-medium"
+              className="px-3 py-2.5 md:py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-[13px] font-medium order-2"
             >
               Continuar mesmo assim
             </button>
             <a
               href={`/faturas/${duplicateWarning.fatura_id}`}
-              className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-[13px] font-medium"
+              className="px-3 py-2.5 md:py-1.5 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-[13px] font-medium text-center order-1 md:order-3"
             >
               Ver fatura existente
             </a>
@@ -543,7 +543,40 @@ export default function UploadPage() {
           )}
 
           <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="mobile-cards space-y-2 p-3">
+              {transactions.map(t => (
+                <div key={t.id} className="p-3 rounded-lg border border-neutral-100">
+                  <div className="flex items-start justify-between mb-1.5">
+                    <span className="text-[13px] text-neutral-900 truncate mr-2 flex-1" title={t.descricao}>
+                      {t.descricao && t.descricao.length > 35 ? t.descricao.substring(0, 35) + '...' : t.descricao}
+                    </span>
+                    <span className="font-mono text-[14px] font-medium text-neutral-900 whitespace-nowrap">
+                      R$ {t.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[11px] text-neutral-500">
+                      {t.data ? new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <select value={t.categoria} onChange={(e) => updateTransaction(t.id, 'categoria', e.target.value)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}>
+                        {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                      </select>
+                      <select value={t.tipo} onChange={(e) => updateTransaction(t.id, 'tipo', e.target.value)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
+                        <option value="PJ">PJ</option>
+                        <option value="PF">PF</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="desktop-table overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-neutral-50">
                   <tr>
@@ -581,9 +614,9 @@ export default function UploadPage() {
           </div>
 
           <button onClick={handleSalvar} disabled={saving}
-            className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 text-[13px] font-medium transition-colors">
+            className="w-full md:w-auto px-4 py-3 md:py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 text-[14px] md:text-[13px] font-medium transition-colors">
             {saving ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2">
                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                 Salvando...
               </span>

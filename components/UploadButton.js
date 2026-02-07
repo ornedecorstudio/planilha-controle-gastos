@@ -67,9 +67,18 @@ export default function UploadButton({ onClick, loading = false, disabled = fals
           transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
           cursor: pointer;
           user-select: none;
-          min-width: 220px;
+          min-width: 200px;
           height: 52px;
           position: relative;
+          width: 100%;
+          max-width: 320px;
+        }
+        @media (min-width: 768px) {
+          .upload-btn {
+            width: auto;
+            max-width: none;
+            min-width: 220px;
+          }
         }
         .upload-btn:active:not(.disabled):not(.loading) {
           transform: scale(0.96);
