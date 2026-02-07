@@ -165,9 +165,9 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Pagamento Antecipado', incluir: false, confianca: 'alta' };
   }
 
-  // ===== IOF - campo separado na fatura, não infla split PJ/PF =====
+  // ===== IOF - gasto PJ (imposto sobre operações financeiras) =====
   if (desc.includes('IOF') || desc.includes('IMPOSTO OPERACOES FINANCEIRAS')) {
-    return { categoria: 'IOF', incluir: false, confianca: 'alta' };
+    return { categoria: 'IOF', incluir: true, confianca: 'alta' };
   }
 
   // ===== ALIMENTACAO (PF) =====
@@ -347,6 +347,25 @@ export async function POST(request) {
 
     for (let i = 0; i < transacoes.length; i++) {
       const t = transacoes[i];
+
+      // Forçar categoria por tipo_lancamento (vindo do parser/IA)
+      if (t.tipo_lancamento === 'iof') {
+        resultados[i] = { categoria: 'IOF', incluir: true };
+        continue;
+      }
+      if (t.tipo_lancamento === 'estorno') {
+        resultados[i] = { categoria: 'Estorno', incluir: false };
+        continue;
+      }
+      if (t.tipo_lancamento === 'pagamento_antecipado') {
+        resultados[i] = { categoria: 'Pagamento Antecipado', incluir: false };
+        continue;
+      }
+      if (t.tipo_lancamento === 'tarifa_cartao') {
+        resultados[i] = { categoria: 'Tarifas Cartao', incluir: false };
+        continue;
+      }
+
       const resultado = categorizarDeterministico(t.descricao);
 
       if (resultado.categoria !== null) {

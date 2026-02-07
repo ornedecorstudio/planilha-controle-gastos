@@ -98,8 +98,8 @@ export async function POST(request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Calcula PJ/PF somente de compras (tipo_lancamento='compra')
-    const compras = transacoesParaInserir.filter(t => t.tipo_lancamento === 'compra')
+    // Calcula PJ/PF de compras e IOF (tipo_lancamento='compra' ou 'iof')
+    const compras = transacoesParaInserir.filter(t => t.tipo_lancamento === 'compra' || t.tipo_lancamento === 'iof')
 
     const totalPJ = compras
       .filter(t => t.tipo === 'PJ')
@@ -217,8 +217,11 @@ async function recalcularTotaisFatura(supabase, fatura_id) {
 
   const todas = todasTransacoes || []
 
-  // PJ/PF somente de compras
-  const compras = todas.filter(t => (t.tipo_lancamento || 'compra') === 'compra')
+  // PJ/PF de compras e IOF
+  const compras = todas.filter(t => {
+    const tipo = t.tipo_lancamento || 'compra'
+    return tipo === 'compra' || tipo === 'iof'
+  })
 
   const totalPJ = compras
     .filter(t => t.tipo === 'PJ')

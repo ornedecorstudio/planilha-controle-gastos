@@ -350,9 +350,12 @@ export default function UploadPage() {
     }))
   }
 
-  const compras = transactions.filter(t => (t.tipo_lancamento || 'compra') === 'compra')
-  const totalPJ = compras.filter(t => t.tipo === 'PJ').reduce((a, t) => a + t.valor, 0)
-  const totalPF = compras.filter(t => t.tipo === 'PF').reduce((a, t) => a + t.valor, 0)
+  const gastosContaveis = transactions.filter(t => {
+    const tipo = t.tipo_lancamento || 'compra'
+    return tipo === 'compra' || tipo === 'iof'
+  })
+  const totalPJ = gastosContaveis.filter(t => t.tipo === 'PJ').reduce((a, t) => a + t.valor, 0)
+  const totalPF = gastosContaveis.filter(t => t.tipo === 'PF').reduce((a, t) => a + t.valor, 0)
 
   return (
     <div className="space-y-5">
