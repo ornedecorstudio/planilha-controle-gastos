@@ -4,31 +4,35 @@ import { useState, useEffect, useRef } from 'react'
 
 export default function UploadButton({ onClick, loading = false, disabled = false, success = false, label = 'Upload' }) {
   const [state, setState] = useState('idle') // idle, loading, success
-  const [svgContent, setSvgContent] = useState('arrow')
-  const buttonRef = useRef(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
   useEffect(() => {
     if (loading && state === 'idle') {
       setState('loading')
-      // After animation, switch to checkmark
-      const timer = setTimeout(() => {
-        setSvgContent('check')
-      }, 1500)
-      return () => clearTimeout(timer)
+      setElapsedSeconds(0)
     }
     if (success && state === 'loading') {
       setState('success')
       const timer = setTimeout(() => {
         setState('idle')
-        setSvgContent('arrow')
+        setElapsedSeconds(0)
       }, 2000)
       return () => clearTimeout(timer)
     }
     if (!loading && !success && state !== 'idle') {
       setState('idle')
-      setSvgContent('arrow')
+      setElapsedSeconds(0)
     }
   }, [loading, success, state])
+
+  // Timer to count elapsed seconds while loading
+  useEffect(() => {
+    if (state !== 'loading') return
+    const interval = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [state])
 
   const handleClick = (e) => {
     e.preventDefault()
@@ -36,29 +40,38 @@ export default function UploadButton({ onClick, loading = false, disabled = fals
     onClick?.()
   }
 
+  // Dynamic loading text based on elapsed time
+  const getLoadingText = () => {
+    if (elapsedSeconds < 3) return 'Enviando...'
+    if (elapsedSeconds < 8) return 'Processando PDF...'
+    if (elapsedSeconds < 15) return 'Extraindo transações...'
+    if (elapsedSeconds < 25) return 'Analisando com IA...'
+    if (elapsedSeconds < 40) return 'Quase lá...'
+    return 'Finalizando...'
+  }
+
   return (
     <>
       <style jsx>{`
         .upload-btn {
-          --duration: 3000;
           --bg: #1e2132;
-          --rect: #12141f;
           --text-color: #f8f9fc;
           --arrow-color: #f8f9fc;
-          --success-bg: #2d3148;
-          --check-color: #f8f9fc;
+          --success-bg: #16a34a;
           display: inline-flex;
+          align-items: center;
           overflow: hidden;
-          text-decoration: none;
-          -webkit-mask-image: -webkit-radial-gradient(white, black);
           background: var(--bg);
           border-radius: 30px;
           box-shadow: 0 2px 8px -1px rgba(10, 22, 50, 0.24);
           transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
           cursor: pointer;
           user-select: none;
+          min-width: 220px;
+          height: 52px;
+          position: relative;
         }
-        .upload-btn:active:not(.disabled) {
+        .upload-btn:active:not(.disabled):not(.loading) {
           transform: scale(0.96);
           box-shadow: 0 1px 4px -1px rgba(10, 22, 50, 0.24);
         }
@@ -66,183 +79,162 @@ export default function UploadButton({ onClick, loading = false, disabled = fals
           opacity: 0.45;
           cursor: not-allowed;
         }
+        .upload-btn.loading {
+          cursor: wait;
+        }
+        .upload-btn.success {
+          background: var(--success-bg);
+        }
 
-        .upload-btn .text-list {
-          margin: 0;
-          padding: 14px 28px 14px 36px;
-          list-style: none;
-          text-align: center;
-          position: relative;
-          backface-visibility: hidden;
+        .upload-btn .btn-content {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 24px 0 28px;
+          width: 100%;
+          justify-content: center;
+        }
+
+        .upload-btn .btn-label {
           font-size: 15px;
           font-weight: 500;
           line-height: 24px;
           color: var(--text-color);
-          overflow: hidden;
-          height: 52px;
-        }
-        .upload-btn .text-list li {
-          transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .upload-btn .text-list li:not(:first-child) {
-          position: absolute;
-          top: 14px;
-          left: 0;
-          right: 0;
-        }
-        .upload-btn .text-list li:nth-child(2) {
-          transform: translateY(60px);
-        }
-        .upload-btn .text-list li:nth-child(3) {
-          transform: translateY(120px);
+          white-space: nowrap;
+          transition: opacity 0.3s ease;
         }
 
-        .upload-btn.loading .text-list li:nth-child(1) {
-          transform: translateY(-60px);
-        }
-        .upload-btn.loading .text-list li:nth-child(2) {
-          transform: translateY(0);
-        }
-        .upload-btn.loading .text-list li:nth-child(3) {
-          transform: translateY(60px);
-        }
-
-        .upload-btn.success .text-list li:nth-child(1) {
-          transform: translateY(-120px);
-        }
-        .upload-btn.success .text-list li:nth-child(2) {
-          transform: translateY(-60px);
-        }
-        .upload-btn.success .text-list li:nth-child(3) {
-          transform: translateY(0);
-        }
-
-        .upload-btn .icon-circle {
-          overflow: hidden;
-          -webkit-mask-image: -webkit-radial-gradient(white, black);
-          position: relative;
-          width: 52px;
-          height: 52px;
-          border-radius: 26px;
-          background: var(--rect);
+        /* Spinner */
+        .upload-spinner {
+          width: 20px;
+          height: 20px;
+          border: 2.5px solid rgba(255, 255, 255, 0.2);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: upload-spin 0.7s linear infinite;
           flex-shrink: 0;
         }
 
-        .upload-btn .icon-circle::before {
-          content: '';
-          display: block;
-          position: absolute;
-          border-radius: 1px;
-          width: 2px;
-          top: 50%;
-          left: 50%;
-          height: 16px;
-          margin: -7px 0 0 -1px;
-          background: var(--arrow-color);
-          transition: transform 0.3s ease;
-        }
-        .upload-btn.loading .icon-circle::before {
-          animation: upload-line 2s linear forwards;
+        @keyframes upload-spin {
+          to { transform: rotate(360deg); }
         }
 
-        .upload-btn .icon-circle::after {
+        /* Pulse dot animation for loading text */
+        .upload-dots::after {
           content: '';
-          display: block;
+          animation: upload-dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes upload-dots {
+          0% { content: ''; }
+          25% { content: '.'; }
+          50% { content: '..'; }
+          75% { content: '...'; }
+          100% { content: ''; }
+        }
+
+        /* Progress bar */
+        .upload-progress-bar {
           position: absolute;
-          width: 52px;
-          height: 52px;
-          transform-origin: 50% 100%;
-          border-radius: 80% 80% 0 0;
-          background: var(--success-bg);
-          top: 0;
+          bottom: 0;
           left: 0;
-          transform: scaleY(0);
-        }
-        .upload-btn.loading .icon-circle::after {
-          animation: upload-bg 2s linear forwards;
+          height: 3px;
+          background: rgba(255, 255, 255, 0.35);
+          border-radius: 0 0 30px 30px;
+          animation: upload-progress-indeterminate 2s ease-in-out infinite;
         }
 
-        .upload-btn .icon-circle svg {
-          display: block;
-          position: absolute;
+        @keyframes upload-progress-indeterminate {
+          0% { width: 0%; left: 0%; }
+          50% { width: 60%; left: 20%; }
+          100% { width: 0%; left: 100%; }
+        }
+
+        /* Arrow icon */
+        .upload-arrow {
           width: 18px;
           height: 18px;
-          left: 50%;
-          top: 50%;
-          margin: -11px 0 0 -9px;
-          fill: none;
-          z-index: 1;
-          stroke-width: 2px;
+          flex-shrink: 0;
           stroke: var(--arrow-color);
+          fill: none;
+          stroke-width: 2px;
           stroke-linecap: round;
           stroke-linejoin: round;
+          transition: transform 0.3s ease;
         }
-        .upload-btn.loading .icon-circle svg {
-          animation: upload-svg 2s linear forwards;
-        }
-
-        @keyframes upload-line {
-          5%, 10% { transform: translateY(26px); }
-          40% { transform: translateY(18px); }
-          65% { transform: translateY(0); }
-          75%, 100% { transform: translateY(-26px); }
+        .upload-btn:hover:not(.disabled):not(.loading) .upload-arrow {
+          transform: translateY(-2px);
         }
 
-        @keyframes upload-svg {
-          0%, 20% {
-            stroke-dasharray: 0;
-            stroke-dashoffset: 0;
-            margin: -11px 0 0 -9px;
-          }
-          21%, 89% {
-            stroke-dasharray: 26px;
-            stroke-dashoffset: 26px;
-            stroke-width: 3px;
-            margin: -9px 0 0 -9px;
-            stroke: var(--check-color);
-          }
-          100% {
-            stroke-dasharray: 26px;
-            stroke-dashoffset: 0;
-            margin: -9px 0 0 -9px;
-            stroke: var(--check-color);
-          }
-          12% { opacity: 1; }
-          20%, 89% { opacity: 0; }
-          90%, 100% { opacity: 1; }
+        /* Checkmark icon */
+        .upload-check {
+          width: 20px;
+          height: 20px;
+          flex-shrink: 0;
+          stroke: var(--arrow-color);
+          fill: none;
+          stroke-width: 2.5px;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          animation: upload-check-draw 0.4s ease forwards;
         }
 
-        @keyframes upload-bg {
-          10% { transform: scaleY(0); }
-          40% { transform: scaleY(0.15); }
-          65% { transform: scaleY(0.5); border-radius: 50% 50% 0 0; }
-          75% { border-radius: 50% 50% 0 0; }
-          90%, 100% { border-radius: 0; }
-          75%, 100% { transform: scaleY(1); }
+        @keyframes upload-check-draw {
+          0% { stroke-dasharray: 24; stroke-dashoffset: 24; }
+          100% { stroke-dasharray: 24; stroke-dashoffset: 0; }
+        }
+
+        /* Elapsed timer */
+        .upload-timer {
+          font-size: 12px;
+          font-weight: 400;
+          color: rgba(255, 255, 255, 0.5);
+          font-variant-numeric: tabular-nums;
+          min-width: 28px;
+          text-align: right;
         }
       `}</style>
 
       <button
-        ref={buttonRef}
         onClick={handleClick}
         className={`upload-btn ${state} ${disabled ? 'disabled' : ''}`}
         disabled={disabled}
         type="button"
       >
-        <ul className="text-list">
-          <li>{label}</li>
-          <li>Enviando...</li>
-          <li>Processando</li>
-        </ul>
-        <div className="icon-circle">
-          <svg viewBox="0 0 24 24">
-            {svgContent === 'arrow' ? (
-              <path d="M5 12 L12 5 L19 12" />
-            ) : (
-              <path d="M3 14 L8 19 L21 6" />
-            )}
-          </svg>
+        <div className="btn-content">
+          {state === 'idle' && (
+            <>
+              <svg className="upload-arrow" viewBox="0 0 24 24">
+                <path d="M5 12 L12 5 L19 12" />
+                <path d="M12 5 L12 19" />
+              </svg>
+              <span className="btn-label">{label}</span>
+            </>
+          )}
+
+          {state === 'loading' && (
+            <>
+              <div className="upload-spinner" />
+              <span className="btn-label">{getLoadingText()}</span>
+              {elapsedSeconds >= 5 && (
+                <span className="upload-timer">{elapsedSeconds}s</span>
+              )}
+            </>
+          )}
+
+          {state === 'success' && (
+            <>
+              <svg className="upload-check" viewBox="0 0 24 24">
+                <path d="M4 12 L10 18 L20 6" />
+              </svg>
+              <span className="btn-label">Concluído</span>
+            </>
+          )}
         </div>
+
+        {state === 'loading' && (
+          <div className="upload-progress-bar" />
+        )}
       </button>
     </>
   )
