@@ -486,19 +486,33 @@ export default function UploadPage() {
           </div>
 
           {auditoria && (
-            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+            <div className={`bg-white rounded-lg border p-4 ${auditoria.reconciliado === true ? 'border-emerald-300' : 'border-neutral-200'}`}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-[13px] font-medium text-neutral-900">Reconciliação da fatura</h3>
                 {auditoria.reconciliado === true && (
-                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] rounded font-medium">Reconciliado</span>
+                  <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[11px] rounded-full font-semibold flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    Valores conferem 100%
+                  </span>
                 )}
                 {auditoria.reconciliado === false && (
-                  <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[11px] rounded font-medium">Divergência: {auditoria.diferenca_centavos} centavos</span>
+                  <span className="px-2 py-1 bg-amber-50 text-amber-700 text-[11px] rounded-full font-medium">
+                    Divergência: {auditoria.diferenca_centavos} centavos
+                  </span>
                 )}
                 {auditoria.reconciliado === null && (
-                  <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-500 text-[11px] rounded font-medium">Não verificável</span>
+                  <span className="px-2 py-1 bg-neutral-100 text-neutral-500 text-[11px] rounded-full font-medium">Não verificável</span>
                 )}
               </div>
+
+              {auditoria.reconciliado === true && (
+                <div className="mb-3 p-2.5 bg-emerald-50 rounded-lg border border-emerald-200">
+                  <p className="text-[12px] text-emerald-700 font-medium text-center">
+                    A soma das transações bate com o "Total a pagar" do PDF da fatura
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-1.5 text-[13px] font-mono">
                 <div className="flex justify-between text-neutral-700">
                   <span>Total compras (gross)</span>
@@ -533,8 +547,8 @@ export default function UploadPage() {
                   <span>R$ {auditoria.total_fatura_calculado?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                 </div>
                 {auditoria.total_fatura_pdf !== null && (
-                  <div className="flex justify-between text-neutral-500">
-                    <span>Total no PDF</span>
+                  <div className={`flex justify-between pt-1 ${auditoria.reconciliado === true ? 'text-emerald-700 font-medium' : 'text-neutral-500'}`}>
+                    <span>Total a pagar (PDF)</span>
                     <span>R$ {auditoria.total_fatura_pdf?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                   </div>
                 )}
