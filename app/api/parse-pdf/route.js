@@ -73,70 +73,100 @@ Retorne APENAS um JSON válido, SEM markdown:
 }
 
 /**
- * Constrói prompt específico para PicPay quando o parser detecta texto intercalado.
+ * Constrói prompt específico para PicPay.
+ * PicPay SEMPRE usa layout 2 colunas — IA visual é o único caminho confiável.
  * Inclui metadados extraídos pelo parser para verificação cruzada.
  */
 function construirPromptPicPay(cartaoNome, tipoCartao, metadados) {
   const totalFatura = metadados?.total_fatura_pdf
-    ? `O valor total da fatura é R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`
-    : '';
+    ? `R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
 
   const despesasMes = metadados?.despesas_do_mes_pdf
-    ? `\nDespesas do mês (bruto): R$ ${metadados.despesas_do_mes_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`
-    : '';
+    ? `R$ ${metadados.despesas_do_mes_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
+
+  const creditosEstornos = metadados?.creditos_estornos_pdf
+    ? `R$ ${metadados.creditos_estornos_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
 
   const subtotaisInfo = metadados?.subtotais?.length > 0
-    ? `\nSubtotais encontrados no PDF:\n${metadados.subtotais.map(s => `  - ${s.descricao}: R$ ${s.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`).join('\n')}`
-    : '';
+    ? metadados.subtotais.map(s => `  - ${s.descricao}: R$ ${s.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`).join('\n')
+    : null;
 
   const cartoesInfo = metadados?.cartoes?.length > 0
-    ? `\nCartões presentes na fatura: ${metadados.cartoes.map(c => c === 'PRINCIPAL' ? 'Picpay Card' : `final ${c}`).join(', ')}.`
-    : '';
+    ? metadados.cartoes.map(c => c === 'PRINCIPAL' ? 'Picpay Card (principal)' : `Picpay Card final ${c}`).join(', ')
+    : null;
+
+  let metadadosBloco = '\nMETADADOS EXTRAÍDOS DO PDF (use para verificação cruzada):';
+  if (totalFatura) metadadosBloco += `\n- Total da fatura: ${totalFatura}`;
+  if (despesasMes) metadadosBloco += `\n- Despesas do mês (bruto): ${despesasMes}`;
+  if (creditosEstornos) metadadosBloco += `\n- Créditos e estornos: ${creditosEstornos}`;
+  if (cartoesInfo) metadadosBloco += `\n- Cartões na fatura: ${cartoesInfo}`;
+  if (subtotaisInfo) metadadosBloco += `\n- Subtotais por cartão:\n${subtotaisInfo}`;
 
   return `Você é um especialista em extrair transações de faturas de cartão de crédito PicPay.
-Analise este PDF de fatura do cartão "${cartaoNome}"${tipoCartao ? ` (cartão ${tipoCartao})` : ''}.
+Analise VISUALMENTE este PDF de fatura do cartão "${cartaoNome}"${tipoCartao ? ` (cartão ${tipoCartao})` : ''}.
 
-CONTEXTO IMPORTANTE:
-Esta fatura PicPay tem layout de DUAS COLUNAS (um cartão à esquerda, outro à direita). ${totalFatura}${despesasMes}${subtotaisInfo}${cartoesInfo}
+ATENÇÃO — LAYOUT DUAS COLUNAS:
+Este PDF PicPay tem layout de DUAS COLUNAS lado a lado (um cartão à esquerda, outro à direita).
+Leia AMBAS as colunas de TODAS as páginas. Não pule nenhuma coluna.
+São aproximadamente 200+ transações distribuídas em 7-8 páginas.
+${metadadosBloco}
 
-REGRAS DE EXTRAÇÃO — LEIA COM ATENÇÃO:
-1. EXTRAIA TODAS as transações de TODOS os cartões presentes no PDF
-2. Inclua transações de TODAS as seções: "Transações Nacionais" e "Transações Internacionais"
-3. Para transações internacionais, use SEMPRE o valor já convertido em BRL
-4. NÃO duplique transações
-5. Data deve estar no formato DD/MM/YYYY (adicione o ano baseado no vencimento da fatura)
-6. Valor deve ser número positivo (ex: 1234.56)
-7. Valores NEGATIVOS no PDF representam estornos/créditos — capture-os com tipo_lancamento "estorno" e valor POSITIVO
-8. IGNORE as páginas de informações financeiras (parcelamento, juros, IOF financiamento) — geralmente páginas 9-10
+REGRAS DE EXTRAÇÃO — LEIA COM MUITA ATENÇÃO:
 
-CLASSIFICAÇÃO tipo_lancamento — cada transação DEVE ter um tipo_lancamento:
+1. EXTRAIA TODAS as transações de TODOS os cartões presentes no PDF (são ${cartoesInfo ? metadados.cartoes.length : 'vários'} cartões)
+2. Percorra TODAS as páginas de 1 a 8 (páginas 9-10 são informações financeiras — IGNORE)
+3. Para cada página, leia AMBAS as colunas (esquerda e direita)
+4. Cada cartão tem seções "Transações Nacionais" e possivelmente "Transações Internacionais"
+
+TRANSAÇÕES INTERNACIONAIS — VALOR BRL:
+- Transações internacionais mostram valor em USD E valor convertido em BRL
+- Use SEMPRE o valor em BRL (o maior valor, já convertido), NUNCA o valor em USD
+- Exemplo: "Dólar: 72,32 | Câmbio do dia: R$ 5,7918 | 72,32  418,86" → use 418,86 (BRL)
+- Se aparecer "USD 72,32 BRL 418,86", use 418,86
+
+CLASSIFICAÇÃO tipo_lancamento — OBRIGATÓRIO para cada transação:
 - "compra": compras nacionais e internacionais (incluindo parceladas)
 - "iof": IOF (Imposto sobre Operações Financeiras), incluindo "IOF COMPRA INTERNACIONAL"
-- "estorno": estornos, créditos na fatura, devoluções, reembolsos, cashback, ESTORNO DE ANUIDADE
+- "estorno": estornos, créditos na fatura, devoluções, reembolsos, cashback, ESTORNO DE ANUIDADE, ESTORNO DE ANUIDADE DIF
 - "pagamento_antecipado": pagamento antecipado, pagamento parcial
 - "tarifa_cartao": anuidade, tarifa do cartão, seguro fatura, "AJ A DEB TARIFA"
 
-IGNORE completamente (não inclua no JSON):
-- "PAGAMENTO DE FATURA PELO PICPA" (é o pagamento da fatura anterior)
-- "Pagamento recebido" (são pagamentos do cliente)
-- Linhas de subtotal, total, total geral dos lançamentos
-- Cabeçalhos de seções
-- Informações de milhas Smiles
+VALORES NEGATIVOS:
+- Valores com sinal negativo (-) no PDF são estornos/créditos
+- Capture-os com tipo_lancamento "estorno" e valor POSITIVO no JSON
 
-VERIFICAÇÃO: a soma de TODAS as transações tipo "compra" + "iof" + "tarifa_cartao" - "estorno" - "pagamento_antecipado" deve ser próxima de ${metadados?.total_fatura_pdf ? `R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'o total da fatura no PDF'}.
+IGNORE completamente (NÃO inclua no JSON):
+- "PAGAMENTO DE FATURA PELO PICPA" ou qualquer variação (é o pagamento da fatura anterior)
+- "Pagamento recebido", "Pagamento efetuado"
+- Linhas de "Subtotal dos lançamentos", "Total geral dos lançamentos"
+- Cabeçalhos de seções e títulos de cartões
+- Informações de milhas Smiles (ex: "12345 milhas")
+- Informações financeiras das páginas 9-10 (parcelamento, juros, CET, IOF financiamento)
 
-Retorne APENAS um JSON válido, SEM markdown:
+FORMATO:
+- Data: DD/MM/YYYY (adicione o ano baseado no vencimento da fatura)
+- Valor: número positivo com 2 casas decimais (ex: 1234.56, NÃO 1.234,56)
+- Parcela: "1/3" se parcelada, null se não
+
+VERIFICAÇÃO CRUZADA:
+A soma de todas as transações tipo "compra" + "iof" + "tarifa_cartao" - "estorno" - "pagamento_antecipado" deve ser próxima de ${totalFatura || 'o total da fatura no PDF'}.
+Se a soma ficar muito diferente, revise se não esqueceu transações de alguma coluna ou página.
+
+Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
 {
   "transacoes": [
     {
       "data": "DD/MM/YYYY",
       "descricao": "descrição da transação",
       "valor": 123.45,
-      "parcela": "1/3" ou null,
+      "parcela": "1/3",
       "tipo_lancamento": "compra"
     }
   ],
-  "total_encontrado": número,
+  "total_encontrado": número_total_de_transações,
   "valor_total": soma_apenas_das_compras,
   "banco_detectado": "PicPay"
 }`;
@@ -372,7 +402,7 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         model: ANTHROPIC_MODEL,
-        max_tokens: 16384,
+        max_tokens: 32768,
         messages: [
           {
             role: 'user',
