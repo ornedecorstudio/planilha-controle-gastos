@@ -73,6 +73,83 @@ Retorne APENAS um JSON válido, SEM markdown:
 }
 
 /**
+ * Constrói prompt específico para Mercado Pago.
+ * O pdf-parse frequentemente corrompe o texto de PDFs do MercadoPago,
+ * então a IA visual é o caminho mais confiável.
+ * PDFs do MercadoPago têm múltiplas páginas com seções por cartão.
+ */
+function construirPromptMercadoPago(cartaoNome, tipoCartao, metadados) {
+  const totalFatura = metadados?.valor_total
+    ? `R$ ${metadados.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
+
+  const numTransacoes = metadados?.total_encontrado || null;
+
+  let metadadosBloco = '';
+  if (totalFatura || numTransacoes) {
+    metadadosBloco = '\nMETADADOS DO PARSER (referência — podem estar incompletos):';
+    if (totalFatura) metadadosBloco += `\n- Valor total parser: ${totalFatura}`;
+    if (numTransacoes) metadadosBloco += `\n- Transações encontradas pelo parser: ${numTransacoes}`;
+  }
+
+  return `Você é um especialista em extrair transações de faturas de cartão de crédito Mercado Pago.
+Analise VISUALMENTE este PDF de fatura do cartão "${cartaoNome}"${tipoCartao ? ` (cartão ${tipoCartao})` : ''}.
+
+IMPORTANTE: O texto extraído automaticamente deste PDF está CORROMPIDO. Ignore qualquer texto garbled.
+Use APENAS a análise visual do documento PDF para extrair as transações.
+${metadadosBloco}
+
+LAYOUT DO PDF MERCADO PAGO:
+- Cabeçalho com logo Mercado Pago, nome do titular e data de vencimento
+- Seção "Movimentações na fatura" (IGNORE — são pagamentos da fatura anterior)
+- Seções "Cartão Visa [****XXXX]" com tabela de transações:
+  - Colunas: Data | Movimentações | [Parcela X de Y] | Valor em R$
+  - Linha "Total" ao final de cada seção (IGNORE — é subtotal)
+- Pode ter MÚLTIPLAS seções do mesmo cartão ou cartões diferentes
+- PDF pode ter 5-10+ páginas — percorra TODAS
+
+REGRAS DE EXTRAÇÃO:
+1. EXTRAIA todas as transações de TODAS as seções "Cartão Visa" de TODAS as páginas
+2. Cada transação tem: data, descrição, valor, e opcionalmente parcela
+3. Se houver "Parcela X de Y", capture no campo parcela como "X/Y"
+4. Use o ano do vencimento da fatura para completar datas (ex: 22/12 → 22/12/2025)
+5. NÃO duplique transações — cada transação aparece UMA vez no PDF
+
+CLASSIFICAÇÃO tipo_lancamento — OBRIGATÓRIO:
+- "compra": compras nacionais e internacionais (incluindo parceladas)
+- "iof": IOF (Imposto sobre Operações Financeiras)
+- "estorno": estornos, devoluções, reembolsos, créditos
+- "pagamento_antecipado": pagamento antecipado, pagamento parcial
+- "tarifa_cartao": tarifa de uso do crédito emergencial, anuidade, encargos
+
+IGNORE completamente (NÃO inclua):
+- "Pagamento da fatura de XXXXX/XXXX" (são pagamentos, NÃO compras)
+- Linhas de "Total" (são subtotais)
+- Cabeçalhos de seção, títulos de cartão
+- Informações de parcelamento da fatura, juros, CET
+
+VALORES:
+- Capture valores como números positivos (ex: 1234.56, NÃO 1.234,56)
+- Para transações internacionais, use o valor em BRL
+
+Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
+{
+  "transacoes": [
+    {
+      "data": "DD/MM/YYYY",
+      "descricao": "DESCRICAO DA TRANSACAO",
+      "valor": 123.45,
+      "parcela": "1/3" ou null,
+      "tipo_lancamento": "compra"
+    }
+  ],
+  "total_encontrado": número_total_de_transações,
+  "valor_total": soma_apenas_das_compras,
+  "banco_detectado": "Mercado Pago"
+}`;
+}
+
+/**
  * Constrói prompt específico para PicPay.
  * PicPay SEMPRE usa layout 2 colunas — IA visual é o único caminho confiável.
  * Inclui metadados extraídos pelo parser para verificação cruzada.
@@ -757,7 +834,10 @@ export async function POST(request) {
 
     // Escolhe o prompt adequado baseado no banco detectado
     let prompt;
-    if (bancoDetectado === 'itau') {
+    if (bancoDetectado === 'mercadopago') {
+      prompt = construirPromptMercadoPago(cartaoNome, tipoCartao, metadadosParser);
+      console.log('[parse-pdf] Usando prompt específico Mercado Pago com IA visual');
+    } else if (bancoDetectado === 'itau') {
       prompt = construirPromptItau(cartaoNome, tipoCartao, metadadosParser);
       console.log('[parse-pdf] Usando prompt específico Itaú com metadados de verificação');
     } else if (bancoDetectado === 'picpay') {
