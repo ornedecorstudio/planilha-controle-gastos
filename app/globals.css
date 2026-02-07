@@ -11,6 +11,8 @@
   --border: #e2e5ee;
   --card: #ffffff;
   --accent: #1e2132;
+  --bottom-nav-height: 3.5rem;
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 body {
@@ -19,6 +21,8 @@ body {
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
 }
 
 /* Scrollbar minimalista */
@@ -63,9 +67,16 @@ table {
   border-collapse: collapse;
 }
 
-/* Inputs */
+/* Inputs - 16px prevents iOS zoom on focus */
 input, select, textarea {
   font-family: inherit;
+  font-size: 16px;
+}
+
+@media (min-width: 768px) {
+  input, select, textarea {
+    font-size: inherit;
+  }
 }
 
 input::placeholder,
@@ -73,16 +84,56 @@ textarea::placeholder {
   color: #9ba2b5;
 }
 
-/* Utilitários customizados */
+/* Utilitarios customizados */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* Animações suaves */
+/* Animacoes suaves */
 @layer base {
   * {
     @apply transition-colors duration-150;
+  }
+}
+
+/* Touch-friendly tap highlights */
+@media (hover: none) and (pointer: coarse) {
+  button, a, select, [role="button"] {
+    -webkit-tap-highlight-color: rgba(30, 33, 50, 0.08);
+  }
+}
+
+/* Bottom nav spacing on mobile */
+@media (max-width: 767px) {
+  .main-content {
+    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 1rem);
+  }
+}
+
+/* Mobile card / desktop table toggle */
+@layer components {
+  .mobile-cards {
+    display: block;
+  }
+  .desktop-table {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .mobile-cards {
+      display: none;
+    }
+    .desktop-table {
+      display: block;
+    }
   }
 }

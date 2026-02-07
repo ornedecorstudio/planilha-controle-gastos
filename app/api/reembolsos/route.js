@@ -98,7 +98,7 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('Erro na API reembolsos:', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 })
   }
 }
 
@@ -150,7 +150,7 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Erro na API reembolsos:', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 })
   }
 }
 
@@ -217,7 +217,7 @@ export async function PATCH(request) {
 
   } catch (error) {
     console.error('Erro na API reembolsos:', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 })
   }
 }
 
@@ -330,6 +330,6 @@ export async function DELETE(request) {
 
   } catch (error) {
     console.error('Erro na API reembolsos DELETE:', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 })
   }
 }

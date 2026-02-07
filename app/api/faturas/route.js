@@ -11,6 +11,7 @@ export async function GET(request) {
     const cartao_id = searchParams.get('cartao_id')
     const status = searchParams.get('status')
     const ano = searchParams.get('ano')
+    const mes_referencia = searchParams.get('mes_referencia')
     const limit = parseInt(searchParams.get('limit')) || 50
 
     // Se tem ID, busca fatura especifica
@@ -60,7 +61,12 @@ export async function GET(request) {
       query = query.eq('status', status)
     }
 
-    if (ano) {
+    if (mes_referencia) {
+      // Formato: "2024-10" -> filtra por mês específico
+      query = query
+        .gte('mes_referencia', `${mes_referencia}-01`)
+        .lte('mes_referencia', `${mes_referencia}-31`)
+    } else if (ano) {
       query = query
         .gte('mes_referencia', `${ano}-01-01`)
         .lte('mes_referencia', `${ano}-12-31`)
@@ -77,7 +83,7 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('Erro na API faturas:', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 })
   }
 }
 

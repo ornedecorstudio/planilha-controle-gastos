@@ -73,6 +73,105 @@ Retorne APENAS um JSON válido, SEM markdown:
 }
 
 /**
+ * Constrói prompt específico para Mercado Pago.
+ * O pdf-parse frequentemente corrompe o texto de PDFs do MercadoPago,
+ * então a IA visual é o caminho mais confiável.
+ * PDFs do MercadoPago têm múltiplas páginas com seções por cartão.
+ */
+function construirPromptMercadoPago(cartaoNome, tipoCartao, metadados) {
+  const totalFaturaPDF = metadados?.total_fatura_pdf
+    ? `R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
+
+  const vencimento = metadados?.vencimento || null;
+  const cartoes = metadados?.cartoes || [];
+  const numSecoes = metadados?.num_secoes || null;
+
+  let metadadosBloco = '';
+  if (totalFaturaPDF || vencimento || cartoes.length > 0 || numSecoes) {
+    metadadosBloco = '\nMETADADOS EXTRAÍDOS DO PDF (use para verificação cruzada):';
+    if (totalFaturaPDF) metadadosBloco += `\n- Total da fatura no PDF: ${totalFaturaPDF}`;
+    if (vencimento) metadadosBloco += `\n- Vencimento: ${vencimento}`;
+    if (cartoes.length > 0) metadadosBloco += `\n- Cartões detectados (finais): ${cartoes.join(', ')}`;
+    if (numSecoes) metadadosBloco += `\n- Seções de cartão no PDF: ${numSecoes}`;
+  }
+
+  return `Você é um especialista em extrair transações de faturas de cartão de crédito Mercado Pago.
+Analise VISUALMENTE este PDF de fatura do cartão "${cartaoNome}"${tipoCartao ? ` (cartão ${tipoCartao})` : ''}.
+
+IMPORTANTE: O texto extraído automaticamente deste PDF está CORROMPIDO. Ignore qualquer texto garbled.
+Use APENAS a análise visual do documento PDF para extrair as transações.
+${metadadosBloco}
+
+ESTRUTURA DO PDF MERCADO PAGO (leia com atenção):
+
+PRIMEIRA PÁGINA — Resumo:
+- Logo Mercado Pago, nome do titular
+- "Total a pagar R$ XX.XXX,XX" → ESTE é o valor total REAL da fatura (capture em total_a_pagar)
+- Data de vencimento
+- "Limite total R$ XX.XXX,XX" → IGNORE, é limite de crédito, NÃO é total da fatura
+- "Limite disponível R$ X.XXX,XX" → IGNORE
+- Seção "Movimentações na fatura" → IGNORE COMPLETAMENTE (são pagamentos da fatura ANTERIOR)
+  Exemplos: "Pagamento da fatura de outubro/2025", "Pagamento recebido" → NÃO são transações
+
+PÁGINAS SEGUINTES — Transações por cartão:
+- Seções "Cartão Visa [****XXXX]" com tabela de transações:
+  - Colunas: Data | Movimentações | [Parcela X de Y] | Valor em R$
+  - Cada linha = UMA transação real (compra, IOF, tarifa, estorno)
+  - Linha "Total" ao final de cada seção → NÃO EXTRAIA (é subtotal do cartão)
+- Pode ter MÚLTIPLAS seções de cartão
+- PDF pode ter 5-10+ páginas — percorra TODAS AS PÁGINAS
+
+REGRAS DE EXTRAÇÃO:
+1. PRIMEIRO: Na primeira página, encontre "Total a pagar R$ XX.XXX,XX" e capture esse valor
+2. DEPOIS: Percorra TODAS as páginas e extraia transações de TODAS as seções "Cartão Visa"
+3. Cada transação real tem: data, descrição, valor, e opcionalmente parcela
+4. Se houver "Parcela X de Y", capture no campo parcela como "X/Y"
+5. Use o ano do vencimento da fatura para completar datas${vencimento ? ` (vencimento: ${vencimento})` : ''}
+6. NÃO duplique transações — cada transação aparece UMA ÚNICA vez no PDF
+
+CLASSIFICAÇÃO tipo_lancamento — OBRIGATÓRIO:
+- "compra": compras nacionais e internacionais (incluindo parceladas)
+- "iof": IOF (Imposto sobre Operações Financeiras)
+- "estorno": estornos, devoluções, reembolsos, créditos (valores que reduzem a fatura)
+- "pagamento_antecipado": pagamento antecipado, pagamento parcial
+- "tarifa_cartao": "Tarifa de uso do crédito emergencial", anuidade, encargos financeiros
+
+O QUE NÃO EXTRAIR (IGNORE completamente):
+- TUDO da seção "Movimentações na fatura" (são pagamentos, NÃO são compras)
+- "Pagamento da fatura de XXXXX/XXXX" ou "Pagamento recebido"
+- Linhas "Total" ao final de cada seção de cartão (são subtotais)
+- "Limite total", "Limite disponível" (são limites, não transações)
+- Cabeçalhos, títulos de seção, informações de parcelamento/juros/CET
+
+VERIFICAÇÃO CRUZADA OBRIGATÓRIA:
+- Some TODAS as transações extraídas: compras + IOF + tarifas - estornos - pagamentos antecipados
+- Compare com o "Total a pagar" da primeira página
+- Se a soma divergir significativamente, revise: você pode ter incluído algo indevido ou esquecido algo
+
+VALORES:
+- Capture valores como números positivos (ex: 1234.56, NÃO 1.234,56)
+- Para transações internacionais, use o valor em BRL
+
+Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
+{
+  "transacoes": [
+    {
+      "data": "DD/MM/YYYY",
+      "descricao": "DESCRICAO DA TRANSACAO",
+      "valor": 123.45,
+      "parcela": "1/3" ou null,
+      "tipo_lancamento": "compra"
+    }
+  ],
+  "total_a_pagar": valor_do_total_a_pagar_da_primeira_pagina,
+  "total_encontrado": número_total_de_transações,
+  "valor_total": soma_de_todas_as_transacoes_extraidas,
+  "banco_detectado": "Mercado Pago"
+}`;
+}
+
+/**
  * Constrói prompt específico para PicPay.
  * PicPay SEMPRE usa layout 2 colunas — IA visual é o único caminho confiável.
  * Inclui metadados extraídos pelo parser para verificação cruzada.
@@ -491,11 +590,13 @@ function filtrarTransacoesIA(transacoes) {
   const DESCRICOES_IGNORAR = [
     'SUBTOTAL', 'SUB TOTAL', 'SUB-TOTAL',
     'TOTAL GERAL', 'TOTAL DOS LANCAMENTOS', 'TOTAL DOS LANÇAMENTOS',
-    'VALOR TOTAL', 'TOTAL DESPESAS',
+    'VALOR TOTAL', 'TOTAL DESPESAS', 'TOTAL A PAGAR',
     'TOTAL DE PAGAMENTOS', 'TOTAL DE CREDITOS', 'TOTAL DE CRÉDITOS',
     'SALDO ANTERIOR', 'SALDO DESTA FATURA',
     'PAGAMENTO DE FATURA', 'PAGAMENTO RECEBIDO',
     'PAGAMENTO EFETUADO', 'PAGAMENTO FATURA',
+    'PAGAMENTO DA FATURA',
+    'MOVIMENTAÇÕES NA FATURA', 'MOVIMENTACOES NA FATURA',
     'SEU LIMITE', 'LIMITE DISPONIVEL', 'LIMITE DISPONÍVEL',
     'LIMITE TOTAL', 'LIMITE DE SAQUE',
     'PAGAMENTO TOTAL', 'PAGAMENTO MINIMO', 'PAGAMENTO MÍNIMO',
@@ -590,8 +691,9 @@ function corrigirTipoLancamentoIA(transacoes, metadadosParser) {
 
 /**
  * Constrói auditoria combinando resultado da IA com metadados do parser.
+ * totalAPagarIA: valor de "Total a pagar" extraído pela IA visual (mais confiável para MercadoPago)
  */
-function construirAuditoriaIA(transacoesIA, metadadosParser) {
+function construirAuditoriaIA(transacoesIA, metadadosParser, totalAPagarIA = null) {
   const totalCompras = transacoesIA
     .filter(t => (t.tipo_lancamento || 'compra') === 'compra')
     .reduce((sum, t) => sum + (t.valor || 0), 0);
@@ -616,15 +718,19 @@ function construirAuditoriaIA(transacoesIA, metadadosParser) {
     (totalCompras + iof + tarifaCartao - estornos - pagamentoAntecipado).toFixed(2)
   );
 
-  // Usa total_fatura_pdf do parser determinístico se disponível
-  const totalFaturaPDF = metadadosParser?.total_fatura_pdf || null;
+  // Prioridade para total de referência:
+  // 1. total_a_pagar da IA visual (mais confiável — lê visualmente o PDF)
+  // 2. total_fatura_pdf do parser determinístico
+  const totalFaturaPDFParser = metadadosParser?.total_fatura_pdf || null;
+  const totalFaturaPDF = (totalAPagarIA && totalAPagarIA > 0) ? totalAPagarIA : totalFaturaPDFParser;
 
   let reconciliado = null;
   let diferencaCentavos = null;
 
   if (totalFaturaPDF !== null) {
     diferencaCentavos = Math.round((totalFaturaPDF - totalFaturaCalculado) * 100);
-    reconciliado = Math.abs(diferencaCentavos) <= 1;
+    // Tolerância de até 2 centavos para arredondamento
+    reconciliado = Math.abs(diferencaCentavos) <= 2;
   }
 
   return {
@@ -638,7 +744,8 @@ function construirAuditoriaIA(transacoesIA, metadadosParser) {
     reconciliado,
     diferenca_centavos: diferencaCentavos,
     equacao: `${totalCompras.toFixed(2)} + ${iof.toFixed(2)} + ${tarifaCartao.toFixed(2)} - ${estornos.toFixed(2)} - ${pagamentoAntecipado.toFixed(2)} = ${totalFaturaCalculado.toFixed(2)}`,
-    ...(metadadosParser?.subtotais ? { subtotais_pdf: metadadosParser.subtotais } : {})
+    ...(metadadosParser?.subtotais ? { subtotais_pdf: metadadosParser.subtotais } : {}),
+    ...(totalAPagarIA ? { fonte_total: 'IA visual (Total a pagar)' } : totalFaturaPDFParser ? { fonte_total: 'Parser determinístico' } : {})
   };
 }
 
@@ -757,7 +864,10 @@ export async function POST(request) {
 
     // Escolhe o prompt adequado baseado no banco detectado
     let prompt;
-    if (bancoDetectado === 'itau') {
+    if (bancoDetectado === 'mercadopago') {
+      prompt = construirPromptMercadoPago(cartaoNome, tipoCartao, metadadosParser);
+      console.log('[parse-pdf] Usando prompt específico Mercado Pago com IA visual');
+    } else if (bancoDetectado === 'itau') {
       prompt = construirPromptItau(cartaoNome, tipoCartao, metadadosParser);
       console.log('[parse-pdf] Usando prompt específico Itaú com metadados de verificação');
     } else if (bancoDetectado === 'picpay') {
@@ -904,8 +1014,14 @@ export async function POST(request) {
     // Detecta estornos mal-classificados como compra (divergência = 2× valor do estorno)
     const transacoesCorrigidas = corrigirTipoLancamentoIA(transacoesFiltradas, metadadosParser);
 
-    // Construir auditoria combinando IA + metadados do parser
-    const auditoriaIA = construirAuditoriaIA(transacoesCorrigidas, metadadosParser);
+    // Capturar total_a_pagar da IA (campo retornado por MercadoPago e outros parsers visuais)
+    const totalAPagarIA = result.total_a_pagar ? parseFloat(result.total_a_pagar) : null;
+    if (totalAPagarIA) {
+      console.log(`[parse-pdf] IA retornou total_a_pagar: R$ ${totalAPagarIA.toFixed(2)}`);
+    }
+
+    // Construir auditoria combinando IA + metadados do parser + total_a_pagar da IA
+    const auditoriaIA = construirAuditoriaIA(transacoesCorrigidas, metadadosParser, totalAPagarIA);
 
     const metodoIA = forcarIA ? 'IA_PDF_HIBRIDO' : 'IA_PDF';
 

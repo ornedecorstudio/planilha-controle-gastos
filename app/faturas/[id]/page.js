@@ -285,12 +285,12 @@ export default function FaturaDetalhesPage() {
             {new Date(fatura.mes_referencia).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
           {/* Botao de Download de Arquivo - Destaque */}
           {fatura?.pdf_url && (
             <button
               onClick={handleDownloadArquivo}
-              className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-sm flex items-center gap-2 font-medium"
+              className="w-full sm:w-auto px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-sm flex items-center justify-center gap-2 font-medium"
             >
               <Download size={16} />
               Baixar arquivo {getArquivoInfo()?.tipo && `(${getArquivoInfo().tipo})`}
@@ -333,25 +333,25 @@ export default function FaturaDetalhesPage() {
       </div>
 
       {/* Totais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-neutral-200 p-5">
-          <p className="text-sm font-medium text-neutral-500">Total da fatura</p>
-          <p className="text-2xl font-semibold text-neutral-900 mt-1">R$ {formatCurrency(totalPJ + totalPF)}</p>
-          <p className="text-xs text-neutral-400 mt-1">{transacoesFiltradas.length} transações</p>
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
+        <div className="bg-white rounded-lg border border-neutral-200 p-3 md:p-5">
+          <p className="text-xs md:text-sm font-medium text-neutral-500">Total</p>
+          <p className="text-[16px] md:text-2xl font-semibold text-neutral-900 mt-1">R$ {formatCurrency(totalPJ + totalPF)}</p>
+          <p className="text-xs text-neutral-400 mt-1">{transacoesFiltradas.length} trans.</p>
         </div>
-        <div className="bg-emerald-50 rounded-lg border border-neutral-200 p-5">
-          <p className="text-sm font-medium text-emerald-600">Total PJ (reembolsável)</p>
-          <p className="text-2xl font-semibold text-emerald-700 mt-1">R$ {formatCurrency(totalPJ)}</p>
+        <div className="bg-emerald-50 rounded-lg border border-neutral-200 p-3 md:p-5">
+          <p className="text-xs md:text-sm font-medium text-emerald-600">PJ</p>
+          <p className="text-[16px] md:text-2xl font-semibold text-emerald-700 mt-1">R$ {formatCurrency(totalPJ)}</p>
         </div>
-        <div className="bg-rose-50 rounded-lg border border-neutral-200 p-5">
-          <p className="text-sm font-medium text-rose-600">Total PF (pessoal)</p>
-          <p className="text-2xl font-semibold text-rose-700 mt-1">R$ {formatCurrency(totalPF)}</p>
+        <div className="bg-rose-50 rounded-lg border border-neutral-200 p-3 md:p-5">
+          <p className="text-xs md:text-sm font-medium text-rose-600">PF</p>
+          <p className="text-[16px] md:text-2xl font-semibold text-rose-700 mt-1">R$ {formatCurrency(totalPF)}</p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-lg border border-neutral-200 p-4 flex flex-wrap gap-4 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="bg-white rounded-lg border border-neutral-200 p-4 flex flex-col sm:flex-row gap-3 md:gap-4 items-stretch sm:items-center">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
           <input
             type="text"
@@ -379,75 +379,111 @@ export default function FaturaDetalhesPage() {
 
       {/* Lista de Transacoes */}
       <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
-              <tr>
-                <th className="p-3 text-center w-12">
-                  <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
-                    {selectedIds.size === transacoesFiltradas.length && transacoesFiltradas.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
-                  </button>
-                </th>
-                <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Data</th>
-                <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descrição</th>
-                <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Categoria</th>
-                <th className="p-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Tipo</th>
-                <th className="p-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Valor</th>
-                <th className="p-3 text-center w-12"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {transacoesFiltradas.map(t => (
-                <tr key={t.id} className={`hover:bg-neutral-50 ${t.tipo === 'PF' ? 'bg-rose-50/30' : ''} ${selectedIds.has(t.id) ? 'bg-neutral-100' : ''}`}>
-                  <td className="p-3 text-center">
-                    <button onClick={() => toggleSelection(t.id)} className="text-neutral-400 hover:text-neutral-600">
-                      {selectedIds.has(t.id) ? <CheckSquare size={18} className="text-neutral-900" /> : <Square size={18} />}
+        {/* Mobile Card View */}
+        <div className="mobile-cards">
+          {transacoesFiltradas.map(t => (
+            <div key={t.id} className={`p-3 border-b border-neutral-100 ${t.tipo === 'PF' ? 'bg-rose-50/30' : ''} ${selectedIds.has(t.id) ? 'bg-neutral-100' : ''}`}>
+              {/* Row 1: Description + Value */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-sm font-medium text-neutral-900" title={t.descricao}>{t.descricao}</span>
+                <span className="text-sm font-mono font-medium text-neutral-900 whitespace-nowrap">R$ {formatCurrency(t.valor)}</span>
+              </div>
+              {/* Row 2: Date + Category + Tipo */}
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="font-mono text-xs text-neutral-500">{formatDate(t.data)}</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}>{t.categoria || 'Outros'}</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>{t.tipo}</span>
+              </div>
+              {/* Row 3: Checkbox + Delete */}
+              <div className="flex items-center justify-between mt-2">
+                <button onClick={() => toggleSelection(t.id)} className="text-neutral-400 hover:text-neutral-600 flex items-center gap-1.5 text-xs">
+                  {selectedIds.has(t.id) ? <CheckSquare size={16} className="text-neutral-900" /> : <Square size={16} />}
+                  <span>{selectedIds.has(t.id) ? 'Selecionada' : 'Selecionar'}</span>
+                </button>
+                <button
+                  onClick={() => handleDeleteSingle(t)}
+                  className="p-1.5 text-neutral-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                  title="Remover transação"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="desktop-table">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50 border-b border-neutral-200">
+                <tr>
+                  <th className="p-3 text-center w-12">
+                    <button onClick={selectAll} className="text-neutral-400 hover:text-neutral-600">
+                      {selectedIds.size === transacoesFiltradas.length && transacoesFiltradas.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
                     </button>
-                  </td>
-                  <td className="p-3 font-mono text-xs text-neutral-600">{formatDate(t.data)}</td>
-                  <td className="p-3 max-w-xs">
-                    <span className="truncate block text-neutral-900" title={t.descricao}>{t.descricao}</span>
-                  </td>
-                  <td className="p-3">
-                    <select
-                      value={t.categoria || 'Outros'}
-                      onChange={(e) => handleUpdateCategoria(t.id, e.target.value)}
-                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer appearance-none bg-transparent ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}
-                    >
-                      {categorias.map(c => (
-                        <option key={c.id} value={c.nome}>{c.nome}</option>
-                      ))}
-                      {!categorias.find(c => c.nome === t.categoria) && t.categoria && (
-                        <option value={t.categoria}>{t.categoria}</option>
-                      )}
-                    </select>
-                  </td>
-                  <td className="p-3 text-center">
-                    <select
-                      value={t.tipo}
-                      onChange={(e) => handleUpdateTipo(t.id, e.target.value)}
-                      className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer appearance-none bg-transparent ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}
-                    >
-                      <option value="PJ">PJ</option>
-                      <option value="PF">PF</option>
-                    </select>
-                  </td>
-                  <td className="p-3 text-right font-mono font-medium text-neutral-900">
-                    R$ {formatCurrency(t.valor)}
-                  </td>
-                  <td className="p-3 text-center">
-                    <button
-                      onClick={() => handleDeleteSingle(t)}
-                      className="p-1.5 text-neutral-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                      title="Remover transação"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+                  </th>
+                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Data</th>
+                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Descrição</th>
+                  <th className="p-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Categoria</th>
+                  <th className="p-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Tipo</th>
+                  <th className="p-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Valor</th>
+                  <th className="p-3 text-center w-12"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {transacoesFiltradas.map(t => (
+                  <tr key={t.id} className={`hover:bg-neutral-50 ${t.tipo === 'PF' ? 'bg-rose-50/30' : ''} ${selectedIds.has(t.id) ? 'bg-neutral-100' : ''}`}>
+                    <td className="p-3 text-center">
+                      <button onClick={() => toggleSelection(t.id)} className="text-neutral-400 hover:text-neutral-600">
+                        {selectedIds.has(t.id) ? <CheckSquare size={18} className="text-neutral-900" /> : <Square size={18} />}
+                      </button>
+                    </td>
+                    <td className="p-3 font-mono text-xs text-neutral-600">{formatDate(t.data)}</td>
+                    <td className="p-3 max-w-xs">
+                      <span className="truncate block text-neutral-900" title={t.descricao}>{t.descricao}</span>
+                    </td>
+                    <td className="p-3">
+                      <select
+                        value={t.categoria || 'Outros'}
+                        onChange={(e) => handleUpdateCategoria(t.id, e.target.value)}
+                        className={`px-2 py-1 rounded text-xs font-medium cursor-pointer appearance-none bg-transparent ${CATEGORY_COLORS[t.categoria] || 'bg-neutral-100 text-neutral-600'}`}
+                      >
+                        {categorias.map(c => (
+                          <option key={c.id} value={c.nome}>{c.nome}</option>
+                        ))}
+                        {!categorias.find(c => c.nome === t.categoria) && t.categoria && (
+                          <option value={t.categoria}>{t.categoria}</option>
+                        )}
+                      </select>
+                    </td>
+                    <td className="p-3 text-center">
+                      <select
+                        value={t.tipo}
+                        onChange={(e) => handleUpdateTipo(t.id, e.target.value)}
+                        className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer appearance-none bg-transparent ${t.tipo === 'PJ' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}
+                      >
+                        <option value="PJ">PJ</option>
+                        <option value="PF">PF</option>
+                      </select>
+                    </td>
+                    <td className="p-3 text-right font-mono font-medium text-neutral-900">
+                      R$ {formatCurrency(t.valor)}
+                    </td>
+                    <td className="p-3 text-center">
+                      <button
+                        onClick={() => handleDeleteSingle(t)}
+                        className="p-1.5 text-neutral-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                        title="Remover transação"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
