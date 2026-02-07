@@ -83,7 +83,7 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('Erro na API faturas:', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor' }, { status: 500 })
   }
 }
 

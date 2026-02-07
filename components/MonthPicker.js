@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril',
@@ -45,27 +45,38 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
         </label>
       )}
 
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`
-          w-full p-2.5 border rounded-lg text-left flex items-center justify-between
-          transition-colors bg-white text-[13px]
-          ${isOpen ? 'border-neutral-400 ring-2 ring-neutral-200' : 'border-neutral-200'}
-          ${!value ? 'text-neutral-400' : 'text-neutral-900'}
-          hover:border-neutral-300
-        `}
-      >
-        <span>{displayValue}</span>
-        <svg
-          className={`w-4 h-4 text-neutral-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`
+            w-full p-2.5 border rounded-lg text-left flex items-center justify-between
+            transition-colors bg-white text-[13px]
+            ${isOpen ? 'border-neutral-400 ring-2 ring-neutral-200' : 'border-neutral-200'}
+            ${!value ? 'text-neutral-400' : 'text-neutral-900'}
+            hover:border-neutral-300
+          `}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+          <span>{displayValue}</span>
+          <svg
+            className={`w-4 h-4 text-neutral-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {allowClear && value && (
+          <button
+            type="button"
+            onClick={() => { onChange(null); setIsOpen(false) }}
+            className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors shrink-0"
+          >
+            <X size={16} strokeWidth={1.5} />
+          </button>
+        )}
+      </div>
 
       {isOpen && (
         <>

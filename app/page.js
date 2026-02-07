@@ -163,6 +163,7 @@ export default function DashboardPage() {
           <p className="text-body text-neutral-500 mt-0.5">Visão geral das suas despesas</p>
         </div>
         <MonthPicker
+          value={mesSelecionado}
           onChange={handleMesChange}
           placeholder="Todos os meses"
           allowClear={true}
