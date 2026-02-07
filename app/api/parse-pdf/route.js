@@ -453,9 +453,17 @@ CLASSIFICAÇÃO tipo_lancamento — cada transação DEVE ter um tipo_lancamento
 - "pagamento_antecipado": pagamento antecipado, pagamento parcial
 - "tarifa_cartao": anuidade, tarifa do cartão, seguro fatura
 
+VALORES NEGATIVOS — ATENÇÃO ESPECIAL:
+- Valores com sinal negativo (-) ou precedidos por "-" no PDF são SEMPRE estornos/reembolsos
+- Classifique como tipo_lancamento: "estorno" e capture o valor como POSITIVO
+- Exemplo: "LOJA XYZ -110,95" → tipo_lancamento: "estorno", valor: 110.95
+- NUNCA classifique um valor negativo como "compra"
+
 IGNORE completamente:
 - "Pagamento fatura", "Pagamento recebido" (são pagamentos do cliente)
 - Linhas de subtotal, total, saldo anterior
+- "Pagamento de fatura" (é pagamento do cliente, NÃO transação)
+- Cartões que têm APENAS "pagamento de fatura" sem compras
 
 Retorne APENAS um JSON válido, SEM markdown:
 {
@@ -501,6 +509,83 @@ function filtrarTransacoesIA(transacoes) {
     }
     return !ehIgnorada;
   });
+}
+
+/**
+ * Corrige tipo_lancamento de transações da IA usando heurísticas.
+ *
+ * Problema: a IA pode classificar estornos (valores negativos no PDF)
+ * como "compra", causando divergência 2× o valor do estorno na reconciliação.
+ *
+ * Se temos total_fatura_pdf do parser, e a divergência é ~2× alguma transação,
+ * essa transação provavelmente é um estorno mal-classificado.
+ */
+function corrigirTipoLancamentoIA(transacoes, metadadosParser) {
+  const totalFaturaPDF = metadadosParser?.total_fatura_pdf;
+  if (!totalFaturaPDF) return transacoes; // Sem referência, não pode corrigir
+
+  // Calcula total atual
+  const totalCompras = transacoes
+    .filter(t => (t.tipo_lancamento || 'compra') === 'compra')
+    .reduce((sum, t) => sum + (t.valor || 0), 0);
+  const iof = transacoes
+    .filter(t => t.tipo_lancamento === 'iof')
+    .reduce((sum, t) => sum + (t.valor || 0), 0);
+  const tarifaCartao = transacoes
+    .filter(t => t.tipo_lancamento === 'tarifa_cartao')
+    .reduce((sum, t) => sum + (t.valor || 0), 0);
+  const estornos = transacoes
+    .filter(t => t.tipo_lancamento === 'estorno')
+    .reduce((sum, t) => sum + (t.valor || 0), 0);
+  const pagAntecipado = transacoes
+    .filter(t => t.tipo_lancamento === 'pagamento_antecipado')
+    .reduce((sum, t) => sum + (t.valor || 0), 0);
+
+  const totalCalculado = totalCompras + iof + tarifaCartao - estornos - pagAntecipado;
+  const divergencia = totalCalculado - totalFaturaPDF;
+
+  // Se divergência é pequena (< R$ 5), não precisa corrigir
+  if (Math.abs(divergencia) < 5) return transacoes;
+
+  console.log(`[parse-pdf] Correção pós-IA: divergência de R$ ${divergencia.toFixed(2)} detectada`);
+
+  // Divergência deve ser ~2× algum valor de transação classificada como "compra" ou "tarifa_cartao"
+  // (porque o estorno deveria SUBTRAIR mas está SOMANDO, swing = 2×)
+  const metadeDivergencia = divergencia / 2;
+
+  // Procura transação cuja valor é aproximadamente metade da divergência
+  // e que é classificada como "compra" ou "tarifa_cartao" (deveria ser "estorno")
+  const corrigidas = transacoes.map(t => {
+    if (t.tipo_lancamento !== 'compra' && t.tipo_lancamento !== 'tarifa_cartao') return t;
+
+    const diff = Math.abs(t.valor - metadeDivergencia);
+    if (diff < 0.02) { // Match dentro de 2 centavos
+      console.log(`[parse-pdf] Correção pós-IA: reclassificando "${t.descricao}" R$ ${t.valor} de "${t.tipo_lancamento}" para "estorno" (era metade da divergência R$ ${divergencia.toFixed(2)})`);
+      return { ...t, tipo_lancamento: 'estorno' };
+    }
+    return t;
+  });
+
+  // Verifica se a correção melhorou
+  const novoEstornos = corrigidas
+    .filter(t => t.tipo_lancamento === 'estorno')
+    .reduce((sum, t) => sum + (t.valor || 0), 0);
+  const novoCompras = corrigidas
+    .filter(t => (t.tipo_lancamento || 'compra') === 'compra')
+    .reduce((sum, t) => sum + (t.valor || 0), 0);
+  const novaTarifa = corrigidas
+    .filter(t => t.tipo_lancamento === 'tarifa_cartao')
+    .reduce((sum, t) => sum + (t.valor || 0), 0);
+  const novoTotal = novoCompras + iof + novaTarifa - novoEstornos - pagAntecipado;
+  const novaDivergencia = novoTotal - totalFaturaPDF;
+
+  if (Math.abs(novaDivergencia) < Math.abs(divergencia)) {
+    console.log(`[parse-pdf] Correção pós-IA: divergência reduzida de R$ ${divergencia.toFixed(2)} para R$ ${novaDivergencia.toFixed(2)}`);
+    return corrigidas;
+  }
+
+  console.log(`[parse-pdf] Correção pós-IA: nenhuma transação match para metade da divergência`);
+  return transacoes;
 }
 
 /**
@@ -815,21 +900,25 @@ export async function POST(request) {
       console.log(`[parse-pdf] Filtro pós-IA removeu ${transacoesNormalizadas.length - transacoesFiltradas.length} transação(ões) não-reais`);
     }
 
+    // Corrigir tipo_lancamento baseado em divergência com total do PDF
+    // Detecta estornos mal-classificados como compra (divergência = 2× valor do estorno)
+    const transacoesCorrigidas = corrigirTipoLancamentoIA(transacoesFiltradas, metadadosParser);
+
     // Construir auditoria combinando IA + metadados do parser
-    const auditoriaIA = construirAuditoriaIA(transacoesFiltradas, metadadosParser);
+    const auditoriaIA = construirAuditoriaIA(transacoesCorrigidas, metadadosParser);
 
     const metodoIA = forcarIA ? 'IA_PDF_HIBRIDO' : 'IA_PDF';
 
-    console.log(`[parse-pdf] IA retornou ${transacoesFiltradas.length} transações (método: ${metodoIA})`);
+    console.log(`[parse-pdf] IA retornou ${transacoesCorrigidas.length} transações (método: ${metodoIA})`);
     if (auditoriaIA.reconciliado !== null) {
       console.log(`[parse-pdf] Reconciliação IA: ${auditoriaIA.reconciliado ? 'OK' : 'DIVERGENTE'} (diferença: ${auditoriaIA.diferenca_centavos} centavos)`);
     }
 
     return NextResponse.json({
       success: true,
-      transacoes: transacoesFiltradas,
-      total_encontrado: result.total_encontrado || transacoesFiltradas.length,
-      valor_total: result.valor_total || transacoesFiltradas
+      transacoes: transacoesCorrigidas,
+      total_encontrado: result.total_encontrado || transacoesCorrigidas.length,
+      valor_total: result.valor_total || transacoesCorrigidas
         .filter(t => t.tipo_lancamento === 'compra')
         .reduce((sum, t) => sum + (t.valor || 0), 0),
       banco_detectado: result.banco_detectado || bancoDetectado || 'desconhecido',
