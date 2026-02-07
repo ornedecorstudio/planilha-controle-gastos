@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 // Importa os parsers determinísticos
 import { processarPDFDeterministico, detectarBanco } from '@/lib/pdf-parsers/index.js';
 
+// Importa handlers bank-specific
+import { processarMercadoPago } from './mercadopago/route.js';
+
 // Modelo para extração de dados via IA - usado apenas como fallback
 const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -785,6 +788,12 @@ export async function POST(request) {
       bancoDetectado = detectarBanco(textoExtraido + ' ' + cartaoNome);
       console.log(`[parse-pdf] Texto extraído: ${textoExtraido.length} caracteres`);
       console.log(`[parse-pdf] Banco detectado: ${bancoDetectado}`);
+
+      // MercadoPago: delega para rota dedicada (prompt + pós-processamento específicos)
+      if (bancoDetectado === 'mercadopago') {
+        console.log('[parse-pdf] Delegando para handler MercadoPago dedicado');
+        return processarMercadoPago(buffer, cartaoNome, tipoCartao);
+      }
 
       // Tenta parser determinístico
       if (textoExtraido.length > 100) {
