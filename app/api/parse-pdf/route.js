@@ -173,6 +173,67 @@ Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
 }
 
 /**
+ * Constrói prompt específico para Renner / Realize Crédito.
+ * Renner tem formato simples mas o parser pode falhar se o pdf-parse
+ * não extrair o texto corretamente. Inclui metadados para verificação.
+ */
+function construirPromptRenner(cartaoNome, tipoCartao, metadados) {
+  const totalFatura = metadados?.total_fatura_pdf
+    ? `R$ ${metadados.total_fatura_pdf.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : null;
+
+  return `Você é um especialista em extrair transações de faturas de cartão de crédito Renner (Realize Crédito).
+Analise este PDF de fatura do cartão "${cartaoNome}"${tipoCartao ? ` (cartão ${tipoCartao})` : ''}.
+
+ESTRUTURA DO PDF RENNER:
+- Página 1: RESUMO (Pagamento Total, Mínimo, Parcelamento, boleto) — NÃO extraia valores desta página como transações
+- Página 2: "Lançamentos detalhados do período" — AQUI estão as transações reais
+- Página 3: Termos e condições — IGNORE completamente
+${totalFatura ? `\nTotal da fatura (para verificação): ${totalFatura}` : ''}
+
+FORMATO DAS TRANSAÇÕES (página 2):
+A tabela tem colunas: Data | Descrição | Estabelecimento | Crédito/Débito
+- "Compra a Vista sem Juros Visa" é uma descrição GENÉRICA — use o nome do ESTABELECIMENTO como descrição
+  Exemplo: "03/01/2026 | Compra a Vista sem Juros Visa | FACEBK RCM5Z9RHW2 | 506,90" → descrição: "FACEBK RCM5Z9RHW2"
+- Se não há estabelecimento (ex: "Fatura Segura"), use a descrição original
+
+CLASSIFICAÇÃO tipo_lancamento — OBRIGATÓRIO para cada transação:
+- "compra": compras (Compra a Vista sem Juros, Compra Parcelada, etc.)
+- "iof": IOF
+- "tarifa_cartao": Fatura Segura, ANUIDADE, AVAL EMERG. CRÉDITO, Seguro Fatura
+- "estorno": estornos, devoluções, créditos
+- "pagamento_antecipado": pagamento antecipado
+
+IGNORE completamente (NÃO inclua no JSON):
+- "Pagamento Fatura Pix" ou qualquer "Pagamento Fatura" (são pagamentos do cliente, valor negativo)
+- Valores da página 1 (Pagamento Total, Mínimo, Parcelamento)
+- Subtotais, saldos anteriores, cabeçalhos
+
+FORMATO DE SAÍDA:
+- Data: DD/MM/YYYY
+- Valor: número positivo com 2 casas decimais (ex: 506.90, NÃO 506,90)
+- Parcela: "1/12" se parcelada (ex: "ANUIDADE Int - Parc.1/12" → parcela "1/12"), null se não
+
+VERIFICAÇÃO: a soma de compras + iof + tarifa_cartao - estornos deve ser próxima de ${totalFatura || 'o total da fatura no PDF'}.
+
+Retorne APENAS um JSON válido, SEM markdown:
+{
+  "transacoes": [
+    {
+      "data": "DD/MM/YYYY",
+      "descricao": "nome do estabelecimento",
+      "valor": 123.45,
+      "parcela": "1/12",
+      "tipo_lancamento": "compra"
+    }
+  ],
+  "total_encontrado": número,
+  "valor_total": soma_apenas_das_compras,
+  "banco_detectado": "Renner/Realize"
+}`;
+}
+
+/**
  * Constrói prompt genérico para outros bancos (com tipo_lancamento).
  */
 function construirPromptGenerico(cartaoNome, tipoCartao) {
@@ -389,6 +450,9 @@ export async function POST(request) {
     } else if (bancoDetectado === 'picpay') {
       prompt = construirPromptPicPay(cartaoNome, tipoCartao, metadadosParser);
       console.log('[parse-pdf] Usando prompt específico PicPay com metadados de verificação');
+    } else if (bancoDetectado === 'renner') {
+      prompt = construirPromptRenner(cartaoNome, tipoCartao, metadadosParser);
+      console.log('[parse-pdf] Usando prompt específico Renner com metadados de verificação');
     } else {
       prompt = construirPromptGenerico(cartaoNome, tipoCartao);
     }
