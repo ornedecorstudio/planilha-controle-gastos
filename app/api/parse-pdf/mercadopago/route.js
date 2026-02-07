@@ -162,15 +162,66 @@ Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
 }
 
 /**
+ * Parseia uma data em DD/MM/YYYY ou YYYY-MM-DD para objeto Date.
+ * Retorna null se não conseguir parsear.
+ */
+function parsearData(dataStr) {
+  if (!dataStr) return null;
+  const matchDMY = dataStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (matchDMY) return new Date(parseInt(matchDMY[3]), parseInt(matchDMY[2]) - 1, parseInt(matchDMY[1]));
+  const matchYMD = dataStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (matchYMD) return new Date(parseInt(matchYMD[1]), parseInt(matchYMD[2]) - 1, parseInt(matchYMD[3]));
+  return null;
+}
+
+/**
  * Constrói o prompt de correção (segunda passagem).
  * Enviado quando a reconciliação da primeira passagem falha.
  * Inclui a lista de transações extraídas e a divergência para que a IA
  * possa identificar e remover falsos positivos.
+ * Também identifica e marca itens com datas suspeitas.
  */
 function construirPromptCorrecao(transacoesExtraidas, totalCalculado, totalAPagar, vencimento) {
+  // Identificar itens suspeitos (datas muito antigas)
+  const datasParseadas = transacoesExtraidas
+    .map(t => ({ ...t, _date: parsearData(t.data) }))
+    .filter(t => t._date);
+
+  // Encontrar a mediana das datas para determinar o ciclo "normal"
+  const datasOrdenadas = datasParseadas
+    .map(t => t._date.getTime())
+    .sort((a, b) => a - b);
+  const medianaMs = datasOrdenadas.length > 0
+    ? datasOrdenadas[Math.floor(datasOrdenadas.length / 2)]
+    : Date.now();
+  const medianaDate = new Date(medianaMs);
+
+  // Marcar suspeitos: > 60 dias antes da mediana, sem parcela
+  const LIMIAR_SUSPEITO_MS = 60 * 24 * 60 * 60 * 1000;
+
   const listaTransacoes = transacoesExtraidas
-    .map((t, i) => `  ${i + 1}. ${t.data} | ${t.descricao} | R$ ${t.valor.toFixed(2)} | ${t.tipo_lancamento}${t.parcela ? ` | parcela ${t.parcela}` : ''}`)
+    .map((t, i) => {
+      const tDate = parsearData(t.data);
+      const ehSuspeito = tDate && !t.parcela && (medianaMs - tDate.getTime()) > LIMIAR_SUSPEITO_MS;
+      const flag = ehSuspeito ? ' ⚠️ SUSPEITO — data muito antiga, provável "Movimentações na fatura"' : '';
+      return `  ${i + 1}. ${t.data} | ${t.descricao} | R$ ${t.valor.toFixed(2)} | ${t.tipo_lancamento}${t.parcela ? ` | parcela ${t.parcela}` : ''}${flag}`;
+    })
     .join('\n');
+
+  const suspeitos = transacoesExtraidas.filter(t => {
+    const tDate = parsearData(t.data);
+    return tDate && !t.parcela && (medianaMs - tDate.getTime()) > LIMIAR_SUSPEITO_MS;
+  });
+
+  let blocoSuspeitos = '';
+  if (suspeitos.length > 0) {
+    const somaSuspeitos = suspeitos.reduce((s, t) => s + (t.valor || 0), 0);
+    blocoSuspeitos = `\n⚠️  ITENS MARCADOS COMO SUSPEITOS (datas muito antigas):
+${suspeitos.map(t => `   - ${t.data} | ${t.descricao} | R$ ${t.valor.toFixed(2)}`).join('\n')}
+   Soma dos suspeitos: R$ ${somaSuspeitos.toFixed(2)}
+   Esses itens provavelmente são da seção "Movimentações na fatura" (primeira página).
+   Verifique no PDF: se NÃO aparecem nas tabelas "Cartão Visa" (páginas 2+), REMOVA-OS.\n`;
+  }
 
   const divergencia = (totalCalculado - totalAPagar).toFixed(2);
 
@@ -180,37 +231,31 @@ O "Total a pagar" no PDF é R$ ${totalAPagar.toFixed(2)}.
 A soma das ${transacoesExtraidas.length} transações extraídas é R$ ${totalCalculado.toFixed(2)}.
 Há R$ ${divergencia} A MAIS do que deveria.
 ${vencimento ? `Vencimento da fatura: ${vencimento}` : ''}
-
+${blocoSuspeitos}
 Transações extraídas na primeira tentativa:
 ${listaTransacoes}
 
 ═══════════════════════════════════════════
-ERROS COMUNS QUE CAUSAM ESSA DIVERGÊNCIA
+CAUSA MAIS PROVÁVEL
 ═══════════════════════════════════════════
 
-1. ITENS DA "MOVIMENTAÇÕES NA FATURA" (primeira página) incluídos por engano:
-   → Esses itens têm datas de MESES ANTERIORES ao ciclo da fatura
-   → São pagamentos/créditos de faturas passadas, NÃO compras
-   → Aparecem na primeira página, ANTES das seções "Cartão Visa"
-   → REMOVA todos eles
+Itens da seção "Movimentações na fatura" (PRIMEIRA PÁGINA do PDF) foram incluídos.
+Esses itens NÃO são compras — são pagamentos de faturas anteriores.
+Eles têm datas de MESES PASSADOS e aparecem ANTES das seções "Cartão Visa".
 
-2. TRANSAÇÕES DUPLICADAS entre seções (quebra de página):
-   → Mesmo item aparece 2x porque a seção continua na próxima página
-   → REMOVA a duplicata
+VERIFICAÇÃO: Abra cada seção "Cartão Visa" nas páginas 2, 3, 4... e confira:
+- APENAS transações que aparecem DENTRO dessas tabelas são válidas
+- Qualquer item que NÃO esteja numa tabela "Cartão Visa" deve ser REMOVIDO
 
-3. VALORES LIDOS INCORRETAMENTE:
-   → Confusão entre dígitos similares no PDF
-   → CORRIJA o valor
+Também verifique se não falta a "Tarifa de uso do crédito emergencial" (geralmente
+na última página, com data próxima do vencimento). Tipo: "tarifa_cartao".
 
 ═══════════════════════════════════════════
 TAREFA
 ═══════════════════════════════════════════
 
-Analise o PDF novamente VISUALMENTE e retorne a lista CORRETA de transações.
-- Compare CADA transação da lista acima com o que aparece nas seções "Cartão Visa" (páginas 2+)
-- REMOVA qualquer item que NÃO esteja nas tabelas de transações das páginas 2+
-- CORRIJA valores que foram lidos incorretamente
-- A soma final DEVE ser igual ou muito próxima de R$ ${totalAPagar.toFixed(2)}
+Analise o PDF VISUALMENTE e retorne a lista CORRETA de transações.
+A soma DEVE ser igual ou muito próxima de R$ ${totalAPagar.toFixed(2)} (±R$ 0,02).
 
 Retorne APENAS um JSON válido, SEM markdown:
 {
@@ -224,7 +269,7 @@ Retorne APENAS um JSON válido, SEM markdown:
     }
   ],
   "total_a_pagar": ${totalAPagar.toFixed(2)},
-  "vencimento": "${vencimento || 'DD/MM/YYYY'}",
+  "vencimento": "DD/MM/YYYY",
   "total_encontrado": numero_de_transacoes,
   "valor_total": soma_de_todas_transacoes,
   "banco_detectado": "Mercado Pago",
@@ -233,43 +278,67 @@ Retorne APENAS um JSON válido, SEM markdown:
 }
 
 /**
- * Filtra transações com datas muito anteriores ao ciclo de faturamento.
- * No MercadoPago, a "Movimentações na fatura" (primeira página) lista pagamentos
- * de meses anteriores. A IA às vezes inclui esses itens apesar das instruções.
+ * Filtra transações com datas fora do ciclo de faturamento.
  *
- * Lógica: se a transação tem data > 60 dias antes do vencimento e NÃO tem parcela,
- * é quase certamente um item de "Movimentações na fatura" e deve ser removida.
- * Transações parceladas com datas antigas são mantidas (parcela da compra original).
+ * A "Movimentações na fatura" (primeira página) do MercadoPago lista pagamentos
+ * de meses anteriores. A IA frequentemente inclui esses itens apesar das instruções.
+ *
+ * Esta função funciona MESMO SEM vencimento disponível:
+ * - Se vencimento fornecido: usa como referência
+ * - Se não: INFERE o ciclo a partir das datas das próprias transações
+ *   (data mais recente + 7 dias como vencimento estimado)
+ *
+ * Remove transações > 60 dias antes do vencimento, exceto parceladas.
  *
  * @param {Array} transacoes
- * @param {string} vencimentoStr - formato "DD/MM/YYYY"
+ * @param {string|null} vencimentoStr - formato "DD/MM/YYYY" (opcional)
  */
 function filtrarPorDataMercadoPago(transacoes, vencimentoStr) {
-  const partes = vencimentoStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  if (!partes) return transacoes;
+  let vencimentoDate = null;
 
-  const vencimentoDate = new Date(parseInt(partes[3]), parseInt(partes[2]) - 1, parseInt(partes[1]));
-  const limiteMinimoMs = 60 * 24 * 60 * 60 * 1000; // 60 dias em ms
+  // Tentar usar vencimento fornecido
+  if (vencimentoStr) {
+    vencimentoDate = parsearData(vencimentoStr);
+    if (vencimentoDate) {
+      console.log(`[MercadoPago] Filtro data: usando vencimento ${vencimentoStr}`);
+    }
+  }
+
+  // Se não tem vencimento, inferir das datas das transações
+  if (!vencimentoDate) {
+    const datas = transacoes
+      .map(t => parsearData(t.data))
+      .filter(d => d)
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    if (datas.length >= 5) {
+      // Data mais recente + 7 dias = estimativa do vencimento
+      const maisRecente = datas[datas.length - 1];
+      vencimentoDate = new Date(maisRecente.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const vencStr = vencimentoDate.toLocaleDateString('pt-BR');
+      console.log(`[MercadoPago] Filtro data: vencimento INFERIDO ${vencStr} (última transação ${maisRecente.toLocaleDateString('pt-BR')} + 7 dias)`);
+    }
+  }
+
+  if (!vencimentoDate) {
+    console.log('[MercadoPago] Filtro data: impossível determinar ciclo — pulando');
+    return transacoes;
+  }
+
+  const LIMITE_DIAS = 60;
+  const limiteMinimoMs = LIMITE_DIAS * 24 * 60 * 60 * 1000;
 
   return transacoes.filter(t => {
-    if (!t.data || t.parcela) return true; // Sem data ou com parcela -> mantém
+    if (!t.data || t.parcela) return true; // Sem data ou com parcela → mantém
 
-    let transDate;
-    const matchDMY = t.data.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    const matchYMD = t.data.match(/(\d{4})-(\d{2})-(\d{2})/);
-
-    if (matchDMY) {
-      transDate = new Date(parseInt(matchDMY[3]), parseInt(matchDMY[2]) - 1, parseInt(matchDMY[1]));
-    } else if (matchYMD) {
-      transDate = new Date(parseInt(matchYMD[1]), parseInt(matchYMD[2]) - 1, parseInt(matchYMD[3]));
-    } else {
-      return true;
-    }
+    const transDate = parsearData(t.data);
+    if (!transDate) return true;
 
     const diffMs = vencimentoDate.getTime() - transDate.getTime();
+    const diffDias = Math.round(diffMs / 86400000);
 
     if (diffMs > limiteMinimoMs) {
-      console.log(`[MercadoPago] Removida por data fora do ciclo: "${t.descricao}" ${t.data} R$ ${t.valor} (${Math.round(diffMs / 86400000)} dias antes do vencimento)`);
+      console.log(`[MercadoPago] Removida por data fora do ciclo: "${t.descricao}" ${t.data} R$ ${t.valor} (${diffDias} dias antes do vencimento)`);
       return false;
     }
 
@@ -308,14 +377,11 @@ function posProcessar(transacoesRaw, vencimento) {
   }
 
   // 4. Filtrar por data do ciclo de faturamento
-  if (vencimento) {
-    const antesData = transacoes.length;
-    transacoes = filtrarPorDataMercadoPago(transacoes, vencimento);
-    if (transacoes.length < antesData) {
-      console.log(`[MercadoPago] Pós-proc: filtro data removeu ${antesData - transacoes.length}`);
-    }
-  } else {
-    console.log('[MercadoPago] Pós-proc: vencimento indisponível — filtro de data ignorado');
+  // Funciona mesmo sem vencimento — infere o ciclo das próprias transações
+  const antesData = transacoes.length;
+  transacoes = filtrarPorDataMercadoPago(transacoes, vencimento);
+  if (transacoes.length < antesData) {
+    console.log(`[MercadoPago] Pós-proc: filtro data removeu ${antesData - transacoes.length}`);
   }
 
   console.log(`[MercadoPago] Pós-proc: ${transacoes.length} transações finais`);
