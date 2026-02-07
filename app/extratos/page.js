@@ -386,6 +386,7 @@ export default function ExtratosPage() {
               Nenhum extrato importado ainda.
             </div>
           ) : (
+            <>
             {/* Mobile card view */}
             <div className="mobile-cards space-y-2 p-3">
               {extratosImportados.map(ext => (
@@ -488,6 +489,7 @@ export default function ExtratosPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}
