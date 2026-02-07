@@ -510,6 +510,11 @@ export default function UploadPage() {
                   <p className="text-[12px] text-emerald-700 font-medium text-center">
                     A soma das transações bate com o "Total a pagar" do PDF da fatura
                   </p>
+                  {auditoria.segunda_passagem && (
+                    <p className="text-[11px] text-emerald-600 text-center mt-1">
+                      Corrigido via verificação automática (2 passagens)
+                    </p>
+                  )}
                 </div>
               )}
 

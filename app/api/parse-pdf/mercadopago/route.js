@@ -1,10 +1,12 @@
 /**
  * Rota dedicada para processamento de faturas Mercado Pago em PDF.
  *
- * Estratégia: SEMPRE usa IA visual (texto corrompido pelo pdf-parse).
- * 1. Extrai metadados do texto (total, vencimento, cartões) para verificação
+ * Estratégia robusta com auto-verificação em 2 passagens:
+ * 1. Extrai metadados do texto (total, vencimento, cartões) via parser determinístico
  * 2. Envia PDF completo para IA visual com prompt específico MercadoPago
  * 3. Pós-processamento: filtra, deduplica, reconcilia com "Total a pagar"
+ * 4. Se reconciliação falhar (divergência > R$ 5): segunda chamada à IA com
+ *    lista das transações extraídas + divergência, pedindo correção
  *
  * Estrutura do PDF MercadoPago:
  * - Pág 1: Resumo (Total a pagar, Limite total, Movimentações na fatura)
@@ -24,7 +26,7 @@ import {
 } from '@/lib/pdf-ia-shared.js';
 
 /**
- * Constrói o prompt específico para MercadoPago.
+ * Constrói o prompt de extração (primeira passagem).
  * Descreve a estrutura exata do PDF para que a IA extraia APENAS transações reais.
  */
 function construirPrompt(cartaoNome, tipoCartao, metadados) {
@@ -60,28 +62,35 @@ PRIMEIRA PÁGINA — Resumo da fatura:
 ┌─────────────────────────────────────────┐
 │ Logo Mercado Pago                       │
 │ Nome do titular                         │
-│ "Total a pagar R$ XX.XXX,XX"  ← CAPTURAR este valor no campo total_a_pagar │
-│ Vencimento: DD/MM/YYYY                  │
-│ "Limite total R$ XX.XXX,XX"  ← IGNORAR (é limite de crédito)              │
-│ "Limite disponível R$ X.XXX,XX" ← IGNORAR                                  │
+│ "Total a pagar R$ XX.XXX,XX"  ← CAPTURAR no campo total_a_pagar │
+│ Vencimento: DD/MM/YYYY        ← CAPTURAR no campo vencimento    │
+│ "Limite total R$ XX.XXX,XX"  ← IGNORAR (é limite de crédito)    │
+│ "Limite disponível R$ X.XXX,XX" ← IGNORAR                       │
 │                                         │
-│ "Movimentações na fatura"               │
-│   → Pagamento da fatura de outubro/2025 │
-│   → Pagamento recebido...               │
-│   → (TUDO AQUI É PAGAMENTO — IGNORAR)  │
+│ ┌─ "Movimentações na fatura" ─────────┐ │
+│ │  Pagamento da fatura de out/2025    │ │
+│ │  Pagamento recebido em 20/03/2025   │ │
+│ │  Compra antiga de 16/05/2025        │ │
+│ │  (TUDO AQUI = PAGAMENTO ANTERIOR)   │ │
+│ └─────────────────────────────────────┘ │
+│ ⚠️  IGNORAR TUDO DESTA SEÇÃO            │
 └─────────────────────────────────────────┘
-⚠️  NÃO EXTRAIA NADA DA PRIMEIRA PÁGINA (exceto o "Total a pagar")
-    "Movimentações na fatura" são pagamentos de faturas anteriores, NÃO são compras.
 
-PÁGINAS SEGUINTES — Transações por cartão:
+🚫 NÃO EXTRAIA NENHUMA TRANSAÇÃO DA PRIMEIRA PÁGINA.
+   A seção "Movimentações na fatura" lista pagamentos de faturas ANTERIORES.
+   Esses itens têm datas de MESES PASSADOS (março, maio, novembro...).
+   Eles NÃO são compras do ciclo atual — são o histórico de pagamentos.
+
+PÁGINAS SEGUINTES (2, 3, 4...) — Transações por cartão:
 ┌─────────────────────────────────────────┐
 │ Cartão Visa [************5415]          │
 │ Data    │ Movimentações      │ Valor    │
 │ 17/12   │ PAYPAL *FACEBOOK   │ 154,17   │
 │ 17/12   │ APPLE.COM/BILL     │  39,90   │
 │ ...     │ ...                │ ...      │
-│ Total                         │ X.XXX,XX │ ← IGNORAR (subtotal)
+│ Total                         │ X.XXX,XX │ ← IGNORAR (subtotal da seção)
 └─────────────────────────────────────────┘
+→ EXTRAIA APENAS transações destas tabelas (páginas 2+)
 
 ATENÇÃO — CONTINUAÇÃO ENTRE PÁGINAS:
 Quando uma seção de cartão tem muitas transações, ela CONTINUA na próxima página.
@@ -95,12 +104,13 @@ REGRAS DE EXTRAÇÃO
 ═══════════════════════════════════════════
 
 1. CAPTURAR "Total a pagar R$ XX.XXX,XX" da primeira página → campo total_a_pagar
-2. PULAR toda a primeira página (não extrair transações de lá)
-3. A partir da SEGUNDA página, extrair transações de TODAS as seções "Cartão Visa"
-4. Cada transação real tem: data, descrição, valor, e opcionalmente parcela
-5. Se houver "Parcela X de Y", capture como "X/Y"
-6. Para datas sem ano (ex: "17/12"), use o ano do vencimento${vencimento ? ` (vencimento: ${vencimento})` : ''}
-7. NÃO DUPLIQUE — se a mesma transação aparece em duas seções por causa de quebra de página, inclua UMA vez só
+2. CAPTURAR "Vencimento: DD/MM/YYYY" da primeira página → campo vencimento
+3. PULAR toda a primeira página (não extrair transações de lá)
+4. A partir da SEGUNDA página, extrair transações de TODAS as seções "Cartão Visa"
+5. Cada transação real tem: data, descrição, valor, e opcionalmente parcela
+6. Se houver "Parcela X de Y", capture como "X/Y"
+7. Para datas sem ano (ex: "17/12"), use o ano do vencimento${vencimento ? ` (vencimento: ${vencimento})` : ''}
+8. NÃO DUPLIQUE — se a mesma transação aparece em duas seções por causa de quebra de página, inclua UMA vez só
 
 CLASSIFICAÇÃO tipo_lancamento (OBRIGATÓRIO para cada transação):
 - "compra": compras nacionais e internacionais (incluindo parceladas)
@@ -110,8 +120,9 @@ CLASSIFICAÇÃO tipo_lancamento (OBRIGATÓRIO para cada transação):
 - "tarifa_cartao": "Tarifa de uso do crédito emergencial", anuidade, encargos
 
 NÃO EXTRAIR (IGNORAR completamente):
-- TUDO da seção "Movimentações na fatura" (pagamentos anteriores)
+- TUDO da seção "Movimentações na fatura" (pagamentos de faturas anteriores)
 - Qualquer "Pagamento da fatura de..." ou "Pagamento recebido"
+- Itens com datas muito antigas (meses antes do ciclo de faturamento)
 - Linhas "Total" (são subtotais de seção)
 - "Limite total", "Limite disponível" (limites, não transações)
 - Cabeçalhos de seção, títulos, parcelamento, juros, CET
@@ -142,10 +153,82 @@ Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
       "tipo_lancamento": "compra"
     }
   ],
-  "total_a_pagar": valor_numerico_do_total_a_pagar,
+  "total_a_pagar": valor_numerico,
+  "vencimento": "DD/MM/YYYY",
   "total_encontrado": numero_de_transacoes,
   "valor_total": soma_de_todas_transacoes,
   "banco_detectado": "Mercado Pago"
+}`;
+}
+
+/**
+ * Constrói o prompt de correção (segunda passagem).
+ * Enviado quando a reconciliação da primeira passagem falha.
+ * Inclui a lista de transações extraídas e a divergência para que a IA
+ * possa identificar e remover falsos positivos.
+ */
+function construirPromptCorrecao(transacoesExtraidas, totalCalculado, totalAPagar, vencimento) {
+  const listaTransacoes = transacoesExtraidas
+    .map((t, i) => `  ${i + 1}. ${t.data} | ${t.descricao} | R$ ${t.valor.toFixed(2)} | ${t.tipo_lancamento}${t.parcela ? ` | parcela ${t.parcela}` : ''}`)
+    .join('\n');
+
+  const divergencia = (totalCalculado - totalAPagar).toFixed(2);
+
+  return `CORREÇÃO NECESSÁRIA — A extração anterior desta fatura Mercado Pago teve ERRO.
+
+O "Total a pagar" no PDF é R$ ${totalAPagar.toFixed(2)}.
+A soma das ${transacoesExtraidas.length} transações extraídas é R$ ${totalCalculado.toFixed(2)}.
+Há R$ ${divergencia} A MAIS do que deveria.
+${vencimento ? `Vencimento da fatura: ${vencimento}` : ''}
+
+Transações extraídas na primeira tentativa:
+${listaTransacoes}
+
+═══════════════════════════════════════════
+ERROS COMUNS QUE CAUSAM ESSA DIVERGÊNCIA
+═══════════════════════════════════════════
+
+1. ITENS DA "MOVIMENTAÇÕES NA FATURA" (primeira página) incluídos por engano:
+   → Esses itens têm datas de MESES ANTERIORES ao ciclo da fatura
+   → São pagamentos/créditos de faturas passadas, NÃO compras
+   → Aparecem na primeira página, ANTES das seções "Cartão Visa"
+   → REMOVA todos eles
+
+2. TRANSAÇÕES DUPLICADAS entre seções (quebra de página):
+   → Mesmo item aparece 2x porque a seção continua na próxima página
+   → REMOVA a duplicata
+
+3. VALORES LIDOS INCORRETAMENTE:
+   → Confusão entre dígitos similares no PDF
+   → CORRIJA o valor
+
+═══════════════════════════════════════════
+TAREFA
+═══════════════════════════════════════════
+
+Analise o PDF novamente VISUALMENTE e retorne a lista CORRETA de transações.
+- Compare CADA transação da lista acima com o que aparece nas seções "Cartão Visa" (páginas 2+)
+- REMOVA qualquer item que NÃO esteja nas tabelas de transações das páginas 2+
+- CORRIJA valores que foram lidos incorretamente
+- A soma final DEVE ser igual ou muito próxima de R$ ${totalAPagar.toFixed(2)}
+
+Retorne APENAS um JSON válido, SEM markdown:
+{
+  "transacoes": [
+    {
+      "data": "DD/MM/YYYY",
+      "descricao": "DESCRICAO",
+      "valor": 123.45,
+      "parcela": "1/3" ou null,
+      "tipo_lancamento": "compra"
+    }
+  ],
+  "total_a_pagar": ${totalAPagar.toFixed(2)},
+  "vencimento": "${vencimento || 'DD/MM/YYYY'}",
+  "total_encontrado": numero_de_transacoes,
+  "valor_total": soma_de_todas_transacoes,
+  "banco_detectado": "Mercado Pago",
+  "correcoes_aplicadas": "descrição breve das correções feitas"
 }`;
 }
 
@@ -162,19 +245,15 @@ Retorne APENAS um JSON válido, SEM markdown, SEM comentários:
  * @param {string} vencimentoStr - formato "DD/MM/YYYY"
  */
 function filtrarPorDataMercadoPago(transacoes, vencimentoStr) {
-  // Parse vencimento
   const partes = vencimentoStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
   if (!partes) return transacoes;
 
   const vencimentoDate = new Date(parseInt(partes[3]), parseInt(partes[2]) - 1, parseInt(partes[1]));
-  // O ciclo de faturamento vai de ~45 dias antes do vencimento até o vencimento
-  // Transações legítimas: de ~60 dias antes do vencimento até o dia do vencimento
   const limiteMinimoMs = 60 * 24 * 60 * 60 * 1000; // 60 dias em ms
 
   return transacoes.filter(t => {
-    if (!t.data || t.parcela) return true; // Sem data ou com parcela → mantém
+    if (!t.data || t.parcela) return true; // Sem data ou com parcela -> mantém
 
-    // Parse data da transação (DD/MM/YYYY ou YYYY-MM-DD)
     let transDate;
     const matchDMY = t.data.match(/(\d{2})\/(\d{2})\/(\d{4})/);
     const matchYMD = t.data.match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -184,12 +263,11 @@ function filtrarPorDataMercadoPago(transacoes, vencimentoStr) {
     } else if (matchYMD) {
       transDate = new Date(parseInt(matchYMD[1]), parseInt(matchYMD[2]) - 1, parseInt(matchYMD[3]));
     } else {
-      return true; // Data incompreensível → mantém
+      return true;
     }
 
     const diffMs = vencimentoDate.getTime() - transDate.getTime();
 
-    // Se transação é mais de 60 dias antes do vencimento → "Movimentações na fatura"
     if (diffMs > limiteMinimoMs) {
       console.log(`[MercadoPago] Removida por data fora do ciclo: "${t.descricao}" ${t.data} R$ ${t.valor} (${Math.round(diffMs / 86400000)} dias antes do vencimento)`);
       return false;
@@ -200,68 +278,48 @@ function filtrarPorDataMercadoPago(transacoes, vencimentoStr) {
 }
 
 /**
- * Remove quasi-duplicatas causadas por misread da IA em PDFs multi-seção.
+ * Pós-processamento padrão: normaliza, filtra, deduplica, filtra por data.
+ * Usado tanto na primeira quanto na segunda passagem.
  *
- * Problema: quando um cartão tem seções em múltiplas páginas, a IA às vezes
- * lê a mesma transação duas vezes com valores ligeiramente diferentes
- * (ex: 130,15 vs 150,15 — diferença de exatamente R$ 20).
- *
- * Estratégia: para pares de transações com mesma descrição + mesma data
- * onde os valores diferem por um múltiplo exato de R$ 10 ou R$ 20,
- * mantém apenas a que está mais próxima da média (mais provável ser correta).
- * Somente aplica para transações do mesmo dia com a mesma descrição.
+ * @param {Array} transacoesRaw - transações brutas da IA
+ * @param {string|null} vencimento - formato "DD/MM/YYYY" (da IA ou parser)
+ * @returns {Array} transações limpas
  */
-function removerQuasiDuplicatas(transacoes) {
-  // Agrupar por (descrição normalizada + data)
-  const grupos = {};
-  for (let i = 0; i < transacoes.length; i++) {
-    const t = transacoes[i];
-    const descNorm = (t.descricao || '').trim().toUpperCase();
-    const chave = `${descNorm}|${t.data || ''}`;
-    if (!grupos[chave]) grupos[chave] = [];
-    grupos[chave].push({ ...t, _idx: i });
+function posProcessar(transacoesRaw, vencimento) {
+  // 1. Normalizar tipo_lancamento
+  let transacoes = transacoesRaw.map(t => ({
+    ...t,
+    tipo_lancamento: t.tipo_lancamento || 'compra'
+  }));
+  console.log(`[MercadoPago] Pós-proc: ${transacoes.length} transações iniciais`);
+
+  // 2. Filtrar falsos positivos (subtotais, pagamentos, limites)
+  const antesFilter = transacoes.length;
+  transacoes = filtrarTransacoesIA(transacoes);
+  if (transacoes.length < antesFilter) {
+    console.log(`[MercadoPago] Pós-proc: filtro IA removeu ${antesFilter - transacoes.length}`);
   }
 
-  const indicesRemover = new Set();
+  // 3. Remover duplicatas exatas (cross-page duplication)
+  const antesDedup = transacoes.length;
+  transacoes = removerDuplicatasExatas(transacoes);
+  if (transacoes.length < antesDedup) {
+    console.log(`[MercadoPago] Pós-proc: dedup exata removeu ${antesDedup - transacoes.length}`);
+  }
 
-  for (const [chave, grupo] of Object.entries(grupos)) {
-    if (grupo.length < 2) continue;
-
-    // Para cada par no grupo, verificar se há quasi-duplicatas
-    for (let i = 0; i < grupo.length; i++) {
-      if (indicesRemover.has(grupo[i]._idx)) continue;
-
-      for (let j = i + 1; j < grupo.length; j++) {
-        if (indicesRemover.has(grupo[j]._idx)) continue;
-
-        const diff = Math.abs(grupo[i].valor - grupo[j].valor);
-
-        // Quasi-duplicata: diferença é múltiplo exato de 10 ou 20 (misread de dígito)
-        // e ambos valores estão no mesmo order of magnitude
-        const ehMultiplo10 = diff > 0 && diff <= 50 && (Math.abs(diff % 10) < 0.02 || Math.abs(diff % 10 - 10) < 0.02);
-        const menorValor = Math.min(grupo[i].valor, grupo[j].valor);
-        const maiorValor = Math.max(grupo[i].valor, grupo[j].valor);
-
-        // A diferença deve ser significativa relativa ao valor (>5% sugere dígito diferente)
-        // mas não muito grande (max 30% do menor valor)
-        const percentDiff = (diff / menorValor) * 100;
-
-        if (ehMultiplo10 && percentDiff >= 5 && percentDiff <= 30) {
-          // Remove o de menor valor (mais provável ser o misread — dígito faltando)
-          const idxRemover = grupo[i].valor < grupo[j].valor ? grupo[i]._idx : grupo[j]._idx;
-          const removida = grupo[i].valor < grupo[j].valor ? grupo[i] : grupo[j];
-          const mantida = grupo[i].valor < grupo[j].valor ? grupo[j] : grupo[i];
-
-          indicesRemover.add(idxRemover);
-          console.log(`[MercadoPago] Quasi-duplicata removida: "${removida.descricao}" ${removida.data} R$ ${removida.valor} (mantido R$ ${mantida.valor}, diff=${diff.toFixed(2)})`);
-        }
-      }
+  // 4. Filtrar por data do ciclo de faturamento
+  if (vencimento) {
+    const antesData = transacoes.length;
+    transacoes = filtrarPorDataMercadoPago(transacoes, vencimento);
+    if (transacoes.length < antesData) {
+      console.log(`[MercadoPago] Pós-proc: filtro data removeu ${antesData - transacoes.length}`);
     }
+  } else {
+    console.log('[MercadoPago] Pós-proc: vencimento indisponível — filtro de data ignorado');
   }
 
-  if (indicesRemover.size === 0) return transacoes;
-
-  return transacoes.filter((_, i) => !indicesRemover.has(i));
+  console.log(`[MercadoPago] Pós-proc: ${transacoes.length} transações finais`);
+  return transacoes;
 }
 
 /**
@@ -301,6 +359,11 @@ export async function POST(request) {
  * Pode ser chamada pelo dispatcher principal (parse-pdf/route.js)
  * ou diretamente pelo POST handler acima.
  *
+ * Fluxo:
+ *   Passagem 1 → Pós-processamento → Reconciliação
+ *   Se divergente (>R$ 5): Passagem 2 (correção) → Pós-processamento → Reconciliação
+ *   Retorna o melhor resultado
+ *
  * @param {Buffer} buffer - conteúdo do PDF
  * @param {string} cartaoNome - nome do cartão selecionado
  * @param {string} tipoCartao - tipo do cartão (credito/debito)
@@ -308,6 +371,7 @@ export async function POST(request) {
  */
 export async function processarMercadoPago(buffer, cartaoNome, tipoCartao) {
   try {
+    // ===== PASSO 1: Metadados via parser determinístico =====
     let metadadosParser = null;
 
     try {
@@ -321,15 +385,14 @@ export async function processarMercadoPago(buffer, cartaoNome, tipoCartao) {
 
       if (resultado?.metadados_verificacao) {
         metadadosParser = resultado.metadados_verificacao;
-        console.log(`[MercadoPago] Metadados: total=${metadadosParser.total_fatura_pdf}, vencimento=${metadadosParser.vencimento}, cartões=${metadadosParser.cartoes?.join(',')}`);
+        console.log(`[MercadoPago] Metadados parser: total=${metadadosParser.total_fatura_pdf}, vencimento=${metadadosParser.vencimento}, cartões=${metadadosParser.cartoes?.join(',')}`);
       }
     } catch (parseError) {
       console.error('[MercadoPago] Erro no pdf-parse:', parseError.message);
-      // Continua sem metadados — a IA visual extrairá tudo
     }
 
-    // ===== PASSO 2: IA Visual =====
-    console.log('[MercadoPago] Iniciando análise visual com IA...');
+    // ===== PASSO 2: Primeira passagem — IA Visual =====
+    console.log('[MercadoPago] === PASSAGEM 1: Extração inicial ===');
 
     const prompt = construirPrompt(cartaoNome, tipoCartao, metadadosParser);
 
@@ -349,7 +412,7 @@ export async function processarMercadoPago(buffer, cartaoNome, tipoCartao) {
       result = parsearRespostaIA(responseText);
     } catch (parseError) {
       console.error('[MercadoPago] Erro ao parsear JSON da IA:', parseError.message);
-      console.error('[MercadoPago] Resposta recebida:', responseText.substring(0, 500));
+      console.error('[MercadoPago] Resposta:', responseText.substring(0, 500));
       return NextResponse.json(
         { error: 'IA retornou resposta inválida (JSON parse error)' },
         { status: 500 }
@@ -363,70 +426,110 @@ export async function processarMercadoPago(buffer, cartaoNome, tipoCartao) {
       );
     }
 
-    console.log(`[MercadoPago] IA retornou ${result.transacoes.length} transações`);
+    console.log(`[MercadoPago] PASS 1: IA retornou ${result.transacoes.length} transações`);
 
-    // ===== PASSO 4: Pós-processamento =====
+    // Vencimento: prioridade IA > parser
+    const vencimento = result.vencimento || metadadosParser?.vencimento || null;
+    console.log(`[MercadoPago] Vencimento: ${vencimento} (fonte: ${result.vencimento ? 'IA' : metadadosParser?.vencimento ? 'parser' : 'indisponível'})`);
 
-    // 4a. Normalizar tipo_lancamento
-    let transacoes = result.transacoes.map(t => ({
-      ...t,
-      tipo_lancamento: t.tipo_lancamento || 'compra'
-    }));
+    // Total a pagar: prioridade IA > parser
+    const totalAPagarIA = result.total_a_pagar ? parseFloat(result.total_a_pagar) : null;
+    const totalFaturaPDFParser = metadadosParser?.total_fatura_pdf || null;
+    const totalAPagar = (totalAPagarIA && totalAPagarIA > 0) ? totalAPagarIA : totalFaturaPDFParser;
 
-    // 4b. Filtrar transações falsas (subtotais, pagamentos, limites)
-    transacoes = filtrarTransacoesIA(transacoes);
-
-    // 4c. Remover duplicatas exatas (cross-page duplication)
-    const antesDedup = transacoes.length;
-    transacoes = removerDuplicatasExatas(transacoes);
-    if (transacoes.length < antesDedup) {
-      console.log(`[MercadoPago] Dedup exata removeu ${antesDedup - transacoes.length} duplicata(s): ${antesDedup} → ${transacoes.length}`);
+    if (totalAPagar) {
+      console.log(`[MercadoPago] Total a pagar: R$ ${totalAPagar.toFixed(2)} (fonte: ${totalAPagarIA ? 'IA' : 'parser'})`);
     }
 
-    // 4d. Filtrar transações de "Movimentações na fatura" por data
-    // Transações com datas muito anteriores ao ciclo de faturamento e sem parcela
-    // são quase certamente itens do resumo de pagamentos (primeira página)
-    const vencimento = metadadosParser?.vencimento || null;
-    if (vencimento) {
-      const antesDataFilter = transacoes.length;
-      transacoes = filtrarPorDataMercadoPago(transacoes, vencimento);
-      if (transacoes.length < antesDataFilter) {
-        console.log(`[MercadoPago] Filtro de data removeu ${antesDataFilter - transacoes.length} transação(ões) fora do ciclo`);
+    // ===== PASSO 4: Pós-processamento =====
+    let transacoes = posProcessar(result.transacoes, vencimento);
+
+    // ===== PASSO 5: Auditoria e reconciliação =====
+    let auditoria = construirAuditoriaIA(transacoes, metadadosParser, totalAPagarIA);
+
+    console.log(`[MercadoPago] PASS 1 resultado: ${transacoes.length} transações, calculado=R$ ${auditoria.total_fatura_calculado}, PDF=R$ ${auditoria.total_fatura_pdf}`);
+    if (auditoria.reconciliado !== null) {
+      console.log(`[MercadoPago] PASS 1 reconciliação: ${auditoria.reconciliado ? 'OK' : `DIVERGENTE (${auditoria.diferenca_centavos} centavos)`}`);
+    }
+
+    // ===== PASSO 6: Segunda passagem (se necessário) =====
+    // Só executa se: há total de referência, reconciliação falhou, divergência > R$ 5
+    const LIMIAR_DIVERGENCIA_CENTAVOS = 500;
+    const precisaCorrecao = totalAPagar &&
+      auditoria.reconciliado === false &&
+      Math.abs(auditoria.diferenca_centavos) > LIMIAR_DIVERGENCIA_CENTAVOS;
+
+    if (precisaCorrecao) {
+      console.log(`[MercadoPago] === PASSAGEM 2: Correção (divergência ${auditoria.diferenca_centavos} centavos) ===`);
+
+      const promptCorrecao = construirPromptCorrecao(
+        transacoes,
+        auditoria.total_fatura_calculado,
+        totalAPagar,
+        vencimento
+      );
+
+      try {
+        const responseCorrecao = await chamarAnthropicComPDF(buffer, promptCorrecao);
+        const resultCorrecao = parsearRespostaIA(responseCorrecao);
+
+        if (resultCorrecao.transacoes && Array.isArray(resultCorrecao.transacoes) && resultCorrecao.transacoes.length > 0) {
+          console.log(`[MercadoPago] PASS 2: IA retornou ${resultCorrecao.transacoes.length} transações`);
+
+          // Vencimento da correção (pode vir atualizado)
+          const vencCorrecao = resultCorrecao.vencimento || vencimento;
+
+          // Pós-processar resultado da correção
+          const transacoesCorrigidas = posProcessar(resultCorrecao.transacoes, vencCorrecao);
+
+          // Total a pagar da correção
+          const totalAPagarCorrecao = resultCorrecao.total_a_pagar ? parseFloat(resultCorrecao.total_a_pagar) : totalAPagarIA;
+
+          // Auditoria da correção
+          const auditoriaCorrigida = construirAuditoriaIA(transacoesCorrigidas, metadadosParser, totalAPagarCorrecao);
+
+          console.log(`[MercadoPago] PASS 2 resultado: ${transacoesCorrigidas.length} transações, calculado=R$ ${auditoriaCorrigida.total_fatura_calculado}, PDF=R$ ${auditoriaCorrigida.total_fatura_pdf}`);
+          if (auditoriaCorrigida.reconciliado !== null) {
+            console.log(`[MercadoPago] PASS 2 reconciliação: ${auditoriaCorrigida.reconciliado ? 'OK' : `DIVERGENTE (${auditoriaCorrigida.diferenca_centavos} centavos)`}`);
+          }
+
+          // Usar correção se é melhor que a primeira passagem
+          const divPass1 = Math.abs(auditoria.diferenca_centavos || Infinity);
+          const divPass2 = Math.abs(auditoriaCorrigida.diferenca_centavos || Infinity);
+
+          if (auditoriaCorrigida.reconciliado === true || divPass2 < divPass1) {
+            console.log(`[MercadoPago] PASS 2 ACEITA: divergência ${divPass1} → ${divPass2} centavos`);
+            transacoes = transacoesCorrigidas;
+            auditoria = {
+              ...auditoriaCorrigida,
+              segunda_passagem: true,
+              correcoes: resultCorrecao.correcoes_aplicadas || null,
+            };
+          } else {
+            console.log(`[MercadoPago] PASS 2 REJEITADA (não melhorou). Usando PASS 1.`);
+          }
+        } else {
+          console.log('[MercadoPago] PASS 2: resposta inválida. Usando PASS 1.');
+        }
+      } catch (correcaoError) {
+        console.error(`[MercadoPago] PASS 2 falhou: ${correcaoError.message}. Usando PASS 1.`);
       }
     }
 
-    // 4e. Remover quasi-duplicatas (AI misread cross-page)
-    // MercadoPago: a IA às vezes lê o mesmo valor com dígitos trocados
-    // (ex: 130,15 e 150,15 para a mesma transação vista em seções diferentes)
-    const antesQuasiDedup = transacoes.length;
-    transacoes = removerQuasiDuplicatas(transacoes);
-    if (transacoes.length < antesQuasiDedup) {
-      console.log(`[MercadoPago] Quasi-dedup removeu ${antesQuasiDedup - transacoes.length} provável(is) misread(s)`);
-    }
+    // ===== PASSO 7: Resultado final =====
+    const metodo = auditoria.segunda_passagem ? 'IA_PDF_HIBRIDO_V2' : 'IA_PDF_HIBRIDO';
 
-    // 4f. Capturar total_a_pagar da IA
-    const totalAPagarIA = result.total_a_pagar ? parseFloat(result.total_a_pagar) : null;
-    if (totalAPagarIA) {
-      console.log(`[MercadoPago] IA retornou total_a_pagar: R$ ${totalAPagarIA.toFixed(2)}`);
-    }
-
-    // ===== PASSO 5: Auditoria =====
-    const auditoria = construirAuditoriaIA(transacoes, metadadosParser, totalAPagarIA);
-
-    console.log(`[MercadoPago] Final: ${transacoes.length} transações, calculado: R$ ${auditoria.total_fatura_calculado}, PDF: R$ ${auditoria.total_fatura_pdf}`);
-    if (auditoria.reconciliado !== null) {
-      console.log(`[MercadoPago] Reconciliação: ${auditoria.reconciliado ? 'OK ✓' : `DIVERGENTE (${auditoria.diferenca_centavos} centavos)`}`);
-    }
+    console.log(`[MercadoPago] FINAL: ${transacoes.length} transações via ${metodo}, reconciliado=${auditoria.reconciliado}`);
 
     return NextResponse.json({
       success: true,
       transacoes,
       total_encontrado: transacoes.length,
-      valor_total: result.valor_total || transacoes
-        .filter(t => t.tipo_lancamento === 'compra')
+      valor_total: transacoes
+        .filter(t => (t.tipo_lancamento || 'compra') === 'compra')
         .reduce((sum, t) => sum + (t.valor || 0), 0),
       banco_detectado: 'Mercado Pago',
-      metodo: 'IA_PDF_HIBRIDO',
+      metodo,
       auditoria,
     });
 
