@@ -462,6 +462,10 @@ CATEGORIAS EMPRESARIAIS (incluir: true):
 - Viagem Trabalho: APENAS se for claramente viagem a trabalho comprovada
 - Outros PJ: Outros gastos claramente empresariais
 
+CATEGORIAS ESPECIAIS (incluir: false):
+- Estorno: Estornos, creditos na fatura, devolucoes, reembolsos, cashback, bonificacoes
+- Pagamento Antecipado: Pagamentos antecipados de fatura
+
 CATEGORIAS PESSOAIS (incluir: false):
 - Pessoal: Compras pessoais, restaurantes, entretenimento, streaming, jogos
 - Tarifas Cartao: Anuidades, seguros, taxas bancarias
