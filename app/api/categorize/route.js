@@ -8,6 +8,19 @@ import { NextResponse } from 'next/server';
 function categorizarDeterministico(descricao) {
   const desc = descricao.toUpperCase().trim();
 
+  // ===== ESTORNOS E CRÉDITOS — VERIFICAR ANTES DE TUDO =====
+  // Precisa rodar antes das regras de AliExpress/fornecedores para que
+  // "ALIEXPRESS - Estorno" seja classificado como Estorno, nao como Fornecedor.
+  if (desc.includes('ESTORNO') || desc.includes('CREDITO NA FATURA') || desc.includes('CREDITO FATURA') ||
+      desc.includes('DEVOLUCAO') || desc.includes('REEMBOLSO') || desc.includes('CASHBACK') || desc.includes('BONIFICACAO')) {
+    return { categoria: 'Estorno', incluir: false, confianca: 'alta' };
+  }
+
+  // ===== PAGAMENTO ANTECIPADO — VERIFICAR ANTES DE FORNECEDORES =====
+  if (desc.includes('PAGAMENTO ANTECIPADO') || desc.includes('PGTO ANTECIPADO') || desc.includes('PAG ANTECIPADO')) {
+    return { categoria: 'Pagamento Antecipado', incluir: false, confianca: 'alta' };
+  }
+
   // ===== REGRA FIXA: AliExpress = SEMPRE Pagamento Fornecedores =====
   // Usuario confirmou que NUNCA compra pessoal no AliExpress
   if (desc.includes('ALIEXPRESS') || desc.includes('ALIPAY') || desc.includes('ALIBABA') || desc.includes('ALI EXPRESS')) {
@@ -154,16 +167,7 @@ function categorizarDeterministico(descricao) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
 
-  // ===== ESTORNOS E CRÉDITOS (EXCLUIR do split PJ/PF) =====
-  if (desc.includes('ESTORNO') || desc.includes('CREDITO NA FATURA') || desc.includes('CREDITO FATURA') ||
-      desc.includes('DEVOLUCAO') || desc.includes('REEMBOLSO') || desc.includes('CASHBACK') || desc.includes('BONIFICACAO')) {
-    return { categoria: 'Estorno', incluir: false, confianca: 'alta' };
-  }
-
-  // ===== PAGAMENTO ANTECIPADO (EXCLUIR do split PJ/PF) =====
-  if (desc.includes('PAGAMENTO ANTECIPADO') || desc.includes('PGTO ANTECIPADO') || desc.includes('PAG ANTECIPADO')) {
-    return { categoria: 'Pagamento Antecipado', incluir: false, confianca: 'alta' };
-  }
+  // (Estornos e pagamento antecipado ja verificados no topo da funcao)
 
   // ===== IOF - gasto PJ (imposto sobre operações financeiras) =====
   if (desc.includes('IOF') || desc.includes('IMPOSTO OPERACOES FINANCEIRAS')) {

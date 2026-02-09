@@ -62,6 +62,7 @@ export async function POST(request) {
             pipelineResult?.transacoes?.length >= MIN_TRANSACOES_PARSER) {
 
           console.log(`[parse-pdf] Parser determinístico bem-sucedido: ${pipelineResult.transacoes.length} transações`);
+          console.log(`[parse-pdf] Auditoria: reconciliado=${pipelineResult.auditoria?.reconciliado}, total_fatura_pdf=${pipelineResult.auditoria?.total_fatura_pdf}, diff=${pipelineResult.auditoria?.diferenca_centavos}`);
 
           return NextResponse.json({
             success: true,
@@ -251,7 +252,11 @@ export async function POST(request) {
     transacoes = pipeline.postAICorrections(transacoes, metadadosParser);
 
     // Correção genérica de estornos mal-classificados
-    const totalFaturaPDF = metadadosParser?.total_fatura_pdf || null;
+    // Prioridade para total_fatura_pdf: metadados do parser > resposta da IA > null
+    const totalFaturaPDF = metadadosParser?.total_fatura_pdf
+      || (result.total_a_pagar ? parseFloat(result.total_a_pagar) : null)
+      || null;
+    console.log(`[parse-pdf] total_fatura_pdf: ${totalFaturaPDF} (metadados: ${metadadosParser?.total_fatura_pdf}, IA: ${result.total_a_pagar})`);
     transacoes = corrigirEstornosIA(transacoes, totalFaturaPDF);
 
     // Calcular auditoria
