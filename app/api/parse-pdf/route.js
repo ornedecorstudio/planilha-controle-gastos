@@ -3,8 +3,9 @@ import { NextResponse } from 'next/server';
 import { detectarBanco, getPipeline } from '@/lib/pdf-parsers/index.js';
 import { filtrarTransacoesIA, corrigirEstornosIA, calcularAuditoria } from '@/lib/pdf-parsers/utils.js';
 
-const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
+const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_MAX_TOKENS = 128000;
 const MIN_TRANSACOES_PARSER = 3;
 
 export async function POST(request) {
@@ -139,7 +140,7 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         model: ANTHROPIC_MODEL,
-        max_tokens: 32768,
+        max_tokens: ANTHROPIC_MAX_TOKENS,
         messages: [
           {
             role: 'user',
