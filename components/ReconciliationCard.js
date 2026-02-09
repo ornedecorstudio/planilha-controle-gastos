@@ -100,6 +100,34 @@ export default function ReconciliationCard({ auditoria }) {
           </div>
         )}
 
+        {(auditoria.saldo_anterior ?? 0) > 0 && (
+          <div className="flex justify-between text-neutral-500">
+            <span>+ Saldo anterior</span>
+            <span>R$ {fmt(auditoria.saldo_anterior)}</span>
+          </div>
+        )}
+
+        {(auditoria.juros ?? 0) > 0 && (
+          <div className="flex justify-between text-neutral-500">
+            <span>+ Juros anterior</span>
+            <span>R$ {fmt(auditoria.juros)}</span>
+          </div>
+        )}
+
+        {(auditoria.multas ?? 0) > 0 && (
+          <div className="flex justify-between text-neutral-500">
+            <span>+ Multas atraso</span>
+            <span>R$ {fmt(auditoria.multas)}</span>
+          </div>
+        )}
+
+        {(auditoria.pagamento_fatura ?? 0) > 0 && (
+          <div className="flex justify-between text-emerald-600">
+            <span>- Pgto fatura</span>
+            <span>- R$ {fmt(auditoria.pagamento_fatura)}</span>
+          </div>
+        )}
+
         {(auditoria.estornos ?? 0) > 0 && (
           <div className="flex justify-between text-emerald-600">
             <span>- Estornos</span>

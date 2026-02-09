@@ -259,8 +259,8 @@ export async function POST(request) {
     console.log(`[parse-pdf] total_fatura_pdf: ${totalFaturaPDF} (metadados: ${metadadosParser?.total_fatura_pdf}, IA: ${result.total_a_pagar})`);
     transacoes = corrigirEstornosIA(transacoes, totalFaturaPDF);
 
-    // Calcular auditoria
-    const auditoria = calcularAuditoria(transacoes, totalFaturaPDF);
+    // Calcular auditoria (com resumo da fatura para Mercado Pago — fórmula completa do ciclo)
+    const auditoria = calcularAuditoria(transacoes, totalFaturaPDF, metadadosParser?.resumo_fatura);
     if (metadadosParser?.subtotais) {
       auditoria.subtotais_pdf = metadadosParser.subtotais;
     }
