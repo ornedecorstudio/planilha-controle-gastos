@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import MonthPicker from '@/components/MonthPicker'
 import DropZone from '@/components/DropZone'
 import UploadButton from '@/components/UploadButton'
+import ReconciliationCard, { ReconciliationBadge } from '@/components/ReconciliationCard'
 
 const CATEGORY_COLORS = {
   'Marketing Digital': 'bg-blue-50 text-blue-700',
@@ -469,6 +470,7 @@ export default function UploadPage() {
                     IA Híbrido
                   </span>
                 )}
+                <ReconciliationBadge auditoria={auditoria} />
               </div>
               <div className="flex items-center gap-3 text-[13px] font-medium">
                 <div className="flex items-center gap-1.5">
@@ -485,62 +487,7 @@ export default function UploadPage() {
             <button onClick={() => setStep(1)} className="text-neutral-500 hover:text-neutral-900 text-[13px]">← Voltar</button>
           </div>
 
-          {auditoria && (
-            <div className="bg-white rounded-lg border border-neutral-200 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[13px] font-medium text-neutral-900">Reconciliação da fatura</h3>
-                {auditoria.reconciliado === true && (
-                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] rounded font-medium">Reconciliado</span>
-                )}
-                {auditoria.reconciliado === false && (
-                  <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[11px] rounded font-medium">Divergência: {auditoria.diferenca_centavos} centavos</span>
-                )}
-                {auditoria.reconciliado === null && (
-                  <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-500 text-[11px] rounded font-medium">Não verificável</span>
-                )}
-              </div>
-              <div className="space-y-1.5 text-[13px] font-mono">
-                <div className="flex justify-between text-neutral-700">
-                  <span>Total compras (gross)</span>
-                  <span>R$ {auditoria.total_compras?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                </div>
-                {auditoria.iof > 0 && (
-                  <div className="flex justify-between text-neutral-500">
-                    <span>+ IOF</span>
-                    <span>R$ {auditoria.iof?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                  </div>
-                )}
-                {auditoria.tarifa_cartao > 0 && (
-                  <div className="flex justify-between text-neutral-500">
-                    <span>+ Tarifas cartão</span>
-                    <span>R$ {auditoria.tarifa_cartao?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                  </div>
-                )}
-                {auditoria.estornos > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <span>- Estornos</span>
-                    <span>- R$ {auditoria.estornos?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                  </div>
-                )}
-                {auditoria.pagamento_antecipado > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <span>- Pgto antecipado</span>
-                    <span>- R$ {auditoria.pagamento_antecipado?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                  </div>
-                )}
-                <div className="border-t border-neutral-200 pt-1.5 flex justify-between font-medium text-neutral-900">
-                  <span>= Total calculado</span>
-                  <span>R$ {auditoria.total_fatura_calculado?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                </div>
-                {auditoria.total_fatura_pdf !== null && (
-                  <div className="flex justify-between text-neutral-500">
-                    <span>Total no PDF</span>
-                    <span>R$ {auditoria.total_fatura_pdf?.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {auditoria && <ReconciliationCard auditoria={auditoria} />}
 
           <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
             <div className="overflow-x-auto">
