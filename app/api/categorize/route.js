@@ -369,6 +369,10 @@ export async function POST(request) {
         resultados[i] = { categoria: 'Tarifas Cartao', incluir: false };
         continue;
       }
+      if (t.tipo_lancamento === 'pagamento_fatura') {
+        resultados[i] = { categoria: 'Pagamento Fatura', incluir: false };
+        continue;
+      }
 
       const resultado = categorizarDeterministico(t.descricao);
 

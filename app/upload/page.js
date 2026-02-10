@@ -22,6 +22,7 @@ const CATEGORY_COLORS = {
   'IOF': 'bg-red-50 text-red-700',
   'Estorno': 'bg-emerald-50 text-emerald-700',
   'Pagamento Antecipado': 'bg-sky-50 text-sky-700',
+  'Pagamento Fatura': 'bg-sky-50 text-sky-700',
   'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Pessoal': 'bg-rose-50 text-rose-600',
