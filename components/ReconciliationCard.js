@@ -135,13 +135,6 @@ export default function ReconciliationCard({ auditoria }) {
           </div>
         )}
 
-        {(auditoria.pagamento_antecipado ?? 0) > 0 && (
-          <div className="flex justify-between text-emerald-600">
-            <span>- Pgto antecipado</span>
-            <span>- R$ {fmt(auditoria.pagamento_antecipado)}</span>
-          </div>
-        )}
-
         <div className="border-t border-neutral-200 pt-1.5 flex justify-between font-medium text-neutral-900">
           <span>= Total calculado</span>
           <span>R$ {fmt(auditoria.total_fatura_calculado)}</span>

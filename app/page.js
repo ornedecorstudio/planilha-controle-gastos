@@ -5,13 +5,13 @@ import Link from 'next/link'
 import { ArrowUpRight, CreditCard, FileText, BarChart3, RefreshCw, ArrowRight, Building2, User } from 'lucide-react'
 import MonthPicker from '@/components/MonthPicker'
 
-// Cores para categorias PJ
+// Cores para categorias PJ — cada uma com cor bem distinta
 const CATEGORY_COLORS_PJ = {
   'Marketing Digital': 'bg-blue-50 text-blue-700',
   'Pagamento Fornecedores': 'bg-violet-50 text-violet-700',
   'Logística': 'bg-cyan-50 text-cyan-700',
   'Taxas Checkout': 'bg-amber-50 text-amber-700',
-  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700',
+  'Compra de Câmbio': 'bg-lime-50 text-lime-700',
   'IA e Automação': 'bg-indigo-50 text-indigo-700',
   'Design/Ferramentas': 'bg-purple-50 text-purple-700',
   'Telefonia': 'bg-pink-50 text-pink-700',
@@ -38,6 +38,9 @@ const CATEGORY_COLORS_PF = {
   'Pessoal': 'bg-rose-50 text-rose-600',
   'Outros PF': 'bg-neutral-100 text-neutral-600',
 }
+
+// Categorias que são créditos/não-gastos (não devem aparecer em "Gastos PF/PJ")
+const CATEGORIAS_CREDITO = ['Pagamento Fatura', 'Estorno', 'Tarifas Cartão']
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
@@ -90,6 +93,9 @@ export default function DashboardPage() {
         for (const t of transacoes) {
           const valor = parseFloat(t.valor) || 0
           const cat = t.categoria || 'Outros'
+
+          // Excluir créditos/não-gastos do dashboard de categorias
+          if (CATEGORIAS_CREDITO.includes(cat)) continue
 
           if (t.tipo === 'PJ') {
             categoriasPJMap[cat] = (categoriasPJMap[cat] || 0) + valor

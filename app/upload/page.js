@@ -8,11 +8,12 @@ import UploadButton from '@/components/UploadButton'
 import ReconciliationCard, { ReconciliationBadge } from '@/components/ReconciliationCard'
 
 const CATEGORY_COLORS = {
+  // PJ — cada categoria com cor bem distinta
   'Marketing Digital': 'bg-blue-50 text-blue-700',
   'Pagamento Fornecedores': 'bg-violet-50 text-violet-700',
   'Logística': 'bg-cyan-50 text-cyan-700',
   'Taxas Checkout': 'bg-amber-50 text-amber-700',
-  'Compra de Câmbio': 'bg-emerald-50 text-emerald-700',
+  'Compra de Câmbio': 'bg-lime-50 text-lime-700',
   'IA e Automação': 'bg-indigo-50 text-indigo-700',
   'Design/Ferramentas': 'bg-purple-50 text-purple-700',
   'Telefonia': 'bg-pink-50 text-pink-700',
@@ -20,16 +21,18 @@ const CATEGORY_COLORS = {
   'Gestão': 'bg-teal-50 text-teal-700',
   'Viagem Trabalho': 'bg-sky-50 text-sky-700',
   'IOF': 'bg-red-50 text-red-700',
+  // Créditos / não-gastos
   'Estorno': 'bg-emerald-50 text-emerald-700',
-  'Pagamento Antecipado': 'bg-sky-50 text-sky-700',
-  'Pagamento Fatura': 'bg-sky-50 text-sky-700',
+  'Pagamento Fatura': 'bg-emerald-50 text-emerald-700',
+  'Tarifas Cartão': 'bg-stone-50 text-stone-600',
+  // PJ outros
   'Outros PJ': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
   'Outros': 'bg-neutral-100 text-neutral-600 border border-neutral-200',
+  // PF
   'Pessoal': 'bg-rose-50 text-rose-600',
-  'Tarifas Cartão': 'bg-rose-50 text-rose-600',
-  'Entretenimento': 'bg-rose-50 text-rose-600',
-  'Transporte Pessoal': 'bg-rose-50 text-rose-600',
-  'Compras Pessoais': 'bg-rose-50 text-rose-600',
+  'Entretenimento': 'bg-fuchsia-50 text-fuchsia-600',
+  'Transporte Pessoal': 'bg-amber-50 text-amber-600',
+  'Compras Pessoais': 'bg-purple-50 text-purple-600',
 }
 
 export default function UploadPage() {
@@ -343,7 +346,7 @@ export default function UploadPage() {
     setTransactions(prev => prev.map(t => {
       if (t.id === id) {
         const updated = { ...t, [field]: value }
-        if (field === 'categoria' && ['Pessoal', 'Tarifas Cartao', 'Entretenimento', 'Transporte Pessoal', 'Compras Pessoais'].includes(value)) {
+        if (field === 'categoria' && ['Pessoal', 'Tarifas Cartão', 'Entretenimento', 'Transporte Pessoal', 'Compras Pessoais'].includes(value)) {
           updated.tipo = 'PF'
         }
         return updated

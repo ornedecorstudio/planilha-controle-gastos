@@ -121,7 +121,7 @@ export async function POST(request) {
       .reduce((acc, t) => acc + t.valor, 0)
 
     const pagamentoAntecipado = transacoesParaInserir
-      .filter(t => t.tipo_lancamento === 'pagamento_antecipado')
+      .filter(t => t.tipo_lancamento === 'pagamento_antecipado' || t.tipo_lancamento === 'pagamento_fatura')
       .reduce((acc, t) => acc + t.valor, 0)
 
     const tarifaCartao = transacoesParaInserir
@@ -242,7 +242,7 @@ async function recalcularTotaisFatura(supabase, fatura_id) {
     .reduce((acc, t) => acc + parseFloat(t.valor), 0)
 
   const pagamentoAntecipado = todas
-    .filter(t => t.tipo_lancamento === 'pagamento_antecipado')
+    .filter(t => t.tipo_lancamento === 'pagamento_antecipado' || t.tipo_lancamento === 'pagamento_fatura')
     .reduce((acc, t) => acc + parseFloat(t.valor), 0)
 
   const tarifaCartao = todas

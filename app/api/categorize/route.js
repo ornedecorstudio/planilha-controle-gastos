@@ -18,7 +18,7 @@ function categorizarDeterministico(descricao) {
 
   // ===== PAGAMENTO ANTECIPADO — VERIFICAR ANTES DE FORNECEDORES =====
   if (desc.includes('PAGAMENTO ANTECIPADO') || desc.includes('PGTO ANTECIPADO') || desc.includes('PAG ANTECIPADO')) {
-    return { categoria: 'Pagamento Antecipado', incluir: false, confianca: 'alta' };
+    return { categoria: 'Pagamento Fatura', incluir: false, confianca: 'alta' };
   }
 
   // ===== REGRA FIXA: AliExpress = SEMPRE Pagamento Fornecedores =====
@@ -370,11 +370,11 @@ export async function POST(request) {
         continue;
       }
       if (t.tipo_lancamento === 'pagamento_antecipado') {
-        resultados[i] = { categoria: 'Pagamento Antecipado', incluir: false };
+        resultados[i] = { categoria: 'Pagamento Fatura', incluir: false };
         continue;
       }
       if (t.tipo_lancamento === 'tarifa_cartao') {
-        resultados[i] = { categoria: 'Tarifas Cartao', incluir: false };
+        resultados[i] = { categoria: 'Tarifas Cartão', incluir: false };
         continue;
       }
       if (t.tipo_lancamento === 'pagamento_fatura') {
