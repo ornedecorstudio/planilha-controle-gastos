@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { categorizarML } from '@/lib/ml/categorizer';
 
 // ============================================================
 // CATEGORIZACAO DETERMINISTICA AMPLIADA
@@ -414,28 +415,66 @@ export async function POST(request) {
       }
     }
 
-    // ===== PASSO 2: Se ha casos duvidosos, usar IA =====
-    if (duvidosos.length > 0 && process.env.ANTHROPIC_API_KEY) {
-      try {
-        const respostasIA = await categorizarComIA(duvidosos, tipo_cartao);
+    // ===== PASSO 2: Se ha casos duvidosos, usar ML local -> Claude API =====
+    let mlResolvidos = 0;
+    let iaResolvidos = 0;
 
-        for (let j = 0; j < duvidosos.length; j++) {
-          const idx = duvidosos[j].index;
-          if (respostasIA[j]) {
-            resultados[idx] = respostasIA[j];
+    if (duvidosos.length > 0) {
+      // Passo 2a: Tentar modelo ML local primeiro
+      const aindaDuvidosos = [];
+
+      for (const d of duvidosos) {
+        try {
+          const mlResult = await categorizarML(d.descricao, d.valor, d.banco);
+
+          if (mlResult && mlResult.confianca >= 0.8) {
+            // Alta confiança: aceitar ML automaticamente
+            const incluir = mlResult.tipo === 'PJ';
+            resultados[d.index] = { categoria: mlResult.categoria, incluir };
+            mlResolvidos++;
+          } else if (mlResult && mlResult.confianca >= 0.5) {
+            // Média confiança: aceitar ML mas marcar para revisão
+            const incluir = mlResult.tipo === 'PJ';
+            resultados[d.index] = { categoria: mlResult.categoria, incluir };
+            mlResolvidos++;
           } else {
-            resultados[idx] = { categoria: 'Outros', incluir: false };
+            // Baixa confiança ou ML indisponível: enviar para Claude API
+            aindaDuvidosos.push(d);
           }
-        }
-      } catch (iaError) {
-        console.error('Erro na IA, usando fallback:', iaError);
-        for (const d of duvidosos) {
-          resultados[d.index] = { categoria: 'Outros', incluir: false };
+        } catch (mlError) {
+          console.error('[ML] Erro na categorização:', mlError.message);
+          aindaDuvidosos.push(d);
         }
       }
-    } else {
-      for (const d of duvidosos) {
-        resultados[d.index] = { categoria: 'Outros', incluir: false };
+
+      if (mlResolvidos > 0) {
+        console.log(`[categorize] ML local resolveu ${mlResolvidos}/${duvidosos.length} duvidosos`);
+      }
+
+      // Passo 2b: Restantes vão para Claude API
+      if (aindaDuvidosos.length > 0 && process.env.ANTHROPIC_API_KEY) {
+        try {
+          const respostasIA = await categorizarComIA(aindaDuvidosos, tipo_cartao);
+
+          for (let j = 0; j < aindaDuvidosos.length; j++) {
+            const idx = aindaDuvidosos[j].index;
+            if (respostasIA[j]) {
+              resultados[idx] = respostasIA[j];
+              iaResolvidos++;
+            } else {
+              resultados[idx] = { categoria: 'Outros', incluir: false };
+            }
+          }
+        } catch (iaError) {
+          console.error('Erro na IA, usando fallback:', iaError);
+          for (const d of aindaDuvidosos) {
+            resultados[d.index] = { categoria: 'Outros', incluir: false };
+          }
+        }
+      } else if (aindaDuvidosos.length > 0) {
+        for (const d of aindaDuvidosos) {
+          resultados[d.index] = { categoria: 'Outros', incluir: false };
+        }
       }
     }
 
@@ -444,7 +483,8 @@ export async function POST(request) {
       stats: {
         total: transacoes.length,
         automaticos: transacoes.length - duvidosos.length,
-        analisadosIA: duvidosos.length
+        mlLocal: mlResolvidos,
+        analisadosIA: iaResolvidos
       }
     });
 

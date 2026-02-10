@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, CreditCard, FileText, BarChart3, RefreshCw, ArrowRight, Building2, User } from 'lucide-react'
 import MonthPicker from '@/components/MonthPicker'
+import MLInsightsCard from '@/components/MLInsightsCard'
 
 // Cores para categorias PJ — cada uma com cor bem distinta
 const CATEGORY_COLORS_PJ = {
@@ -281,6 +282,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ML Insights */}
+      <MLInsightsCard />
 
       {/* Categorias */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

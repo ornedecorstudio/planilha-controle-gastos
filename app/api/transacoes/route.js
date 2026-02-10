@@ -1,6 +1,22 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 
+/**
+ * Resolve o valor do campo 'metodo' respeitando a regra:
+ * - Nunca rebaixar 'manual' para 'automatico'
+ * - Se novoMetodo='manual', sempre prevalece
+ * - Se existente já era 'manual', mantém 'manual'
+ *
+ * @param {string} novoMetodo - valor enviado pelo client ('manual'|'automatico')
+ * @param {string} [existenteMetodo] - valor atual no banco (para updates)
+ * @returns {string} 'manual' ou 'automatico'
+ */
+function resolveMetodo(novoMetodo, existenteMetodo) {
+  if (novoMetodo === 'manual') return 'manual'
+  if (existenteMetodo === 'manual') return 'manual'
+  return 'automatico'
+}
+
 // GET - Lista transações de uma fatura ou todas para dashboard
 export async function GET(request) {
   try {
@@ -83,9 +99,14 @@ export async function POST(request) {
       valor: parseFloat(t.valor) || 0,
       categoria: t.categoria || 'Outros',
       tipo: t.tipo || 'PJ',
-      metodo: t.metodo || 'automatico',
+      metodo: resolveMetodo(t.metodo),
       tipo_lancamento: t.tipo_lancamento || 'compra'
     }))
+
+    const manuais = transacoesParaInserir.filter(t => t.metodo === 'manual').length
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[transacoes POST] ${transacoesParaInserir.length} transacoes, ${manuais} marcadas como manual`)
+    }
 
     // Insere transacoes
     const { data, error } = await supabase

@@ -52,6 +52,7 @@ export default function UploadPage() {
   const [duplicateWarning, setDuplicateWarning] = useState(null)
   const [metodoProcessamento, setMetodoProcessamento] = useState('')
   const [auditoria, setAuditoria] = useState(null)
+  const [manualReview, setManualReview] = useState(false)
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -317,6 +318,10 @@ export default function UploadPage() {
         }
       }
 
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[upload] Salvando fatura: manualReview=${manualReview}`)
+      }
+
       const transacoesRes = await fetch('/api/transacoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -324,7 +329,8 @@ export default function UploadPage() {
           fatura_id: faturaResult.fatura.id,
           transacoes: transactions.map(t => ({
             data: t.data, descricao: t.descricao, valor: t.valor,
-            categoria: t.categoria, tipo: t.tipo, metodo: 'automatico',
+            categoria: t.categoria, tipo: t.tipo,
+            metodo: (manualReview || t._editadoManualmente) ? 'manual' : 'automatico',
             tipo_lancamento: t.tipo_lancamento || 'compra'
           })),
           auditoria: auditoria || null
@@ -345,7 +351,7 @@ export default function UploadPage() {
   const updateTransaction = (id, field, value) => {
     setTransactions(prev => prev.map(t => {
       if (t.id === id) {
-        const updated = { ...t, [field]: value }
+        const updated = { ...t, [field]: value, _editadoManualmente: true }
         if (field === 'categoria' && ['Pessoal', 'Tarifas Cartão', 'Entretenimento', 'Transporte Pessoal', 'Compras Pessoais'].includes(value)) {
           updated.tipo = 'PF'
         }
@@ -531,15 +537,35 @@ export default function UploadPage() {
             </div>
           </div>
 
-          <button onClick={handleSalvar} disabled={saving}
-            className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 text-[13px] font-medium transition-colors">
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                Salvando...
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <label className="flex items-start gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={manualReview}
+                onChange={(e) => setManualReview(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+              />
+              <span className="select-none">
+                <span className="text-[13px] font-medium text-neutral-700 group-hover:text-neutral-900">
+                  Revisão manual
+                </span>
+                <span className="block text-[11px] text-neutral-400 mt-0.5 leading-tight">
+                  Marca todas as transações como MANUAL para treinamento do ML.
+                  Use quando você revisou e confirmou cada categoria.
+                </span>
               </span>
-            ) : 'Salvar fatura'}
-          </button>
+            </label>
+
+            <button onClick={handleSalvar} disabled={saving}
+              className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 disabled:opacity-50 text-[13px] font-medium transition-colors whitespace-nowrap">
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                  Salvando...
+                </span>
+              ) : 'Salvar fatura'}
+            </button>
+          </div>
         </div>
       )}
     </div>
