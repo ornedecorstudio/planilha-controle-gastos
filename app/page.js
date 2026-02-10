@@ -9,7 +9,7 @@ import MonthPicker from '@/components/MonthPicker'
 const CATEGORY_COLORS_PJ = {
   'Marketing Digital': 'bg-blue-50 text-blue-700',
   'Pagamento Fornecedores': 'bg-violet-50 text-violet-700',
-  'Logística': 'bg-cyan-50 text-cyan-700',
+  'Fretes': 'bg-cyan-50 text-cyan-700',
   'Taxas Checkout': 'bg-amber-50 text-amber-700',
   'Compra de Câmbio': 'bg-lime-50 text-lime-700',
   'IA e Automação': 'bg-indigo-50 text-indigo-700',

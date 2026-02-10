@@ -12,7 +12,7 @@ const CATEGORY_COLORS = {
   'Reembolso Sócio': 'bg-blue-50 text-blue-700',
   'Funcionários': 'bg-violet-50 text-violet-700',
   'Impostos': 'bg-rose-50 text-rose-700',
-  'Logística': 'bg-cyan-50 text-cyan-700',
+  'Fretes': 'bg-cyan-50 text-cyan-700',
   'Marketing Digital': 'bg-indigo-50 text-indigo-700',
   'Fornecedores': 'bg-purple-50 text-purple-700',
   'Aluguel': 'bg-orange-50 text-orange-700',

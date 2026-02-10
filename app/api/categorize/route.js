@@ -116,10 +116,14 @@ function categorizarDeterministico(descricao) {
     if (desc.includes(termo)) return { categoria: 'Gestao', incluir: true, confianca: 'alta' };
   }
 
-  // ===== LOGÍSTICA (PJ) =====
-  // LOGGI é transportadora/logística, não fornecedor de produtos
-  if (desc.includes('LOGGI') || desc.includes('LOGGI TECNOLOGIA')) {
-    return { categoria: 'Logística', incluir: true, confianca: 'alta' };
+  // ===== FRETES (PJ) =====
+  // Transportadoras e serviços de envio/logística
+  const fretesTermos = [
+    'LOGGI', 'CORREIOS', 'JADLOG', 'SEQUOIA', 'TOTAL EXPRESS',
+    'MELHOR ENVIO', 'KANGU', 'MANDAE', 'AZUL CARGO'
+  ];
+  for (const termo of fretesTermos) {
+    if (desc.includes(termo)) return { categoria: 'Fretes', incluir: true, confianca: 'alta' };
   }
 
   // ===== PICPAY - Pagamentos a Fornecedores (PJ) =====
@@ -134,8 +138,7 @@ function categorizarDeterministico(descricao) {
 
   // ===== PAGAMENTO FORNECEDORES (PJ) =====
   const fornecedoresTermos = [
-    'ROGER FULFILLMENT', 'CORREIOS', 'JADLOG', 'SEQUOIA',
-    'TOTAL EXPRESS', 'MELHOR ENVIO', 'KANGU', 'MANDAE'
+    'ROGER FULFILLMENT'
   ];
   for (const termo of fornecedoresTermos) {
     if (desc.includes(termo)) return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
@@ -357,6 +360,25 @@ export async function POST(request) {
     for (let i = 0; i < transacoes.length; i++) {
       const t = transacoes[i];
 
+      // ===== MERCHANT OVERRIDE =====
+      // Descrições de merchants conhecidos NUNCA devem ser sobrescritas por tipo_lancamento da IA.
+      // Ex: ALIEXPRESS.COM com tipo_lancamento 'pagamento_fatura' (erro da IA) deve ser 'Pagamento Fornecedores'.
+      // Preserva IOF e Estorno legítimos (IOF de compra internacional, estorno de AliExpress).
+      const descUpper = (t.descricao || '').toUpperCase().trim();
+      const isMerchantConhecido = (
+        descUpper.includes('ALIEXPRESS') || descUpper.includes('ALIPAY') ||
+        descUpper.includes('ALIBABA') || descUpper.includes('ALI EXPRESS') ||
+        descUpper.startsWith('DL*ALIEXPRESS') || descUpper.includes('DL*ALI')
+      );
+
+      if (isMerchantConhecido && t.tipo_lancamento !== 'iof' && t.tipo_lancamento !== 'estorno') {
+        const resultado = categorizarDeterministico(t.descricao);
+        if (resultado.categoria !== null) {
+          resultados[i] = { categoria: resultado.categoria, incluir: resultado.incluir };
+          continue;
+        }
+      }
+
       // Forçar categoria por tipo_lancamento (vindo do parser/IA)
       if (t.tipo_lancamento && t.tipo_lancamento !== 'compra') {
         console.log(`[categorize] tipo_lancamento detectado: "${t.tipo_lancamento}" para "${t.descricao}"`);
@@ -464,7 +486,8 @@ PADROES COMUNS EM FATURAS BRASILEIRAS:
 
 CATEGORIAS EMPRESARIAIS (incluir: true):
 - Marketing Digital: Facebook Ads, Google Ads, Meta Ads, campanhas pagas
-- Pagamento Fornecedores: AliExpress (SEMPRE), Alibaba, fornecedores de produtos, logistica
+- Pagamento Fornecedores: AliExpress (SEMPRE), Alibaba, fornecedores de produtos
+- Fretes: Correios, Jadlog, Loggi, Melhor Envio, Kangu, Mandae, Sequoia, transportadoras
 - Taxas Checkout: Yampi, CartPanda, Shopify, NuvemShop, plataformas de venda
 - IA e Automacao: OpenAI, ChatGPT, Claude, ferramentas de automacao, cloud (AWS, GCP)
 - Design/Ferramentas: Canva, Adobe, Figma, ferramentas de design, hospedagem web

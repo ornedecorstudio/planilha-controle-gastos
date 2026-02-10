@@ -12,7 +12,7 @@ import UploadButton from '@/components/UploadButton'
 const CATEGORIA_EXTRATO_COLORS = {
   'Reembolso Sócio': 'bg-blue-100 text-blue-800',
   'Aporte Sócio': 'bg-emerald-100 text-emerald-800',
-  'Logística': 'bg-blue-100 text-blue-800',
+  'Fretes': 'bg-blue-100 text-blue-800',
   'Impostos': 'bg-red-100 text-red-800',
   'Contabilidade': 'bg-purple-100 text-purple-800',
   'Câmbio': 'bg-green-100 text-green-800',
@@ -28,7 +28,7 @@ const CATEGORIA_EXTRATO_COLORS = {
 const CATEGORIAS_EXTRATO = [
   'Reembolso Sócio',
   'Aporte Sócio',
-  'Logística',
+  'Fretes',
   'Impostos',
   'Contabilidade',
   'Câmbio',
