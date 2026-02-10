@@ -141,8 +141,13 @@ function categorizarDeterministico(descricao) {
     if (desc.includes(termo)) return { categoria: 'Pagamento Fornecedores', incluir: true, confianca: 'alta' };
   }
 
-  // ===== TARIFAS E TAXAS BANCARIAS (EXCLUIR) =====
+  // ===== PAGAMENTO DE FATURA =====
+  // "Pagamento da fatura de dezembro/2025" (Mercado Pago) → Pagamento Fatura
+  // Outros pagamentos genéricos de fatura → Pessoal
   if (desc.includes('PAGAMENTO') && desc.includes('FATURA')) {
+    if (desc.includes('PAGAMENTO DA FATURA DE')) {
+      return { categoria: 'Pagamento Fatura', incluir: false, confianca: 'alta' };
+    }
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
   if (desc === 'PAGAMENTO DE FATURA' || desc.startsWith('PAGAMENTO DE FATURA') || desc.startsWith('PAGAMENTO FATURA')) {
@@ -353,6 +358,9 @@ export async function POST(request) {
       const t = transacoes[i];
 
       // Forçar categoria por tipo_lancamento (vindo do parser/IA)
+      if (t.tipo_lancamento && t.tipo_lancamento !== 'compra') {
+        console.log(`[categorize] tipo_lancamento detectado: "${t.tipo_lancamento}" para "${t.descricao}"`);
+      }
       if (t.tipo_lancamento === 'iof') {
         resultados[i] = { categoria: 'IOF', incluir: true };
         continue;
